@@ -31,6 +31,7 @@
 #include "dh/util/gl/window.hpp"
 #include "dh/sne/params.hpp"
 #include "dh/vis/components/trackball_input_task.hpp"
+#include "dh/vis/components/selection_render_task.hpp" //
 
 namespace dh::vis {
   class Renderer {
@@ -69,6 +70,7 @@ namespace dh::vis {
 
     // Subcomponents
     std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
+    std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
 
   public:
     bool isInit() { return _isInit; }

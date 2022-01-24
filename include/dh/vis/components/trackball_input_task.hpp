@@ -38,6 +38,7 @@ namespace dh::vis {
     void mouseScrollInput(double xScroll, double yScroll) override;
 
     glm::mat4 matrix() const { return _matrix; }
+    glm::vec2 getMousePos() { return _mousePosState; }
 
   private:
     // State

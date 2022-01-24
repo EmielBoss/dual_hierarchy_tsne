@@ -71,7 +71,7 @@ namespace dh::vis {
     // Record previous position as last recorded position
     _mousePosStatePrev = _mousePosState;
 
-    // Recorcd current position in [-1, 1]
+    // Record current position in [-1, 1]
     _mousePosState = glm::vec2(xPos, yPos)
                    / glm::vec2(window->size());    
     _mousePosState = 2.0f * _mousePosState - 1.0f;

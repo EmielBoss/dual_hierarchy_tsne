@@ -69,8 +69,12 @@ namespace dh::vis {
 
     // Add input tasks; first to capture ESC key and shut down application,
     // second as 3D rendertasks need trackball input to generate transformation matrix
+    // third for brush selecting datapoints
     InputQueue::instance().emplace(vis::EscInputTask());
     _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
+
+    // _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask());
+
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
     glCreateFramebuffers(1, &_fboHandle);
@@ -178,6 +182,10 @@ namespace dh::vis {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
+
+    // _selectionRenderTask->setCursorPosition(_trackballInputTask->getMousePos());
+
+    // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {
       ptr->render(model_view, proj, _labelsHandle);
     }

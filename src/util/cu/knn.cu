@@ -102,9 +102,9 @@ namespace dh::util {
     // Inverted file flat list gives accurate results at significant memory overhead.
     faiss::gpu::GpuIndexIVFFlat faissIndex(
       &faissResources,
-      _d, 
+      _d,
       nLists,
-      faiss::METRIC_L2, 
+      faiss::METRIC_L2,
       faissConfig
     );
     faissIndex.setNumProbes(nProbe);
