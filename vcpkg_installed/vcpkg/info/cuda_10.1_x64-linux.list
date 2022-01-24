@@ -1,5 +1,0 @@
-x64-linux/
-x64-linux/share/
-x64-linux/share/cuda/
-x64-linux/share/cuda/vcpkg_abi_info.txt
-x64-linux/share/cuda/vcpkg_find_cuda.cmake

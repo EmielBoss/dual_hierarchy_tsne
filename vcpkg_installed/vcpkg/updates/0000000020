@@ -1,8 +1,0 @@
-Package: lapack-reference
-Feature: blas-select
-Depends: lapack-reference
-Architecture: x64-linux
-Multi-Arch: same
-Description: Use external optimized BLAS
-Type: Port
-Status: install ok installed

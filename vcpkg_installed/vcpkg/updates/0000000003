@@ -1,9 +1,0 @@
-Package: cuda
-Version: 10.1
-Port-Version: 7
-Architecture: x64-linux
-Multi-Arch: same
-Abi: 2200a0bce91e6f4b3016ce741795c8e5a3373a42a0233cb284b939e2e44e3b12
-Description: A parallel computing platform and programming model
-Type: Port
-Status: install ok installed

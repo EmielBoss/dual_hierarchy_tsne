@@ -3,6 +3,7 @@ build*/
 .DS_Store
 .vscode/
 imgui.ini
+vcpkg_installed/
 
 # Prevent accidental inclusion of huge .bin files during development. Happened once too often
 *.bin
