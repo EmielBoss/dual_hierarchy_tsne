@@ -1,0 +1,10 @@
+Package: lapack
+Version: 3
+Port-Version: 1
+Depends: lapack-reference
+Architecture: x64-linux
+Multi-Arch: same
+Abi: c21dff2cfeebe037cd303ffddd778690b2240f5477e402e24fdfa19b9db8bee0
+Description: Metapackage for packages which provide LAPACK
+Type: Port
+Status: install ok installed

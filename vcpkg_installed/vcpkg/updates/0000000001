@@ -1,0 +1,9 @@
+Package: date
+Version: 3.0.0
+Port-Version: 2
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 0f5c3e346d9148597c501796e0d0da7c29e3d0318a6be5a94d8aa3edc0a719af
+Description: A date and time library based on the C++17 <chrono> header
+Type: Port
+Status: install ok installed

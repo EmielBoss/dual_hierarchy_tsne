@@ -1,0 +1,4 @@
+x64-linux/
+x64-linux/share/
+x64-linux/share/pthread/
+x64-linux/share/pthread/vcpkg_abi_info.txt

@@ -1,0 +1,11 @@
+Package: lapack-reference
+Version: 3.8.0
+Port-Version: 6
+Depends: vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 03f0fa345f358fa1ff9bd8dd8839007fff6b108d39022af338e58df8357bb22a
+Description: LAPACK — Linear Algebra PACKage
+Type: Port
+Default-Features: blas-select
+Status: install ok half-installed

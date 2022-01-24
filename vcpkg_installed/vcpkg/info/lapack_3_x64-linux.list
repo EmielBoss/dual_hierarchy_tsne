@@ -1,0 +1,4 @@
+x64-linux/
+x64-linux/share/
+x64-linux/share/lapack/
+x64-linux/share/lapack/vcpkg_abi_info.txt

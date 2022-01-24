@@ -1,0 +1,9 @@
+Package: pthreads
+Version: 3.0.0
+Port-Version: 10
+Architecture: x64-linux
+Multi-Arch: same
+Abi: e50a62afbf3e146dbc387fb922daa2ed2b32d60b1dfea3de0a64b9541505bf55
+Description: pthreads for windows
+Type: Port
+Status: install ok half-installed

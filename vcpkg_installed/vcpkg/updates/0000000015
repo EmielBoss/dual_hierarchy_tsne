@@ -1,0 +1,9 @@
+Package: blas
+Version: 1
+Depends: openblas
+Architecture: x64-linux
+Multi-Arch: same
+Abi: f0f2531afc95b3a047aca06d3c78a3bc975f9c65845bd4a25648825e4689400f
+Description: Metapackage for packages which provide BLAS
+Type: Port
+Status: install ok installed
