@@ -62,7 +62,7 @@ namespace dh::vis {
   }
 
   void TrackballInputTask::mousePosInput(double xPos, double yPos) {
-    _cursorPositionPixel = {xPos, yPos};
+    _cursorPositionPixel = glm::vec2(xPos, yPos);
     
     // Obtain current window handle for window size
     util::GLWindow* window = util::GLWindow::currentWindow();
@@ -74,8 +74,7 @@ namespace dh::vis {
     _mousePosStatePrev = _mousePosState;
 
     // Record current position in [-1, 1]
-    _mousePosState = glm::vec2(xPos, yPos)
-                   / glm::vec2(window->size());    
+    _mousePosState = _cursorPositionPixel / glm::vec2(window->size());
     _mousePosState = 2.0f * _mousePosState - 1.0f;
   }
 

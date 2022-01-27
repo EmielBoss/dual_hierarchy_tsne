@@ -73,7 +73,7 @@ namespace dh::vis {
     InputQueue::instance().emplace(vis::EscInputTask());
     _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
 
-    _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, -1));
+    _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 1));
 
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer

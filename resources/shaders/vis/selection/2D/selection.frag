@@ -37,10 +37,7 @@ void main() {
   vec2 difference = abs(gl_FragCoord.xy - cursorPosition);
   float distance = pow(difference.x, 2) + pow(difference.y, 2);
 
-  bool inside = distance < selectionRadius - 10;
-  bool outside = distance > selectionRadius + 10;
-
-  if(inside || outside) {
+  if(distance > selectionRadius + 10 || distance < selectionRadius - 10) { // Fragment lies outside the circle radius
     discard;
   } else {
     colorOut = vec4(0.0, 0.0, 0.0, 1.0);
