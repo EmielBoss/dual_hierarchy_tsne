@@ -44,9 +44,16 @@ namespace dh::vis {
   };
   
   SelectionRenderTask::SelectionRenderTask()
-  : RenderTask(-1, "SelectionRenderTask"), 
+  : RenderTask(), _isInit(false) {
+    // ...
+  }
+
+  SelectionRenderTask::SelectionRenderTask(sne::Params params, int priority)
+  : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
-    _selectionRadius(5) {
+    _params(params),
+    _selectionRadius(100),
+    _cursorPosition({0.0, 0.0}) {
 
     // Initialize shader program
     {
@@ -63,30 +70,32 @@ namespace dh::vis {
       glAssert();
     }
 
-    _isInit = true;
-  }
-
-  SelectionRenderTask::SelectionRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority)
-  : RenderTask(priority, "SelectionRenderTask"), 
-    _isInit(false),
-    _minimization(minimization),
-    _params(params),
-    _selectionRadius(5) {
-    // Enable/disable render task by default
-    enable = DH_VIS_EMBEDDING_INIT;
-
-    // Initialize shader program
+    // Initialize buffer objects
     {
-      // if constexpr (D == 2) {
-      //   _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/2D/selection.vert"));
-      //   _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/2D/selection.frag"));
-      // } else if constexpr (D == 3) {
-      //   _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/3D/selection.vert"));
-      //   _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/3D/selection.frag"));
-      // }
-      _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/2D/selection.vert"));
-      _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/2D/selection.frag"));
-      _program.link();
+      glCreateBuffers(_buffers.size(), _buffers.data());
+      glNamedBufferStorage(_buffers(BufferType::ePositions), quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eElements), quadElements.size() * sizeof(uint), quadElements.data(), 0);
+      glAssert();
+    }
+
+    // Initialize vertex array object
+    {
+      glCreateVertexArrays(1, &_vaoHandle);
+
+      // Specify vertex buffers and element buffer
+      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));   // Quad positions
+      glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                            // Quad elements/indices
+
+      // Embedding positions advance once for the full set of vertices drawn
+      glVertexArrayBindingDivisor(_vaoHandle, 0, 0);
+      
+      // Specify vertex array data organization
+      glVertexArrayAttribFormat(_vaoHandle, 0, 2, GL_FLOAT, GL_FALSE, 0);
+
+      // Other VAO properties
+      glEnableVertexArrayAttrib(_vaoHandle, 0);
+      glVertexArrayAttribBinding(_vaoHandle, 0, 0);
+      
       glAssert();
     }
 
@@ -118,10 +127,6 @@ namespace dh::vis {
     // Set uniforms
     _program.template uniform<float, 2>("cursorPosition", _cursorPosition);
     _program.template uniform<int>("selectionRadius", _selectionRadius);
-
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);

@@ -62,6 +62,8 @@ namespace dh::vis {
   }
 
   void TrackballInputTask::mousePosInput(double xPos, double yPos) {
+    _cursorPositionPixel = {xPos, yPos};
+    
     // Obtain current window handle for window size
     util::GLWindow* window = util::GLWindow::currentWindow();
     if (!window) {

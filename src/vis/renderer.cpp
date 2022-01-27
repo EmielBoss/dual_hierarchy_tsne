@@ -73,7 +73,7 @@ namespace dh::vis {
     InputQueue::instance().emplace(vis::EscInputTask());
     _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
 
-    // _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask());
+    _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, -1));
 
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
@@ -183,7 +183,7 @@ namespace dh::vis {
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
 
-    // _selectionRenderTask->setCursorPosition(_trackballInputTask->getMousePos());
+    _selectionRenderTask->setCursorPosition(_trackballInputTask->getCursorPixelPos());
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {
@@ -249,5 +249,6 @@ namespace dh::vis {
     if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

@@ -24,35 +24,17 @@
 
 #version 460 core
 
-struct Bounds {
-  vec2 min;
-  vec2 max;
-  vec2 range;
-  vec2 invRange;
-};
-
-// 10 distinguishable label colors
-const vec3 colors[10] = vec3[10](
-  vec3(16, 78, 139),
-  vec3(139, 90, 43),
-  vec3(138, 43, 226),
-  vec3(0, 128, 0),
-  vec3(255, 150, 0),
-  vec3(204, 40, 40),
-  vec3(131, 139, 131),
-  vec3(0, 205, 0),
-  // vec3(235, 235, 235),
-  vec3(20, 20, 20),
-  vec3(0, 150, 255)
-);
-
 // Input attributes
-// layout(location = 0) in vec2 positionIn;
+layout(location = 0) in vec2 positionIn;
 
 // Uniform locations
 layout(location = 0) uniform vec2 cursorPosition;
 layout(location = 1) uniform int selectionRadius;
 
 void main() {
-  gl_Position = vec4(1.0, 1.0, 1.0, 1.0);
+  if(cursorPosition.x == selectionRadius) {
+    return;
+  }
+
+  gl_Position = vec4(positionIn.x, positionIn.y, 1.0, 1.0);
 }

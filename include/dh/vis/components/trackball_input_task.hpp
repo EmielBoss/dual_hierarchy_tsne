@@ -38,13 +38,14 @@ namespace dh::vis {
     void mouseScrollInput(double xScroll, double yScroll) override;
 
     glm::mat4 matrix() const { return _matrix; }
-    glm::vec2 getMousePos() { return _mousePosState; }
+    glm::vec2 getCursorPixelPos() const { return _cursorPositionPixel; }
 
   private:
     // State
     bool _mouseTrackState;
     float _mouseScrollState;
-    glm::vec2 _mousePosState;
+    glm::vec2 _cursorPositionPixel; // Integer window-absolute pixel coordinates
+    glm::vec2 _mousePosState;  // Float window-relative pixel coordinates (i.e. between 0 and 1)
     glm::vec2 _mousePosStatePrev;
     glm::mat4 _lookatState;
     glm::mat4 _matrix;

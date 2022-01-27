@@ -37,7 +37,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority);
+    SelectionRenderTask(sne::Params params, int priority);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -61,7 +61,6 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::MinimizationBuffers _minimization;
     sne::Params _params;
     glm::vec2 _cursorPosition;
 
@@ -76,16 +75,16 @@ namespace dh::vis {
   public:
     bool isInit() const { return _isInit; }
 
-    void setCursorPosition(glm::vec2 position) { _cursorPosition = position; }
+    void setCursorPosition(const glm::vec2& position) { _cursorPosition = position; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
       using std::swap;
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
-      swap(a._minimization, b._minimization);
       swap(a._params, b._params);
       swap(a._selectionRadius, b._selectionRadius);
+      swap(a._cursorPosition, b._cursorPosition);
       swap(a._buffers, b._buffers);
       swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);

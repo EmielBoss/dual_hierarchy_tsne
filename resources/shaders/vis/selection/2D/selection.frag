@@ -24,6 +24,8 @@
 
 #version 460 core
 
+layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
+
 // Output attributes
 layout(location = 0) out vec4 colorOut;
 
@@ -32,9 +34,16 @@ layout(location = 0) uniform vec2 cursorPosition;
 layout(location = 1) uniform int selectionRadius;
 
 void main() {
-  if (abs(gl_FragCoord.x - cursorPosition.x) + abs(gl_FragCoord.y - cursorPosition.y) != selectionRadius) {
+  vec2 difference = abs(gl_FragCoord.xy - cursorPosition);
+  float distance = pow(difference.x, 2) + pow(difference.y, 2);
+
+  bool inside = distance < selectionRadius - 10;
+  bool outside = distance > selectionRadius + 10;
+
+  if(inside || outside) {
     discard;
+  } else {
+    colorOut = vec4(0.0, 0.0, 0.0, 1.0);
   }
 
-  colorOut = vec4(0.0, 0.0, 0.0, 1.0);
 }
