@@ -50,7 +50,7 @@ shared vec2 min_reduction[halfGroupSize];
 shared vec2 max_reduction[halfGroupSize];
 
 void main() {
-  const uint lid = gl_LocalInvocationIndex.x;
+  const uint lid = gl_LocalInvocationIndex.x; // Mistake?
   vec2 min_local = vec2(1e38);
   vec2 max_local = vec2(-1e38);
 
@@ -88,7 +88,7 @@ void main() {
   }
   barrier();
   
-  // perform store in starting unit
+  // Perform store in starting unit
   if (lid < 1) {
     min_local = min(min_reduction[0], min_reduction[1]);
     max_local = max(max_reduction[0], max_reduction[1]);

@@ -36,6 +36,7 @@ namespace dh::vis {
   public:
     // Constr
     InputTask(int priority = -1);
+    InputTask(int priority, const std::string& name);
 
     // Override and implement an input task to be handled by the renderer
     virtual void process() = 0;
@@ -48,10 +49,12 @@ namespace dh::vis {
 
   private:
     int _priority;
+    std::string _name;
 
   public:
     // Getters
     int priority() const { return _priority; }
+    std::string name() const { return _name; }
 
     // Compare function for sortable insertion
     friend bool cmpInputTask(const std::shared_ptr<InputTask>& a, const std::shared_ptr<InputTask>& b);
@@ -60,6 +63,7 @@ namespace dh::vis {
     friend void swap(InputTask& a, InputTask& b) noexcept {
       using std::swap;
       swap(a._priority, b._priority);
+      swap(a._name, b._name);
     }
   };
 
@@ -107,6 +111,18 @@ namespace dh::vis {
         return;
       }
       _queue.insert(ptr);
+    }
+
+    // Find an input task for its given name, or return nullptr otherwise
+    Pointer find(const std::string& name) {
+      if (!_isInit) {
+        return nullptr;
+      }
+      auto iter = std::find_if(_queue.begin(), _queue.end(), [name](auto& ptr) { return ptr->name() == name;});
+      if (iter == _queue.end()) {
+        return nullptr;
+      }
+      return *iter;
     }
 
     // Erase input task from queue, assuming a pointer for access is available

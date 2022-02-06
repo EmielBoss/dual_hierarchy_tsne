@@ -32,10 +32,11 @@
 
 namespace dh::vis {
   TrackballInputTask::TrackballInputTask()
-  : InputTask(1),
-    _mouseTrackState(false), 
+  : InputTask(1, "TrackballInputTask"),
+    _mouseClickedState(false),
+    _mouseTrackState(false),
     _mouseScrollState(3.0f), 
-    _mousePosState(0.0f), 
+    _mousePosState(-1.0f),
     _mousePosStatePrev(0.0f),
     _lookatState(1),
     _matrix(1),
@@ -62,7 +63,7 @@ namespace dh::vis {
   }
 
   void TrackballInputTask::mousePosInput(double xPos, double yPos) {
-    _cursorPositionPixel = glm::vec2(xPos, yPos);
+    _mousePosPixel = glm::vec2(xPos, yPos);
     
     // Obtain current window handle for window size
     util::GLWindow* window = util::GLWindow::currentWindow();
@@ -74,14 +75,20 @@ namespace dh::vis {
     _mousePosStatePrev = _mousePosState;
 
     // Record current position in [-1, 1]
-    _mousePosState = _cursorPositionPixel / glm::vec2(window->size());
+    _mousePosState = glm::vec2(xPos, yPos) / glm::vec2(window->size());
     _mousePosState = 2.0f * _mousePosState - 1.0f;
   }
 
-  void TrackballInputTask::mouseButtonInput(int button, int action) {
+    void TrackballInputTask::mouseButtonInput(int button, int action) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-      _mouseTrackState = true;
+      _mouseClickedState = true;
     } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+      _mouseClickedState = false;
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+      _mouseTrackState = true;
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
       _mouseTrackState = false;
     }
   }

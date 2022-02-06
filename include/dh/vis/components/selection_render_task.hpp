@@ -62,7 +62,7 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
-    glm::vec2 _cursorPosition;
+    glm::vec2 _mousePosition;
 
     // ImGui state
     int _selectionRadius;
@@ -75,7 +75,8 @@ namespace dh::vis {
   public:
     bool isInit() const { return _isInit; }
 
-    void setCursorPosition(const glm::vec2& position) { _cursorPosition = position; }
+    int getSelectionRadius() { return _selectionRadius; }
+    void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -84,7 +85,7 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._selectionRadius, b._selectionRadius);
-      swap(a._cursorPosition, b._cursorPosition);
+      swap(a._mousePosition, b._mousePosition);
       swap(a._buffers, b._buffers);
       swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);

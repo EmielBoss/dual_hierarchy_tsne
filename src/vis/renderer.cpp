@@ -75,7 +75,6 @@ namespace dh::vis {
 
     _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 1));
 
-
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
     glCreateFramebuffers(1, &_fboHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboColorTextureHandle);
@@ -179,11 +178,11 @@ namespace dh::vis {
 
     // Specify blending
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
 
-    _selectionRenderTask->setCursorPosition(_trackballInputTask->getCursorPixelPos());
+    _selectionRenderTask->setMousePosition(_trackballInputTask->getMousePixelPos());
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {

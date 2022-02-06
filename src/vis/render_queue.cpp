@@ -35,7 +35,7 @@ namespace dh::vis {
     if (_isInit) {
       return;
     }
-    _queue = std::set<std::shared_ptr<RenderTask>, decltype(&cmpRenderTask)>(cmpRenderTask);
+    _queue = Queue(cmpRenderTask);
     _isInit = true;
   }
 

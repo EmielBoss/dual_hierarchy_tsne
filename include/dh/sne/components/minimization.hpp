@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <memory>
 #include "dh/types.hpp"
 #include "dh/util/aligned.hpp"
 #include "dh/util/enum.hpp"
@@ -33,6 +34,10 @@
 #include "dh/sne/components/similarities.hpp"
 #include "dh/sne/components/buffers.hpp"
 #include "dh/sne/components/field.hpp"
+#include "dh/vis/render_queue.hpp"
+#include "dh/vis/input_queue.hpp"
+#include "dh/vis/components/trackball_input_task.hpp"
+#include "dh/vis/components/selection_render_task.hpp"
 
 namespace dh::sne {
   template <uint D> // Dimension of produced embedding
@@ -41,6 +46,7 @@ namespace dh::sne {
     using Bounds = util::AlignedBounds<D>;
     using vec = util::AlignedVec<D, float>;
     using uvec = util::AlignedVec<D, uint>;
+    using vec2 = util::AlignedVec<2, float>;
 
   public:
     // Constr/destr
@@ -72,6 +78,7 @@ namespace dh::sne {
       eGradients,
       ePrevGradients,
       eGain,
+      eSelected,
 
       Length
     };
@@ -83,6 +90,7 @@ namespace dh::sne {
       eGradientsComp,
       eUpdateEmbeddingComp,
       eCenterEmbeddingComp,
+      eSelectionComp,
 
       Length
     };
@@ -111,6 +119,8 @@ namespace dh::sne {
 
     // Subcomponents
     Field<D> _field;
+    std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
+    std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
 
   public:
     // Getters
@@ -119,6 +129,7 @@ namespace dh::sne {
         _buffers(BufferType::eEmbedding),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
+        _buffers(BufferType::eSelected)
       };
     }
     bool isInit() const { return _isInit; }
@@ -134,6 +145,8 @@ namespace dh::sne {
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
+      swap(a._trackballInputTask, b._trackballInputTask);
+      swap(a._selectionRenderTask, b._selectionRenderTask);
     }
   };
 } // dh::sne

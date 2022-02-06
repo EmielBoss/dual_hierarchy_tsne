@@ -32,6 +32,7 @@ namespace dh::sne {
     GLuint embedding;
     GLuint field;
     GLuint bounds;
+    GLuint selected;
   };
 
   // Data class provided by dh::sne::Similarities<D>::buffers() for other components

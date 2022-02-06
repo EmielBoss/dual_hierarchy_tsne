@@ -52,6 +52,9 @@ namespace dh::vis {
   InputTask::InputTask(int priority)
   : _priority(priority) { }
 
+  InputTask::InputTask(int priority, const std::string& name)
+  : _priority(priority), _name(name) { }
+
   void InputTask::keyboardInput(int key, int action) {
     // Override and implement
   }

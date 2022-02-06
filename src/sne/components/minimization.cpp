@@ -32,6 +32,7 @@
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
+#include "dh/vis/input_queue.hpp"
 
 namespace dh::sne {
   // Logging shorthands
@@ -61,6 +62,7 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
+        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/Z.comp"));
@@ -80,6 +82,7 @@ namespace dh::sne {
     {
       const std::vector<vec> zeroes(_params.n, vec(0));
       const std::vector<vec> ones(_params.n, vec(1));
+      const std::vector<uint> falses(_params.n, 0); // Ideally these would be bools, but OpenGL hates bools and likes everything 4-byte aligned
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -92,6 +95,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eGradients), _params.n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zeroes.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), ones.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
     }
 
@@ -138,6 +142,11 @@ namespace dh::sne {
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
+    // Get trackballInputTask subcomponent for mouse input for selecting
+    _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask"));
+
+    _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
+
     _isInit = true;
   }
 
@@ -169,6 +178,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIteration() {
+
     // 1.
     // Compute embedding bounds
     {
@@ -378,6 +388,42 @@ namespace dh::sne {
       
       timer.tock();
       glAssert();
+    }
+
+    // 8.
+    // Compute selection
+    {
+      if(_trackballInputTask->getMouseClicked()) {
+        auto& program = _programs(ProgramType::eSelectionComp);
+        program.bind();
+
+        // Get absolute cursor position
+        const vec2 boundsCenter = {bounds.center().x, bounds.center().y};
+        const vec boundsRange = bounds.range();
+        const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
+        vec2 boundsMin = {bounds.min.x, bounds.min.y}; // Only need the first two dimensions in case D == 3
+        vec2 boundsMax = {bounds.max.x, bounds.max.y};
+        vec2 mousePos = _trackballInputTask->getMousePos();
+        vec2 cursorPos = boundsCenter + boundsRangeHalf * mousePos;
+
+        float selectionRadiusPixel = _selectionRenderTask->getSelectionRadius();
+        float selectionRadius = boundsRange.y * selectionRadiusPixel / _params.resHeight;
+
+        // Set uniform
+        program.template uniform<uint>("nPoints", _params.n);
+        program.template uniform<float, 2>("cursorPos", cursorPos);
+        program.template uniform<float>("selectionRadius", selectionRadius);
+
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+
+        // Dispatch shader
+        glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        glAssert();
+      }
     }
 
     // Log progress; spawn progressbar on the current (new on first iter) line

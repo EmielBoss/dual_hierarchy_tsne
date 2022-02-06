@@ -22,39 +22,31 @@
  * SOFTWARE.
  */
 
-#pragma once
+#version 460 core
 
-#include "dh/vis/input_queue.hpp"
-#include "dh/util/aligned.hpp"
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-namespace dh::vis {
-  class TrackballInputTask : public InputTask {
-  public:
-    TrackballInputTask();
+layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
+layout(binding = 1, std430) restrict buffer Sel { uint selected[]; };
 
-    void process() override;
-    void mousePosInput(double xPos, double yPos) override;
-    void mouseButtonInput(int button, int action) override;
-    void mouseScrollInput(double xScroll, double yScroll) override;
+layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform vec2 cursorPos;
+layout(location = 2) uniform float selectionRadius;
 
-    glm::mat4 matrix() const { return _matrix; }
-    glm::vec2 getMousePos() const { return _mousePosState; }
-    glm::vec2 getMousePixelPos() const { return _mousePosPixel; }
-    bool getMouseClicked() const { return _mouseClickedState; }
+void main() {
+  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+  if (i >= nPoints) {
+    return;
+  }
 
-  private:
-    // State
-    bool _mouseClickedState;
-    bool _mouseTrackState;
-    float _mouseScrollState;
-    glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates
-    glm::vec2 _mousePosState;  // Float window-relative pixel coordinates (i.e. between -1 and 1)
-    glm::vec2 _mousePosStatePrev;
-    glm::mat4 _lookatState;
-    glm::mat4 _matrix;
+  vec2 difference = abs(cursorPos - positions[i]);
+  float dist = length(difference);
 
-    // Mouse speed multipliers
-    float _mouseScrollMult;
-    float _mousePosMult;
-  };
-} // dh::vis
+  if(dist < selectionRadius) { // Embedding position lies inside the circle radius
+    selected[i] = 1;
+  } else {
+    return;
+  }
+
+  
+}

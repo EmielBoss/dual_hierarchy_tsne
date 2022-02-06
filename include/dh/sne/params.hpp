@@ -65,5 +65,9 @@ namespace dh::sne {
     // float momentum = 0.5f;
     // float finalMomentum = 0.8f;
     // float exaggerationFactor = 12.0f;
+
+    // Program params
+    uint resWidth = 1536;
+    uint resHeight = 1024;
   };
 } // dh::sne

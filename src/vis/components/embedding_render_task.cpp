@@ -154,6 +154,7 @@ namespace dh::vis {
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.selected);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);

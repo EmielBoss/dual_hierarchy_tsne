@@ -58,6 +58,7 @@ layout(location = 2) out vec4 colorOut;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { uint labels[]; };
+layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { bool selected[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -75,7 +76,11 @@ void main() {
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
 
-  // Calculate output color depending on label, whether to even draw labels
+  // Calculate output color depending on label and whether it is selected, whether to even draw labels
   const uint label = drawLabels ? labels[gl_InstanceID] % 10 : 9;
-  colorOut = vec4(colors[label] / 255.0f, pointOpacity);
+  if(selected[gl_InstanceID]) {
+    colorOut = vec4(colors[label] / 155.0f, pointOpacity);
+  } else {
+    colorOut = vec4(colors[label] / 255.0f, pointOpacity);
+  }
 }

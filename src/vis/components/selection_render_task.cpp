@@ -52,8 +52,8 @@ namespace dh::vis {
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _params(params),
-    _selectionRadius(100),
-    _cursorPosition({0.0, 0.0}) {
+    _selectionRadius(50),
+    _mousePosition({0.0, 0.0}) {
 
     // Initialize shader program
     {
@@ -125,18 +125,18 @@ namespace dh::vis {
     _program.bind();
 
     // Set uniforms
-    _program.template uniform<float, 2>("cursorPosition", _cursorPosition);
+    _program.template uniform<float, 2>("cursorPosition", _mousePosition);
     _program.template uniform<int>("selectionRadius", _selectionRadius);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
-    glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params.n);
+    glDrawElements(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr);
   }
 
   void SelectionRenderTask::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Selection render settings")) {
       ImGui::Spacing();
-      ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 100);
+      ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 1000);
       ImGui::Spacing();
     }
   }

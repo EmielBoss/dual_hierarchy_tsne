@@ -38,8 +38,6 @@ using uint = unsigned int;
 // Constants
 const std::string progDescr = "Demo application demonstrating dual-hierarchy t-SNE minimization.";
 const std::string windowTitle = "Dual-Hierarchy t-SNE Demo";
-constexpr uint windowWidth = 1536;
-constexpr uint windowHeight = 1024;
 
 // I/O and SNE parameters, set by cli(...)
 std::string iptFilename;
@@ -63,12 +61,14 @@ void cli(int argc, char** argv) {
     ("nLowDims", "number of output dims (required)", cxxopts::value<uint>())
     
     // Optional parameter arguments
-    ("o,optFilename", "Output data file (default: none)", cxxopts::value<std::string>())
     ("p,perplexity", "Perplexity parameter (default: 30)", cxxopts::value<float>())
     ("i,iterations", "Number of minimization steps (default: 1000)", cxxopts::value<uint>())
     ("t,theta", "Approximation parameter (default: 0.25)", cxxopts::value<float>())
 
     // Optional program arguments
+    ("o,optFilename", "Output data file (default: none)", cxxopts::value<std::string>())
+    ("widthRes", "Window resolution width (default: 1536)", cxxopts::value<uint>())
+    ("heightRes", "Window resolution height (default: 1024)", cxxopts::value<uint>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
@@ -100,6 +100,8 @@ void cli(int argc, char** argv) {
 
   // Check for and parse optional arguments
   if (result.count("optFilename")) { optFilename = result["optFilename"].as<std::string>(); }
+  if (result.count("widthRes")) { params.resWidth = result["widthRes"].as<uint>(); }
+  if (result.count("heightRes")) { params.resHeight = result["heightRes"].as<uint>(); }
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }
@@ -123,8 +125,8 @@ void sne() {
   {
     using namespace dh::util;
     info.title = windowTitle;
-    info.width = windowWidth;
-    info.height = windowHeight;
+    info.width = params.resWidth;
+    info.height = params.resHeight;
     info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
                 | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
                 | GLWindowInfo::bOffscreen;
@@ -132,7 +134,7 @@ void sne() {
   dh::util::GLWindow window(info);
 
   // Create necessary components
-  dh::vis::Renderer renderer(window, params, labels); 
+  dh::vis::Renderer renderer(window, params, labels);
   dh::sne::SNE sne(data, params);
 
   // If visualization is requested, minimize and render at the same time
