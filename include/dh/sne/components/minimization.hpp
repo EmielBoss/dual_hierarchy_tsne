@@ -36,7 +36,7 @@
 #include "dh/sne/components/field.hpp"
 #include "dh/vis/render_queue.hpp"
 #include "dh/vis/input_queue.hpp"
-#include "dh/vis/components/trackball_input_task.hpp"
+#include "dh/vis/components/selection_input_task.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
 
 namespace dh::sne {
@@ -51,7 +51,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(SimilaritiesBuffers similarities, Params params);  
+    Minimization(Similarities* similarities, Params params);  
     ~Minimization(); 
 
     // Copy constr/assignment is explicitly deleted
@@ -63,8 +63,10 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     // Computation
-    void comp();          // Compute full minimization (i.e. params.iterations)
-    void compIteration(); // Compute a single iteration of minimization
+    void comp();                        // Compute full minimization (i.e. params.iterations)
+    void compIteration();               // Compute a single iteration of minimization + selection
+    void compIterationMinimization();   // Compute a single iteration of minimization
+    void compIterationSelection();      // Compute the selection part of a single iteration of minimization
 
   private:
     enum class BufferType {
@@ -78,7 +80,7 @@ namespace dh::sne {
       eGradients,
       ePrevGradients,
       eGain,
-      eSelected,
+      eSelection,
 
       Length
     };
@@ -109,8 +111,14 @@ namespace dh::sne {
     // State
     bool _isInit;
     Params _params;
-    SimilaritiesBuffers _similarities;
+    Similarities* _similarities;
+    SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
+    Bounds _bounds;
+    int _selectionIdx;
+    bool _spacePressed;
+    bool _mousePressed;
+    bool _mousePressedPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -119,7 +127,7 @@ namespace dh::sne {
 
     // Subcomponents
     Field<D> _field;
-    std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
+    std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
 
   public:
@@ -129,7 +137,7 @@ namespace dh::sne {
         _buffers(BufferType::eEmbedding),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
-        _buffers(BufferType::eSelected)
+        _buffers(BufferType::eSelection)
       };
     }
     bool isInit() const { return _isInit; }
@@ -139,13 +147,14 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._similarities, b._similarities);
+      swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
-      swap(a._trackballInputTask, b._trackballInputTask);
+      swap(a._selectionIdx, b._selectionIdx);
+      swap(a._selectionInputTask, b._selectionInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
     }
   };

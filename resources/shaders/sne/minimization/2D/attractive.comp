@@ -35,17 +35,18 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Posi { vec2 positionsBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Posi { vec2 positionsBuffer[]; }; // Input buffer containing the n datapoint positions
 layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; }; // Output buffer containing the n (summed) attractive forces
+layout(binding = 5, std430) restrict readonly buffer Sele { uint selectedBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
 
-// Shorthand subgroup constants
+// Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
 const uint nThreads = gl_SubgroupSize;
 
@@ -56,14 +57,15 @@ void main () {
   }
 
   // Load data for subgroup
-  const vec2 position = subgroupBroadcastFirst(thread < 1 ? positionsBuffer[i] : vec2(0));
+  const vec2 position = subgroupBroadcastFirst(thread < 1 ? positionsBuffer[i] : vec2(0)); // First thread in warp/subgroup broadcasts position to rest of warp
 
-  // Sum attractive force over k nearest neighbours using subgroup
+  // Sum attractive force over k nearest neighbours using warp/subgroup
   Layout l = layoutsBuffer[i];
   vec2 attrForce = vec2(0);
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     // Calculate difference between the two positions
-    const vec2 diff = position - positionsBuffer[neighboursBuffer[ij]];
+    uint j = neighboursBuffer[ij];
+    const vec2 diff = position - positionsBuffer[j];
 
     // High/low dimensional similarity measures of i and j
     const float p_ij = similaritiesBuffer[ij];
@@ -72,6 +74,7 @@ void main () {
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff;
   }
+
   attrForce = subgroupAdd(attrForce * invPos);
 
   // Store result

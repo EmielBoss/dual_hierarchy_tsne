@@ -22,32 +22,37 @@
  * SOFTWARE.
  */
 
-#version 460 core
+#pragma once
 
-layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+#include "dh/vis/input_queue.hpp"
+#include "dh/util/aligned.hpp"
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
-layout(binding = 1, std430) restrict writeonly buffer Sel { uint selected[]; };
+namespace dh::vis {
+  class SelectionInputTask : public InputTask {
+  public:
+    SelectionInputTask();
 
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
-layout(location = 2) uniform float selectionRadius;
-layout(location = 3) uniform uint selectionNumber;
+    void process() override;
+    void mousePosInput(double xPos, double yPos) override;
+    void mouseButtonInput(int button, int action) override;
+    void keyboardInput(int button, int action) override;
+    void mouseScrollInput(double xScroll, double yScroll) override;
 
-void main() {
-  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) {
-    return;
-  }
+    glm::vec2 getMousePos() const { return _mousePos; }
+    glm::vec2 getMousePosPixel() const { return _mousePosPixel; }
+    bool getSpacePressed() const { return _spacePressed; }
+    bool getMousePressed() const { return _mousePressed; }
 
-  vec2 difference = abs(cursorPos - positions[i]);
-  float dist = length(difference);
+  private:
+    // State
+    bool _spacePressed; // Whether spacebar is clicked
+    bool _mousePressed; // Whether the mouse is clicked
+    float _mouseScroll;
+    glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates
+    glm::vec2 _mousePos;
 
-  if(dist < selectionRadius) { // Embedding position lies inside the circle radius
-    selected[i] = selectionNumber;
-  } else {
-    return;
-  }
-
-  
-}
+    // Mouse speed multipliers
+    float _mouseScrollMult;
+    float _mousePosMult;
+  };
+} // dh::vis

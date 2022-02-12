@@ -58,7 +58,7 @@ layout(location = 2) out vec4 colorOut;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { uint labels[]; };
-layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { bool selected[]; };
+layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -78,8 +78,10 @@ void main() {
 
   // Calculate output color depending on label and whether it is selected, whether to even draw labels
   const uint label = drawLabels ? labels[gl_InstanceID] % 10 : 9;
-  if(selected[gl_InstanceID]) {
+  if(selected[gl_InstanceID] == 1) {
     colorOut = vec4(colors[label] / 155.0f, pointOpacity);
+  } else if(selected[gl_InstanceID] == 2) {
+    colorOut = vec4(colors[label] / 355.0f, pointOpacity);
   } else {
     colorOut = vec4(colors[label] / 255.0f, pointOpacity);
   }

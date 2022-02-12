@@ -28,6 +28,8 @@
 #include "dh/util/enum.hpp"
 #include "dh/util/cu/interop.cuh"
 
+// https://en.wikipedia.org/wiki/Prefix_sum
+// https://nvlabs.github.io/cub/structcub_1_1_device_scan.html
 namespace dh::util {
   class InclusiveScan {
   public:

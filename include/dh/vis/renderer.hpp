@@ -31,7 +31,8 @@
 #include "dh/util/gl/window.hpp"
 #include "dh/sne/params.hpp"
 #include "dh/vis/components/trackball_input_task.hpp"
-#include "dh/vis/components/selection_render_task.hpp" //
+#include "dh/vis/components/selection_input_task.hpp"
+#include "dh/vis/components/selection_render_task.hpp"
 
 namespace dh::vis {
   class Renderer {
@@ -70,6 +71,7 @@ namespace dh::vis {
 
     // Subcomponents
     std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
+    std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
 
   public:
@@ -86,7 +88,7 @@ namespace dh::vis {
       swap(a._fboHandle, b._fboHandle);
       swap(a._fboColorTextureHandle, b._fboColorTextureHandle);
       swap(a._fboDepthTextureHandle, b._fboDepthTextureHandle);
-      swap(a._trackballInputTask, b._trackballInputTask);
+      swap(a._selectionInputTask, b._selectionInputTask);
     }
   };
 } // dh::vis

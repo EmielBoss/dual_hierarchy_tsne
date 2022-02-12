@@ -34,10 +34,11 @@ layout(binding = 1, std430) restrict coherent buffer Layu { uint sizesBuffer[]; 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint kNeighbours;
 
-bool containsk(uint j, uint i) {
+// Returns whether j is a neighbour of i
+bool containsk(uint i, uint j) {
   // Unfortunately the list is unsorted, so search time is linear
   for (uint k = 1; k < kNeighbours; k++) {
-    if (neighboursBuffer[j * kNeighbours + k] == i) {
+    if (neighboursBuffer[i * kNeighbours + k] == j) {
       return true;
     }
   }
@@ -50,7 +51,7 @@ void main() {
     return;
   }
 
-  atomicAdd(sizesBuffer[i], kNeighbours - 1); // remove 1 to remove self from own indices
+  atomicAdd(sizesBuffer[i], kNeighbours - 1); // Remove 1 to remove self from own indices
 
   for (uint k = 1; k < kNeighbours; k++) {
     // Get index of neighbour

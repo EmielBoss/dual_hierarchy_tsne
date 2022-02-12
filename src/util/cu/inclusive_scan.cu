@@ -28,6 +28,8 @@
 #include "dh/util/cu/error.cuh"
 #include "dh/util/cu/inclusive_scan.cuh"
 
+// https://en.wikipedia.org/wiki/Prefix_sum
+// https://nvlabs.github.io/cub/structcub_1_1_device_scan.html
 namespace dh::util {
   InclusiveScan::InclusiveScan()
   : _isInit(false), _n(0), _tempHandle(nullptr), _tempSize(0) {
@@ -37,7 +39,7 @@ namespace dh::util {
   InclusiveScan::InclusiveScan(GLuint inputBuffer, GLuint outputBuffer, uint n)
   : _isInit(false), _n(n), _tempHandle(nullptr), _tempSize(0) {      
     // Set up temp memory
-    cub::DeviceScan::InclusiveSum<uint *, uint *>(nullptr, _tempSize, nullptr, nullptr, _n);
+    cub::DeviceScan::InclusiveSum<uint *, uint *>(nullptr, _tempSize, nullptr, nullptr, _n); // Determine temp device storage requirements for inclusive prefix sum; because parameter d_temp_storage is given a nullptr, only the required allocation size is written to _tempSize
     cuAssert(cudaMalloc(&_tempHandle, _tempSize));
 
     // Set up OpenGL-CUDA interoperability

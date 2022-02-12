@@ -51,11 +51,24 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
+    void update(GLuint selectionBuffer);
 
   private:
     enum class BufferType {
       eSimilarities,
       eLayout,
+      eNeighbors,
+      eSizes,
+      eScan,
+      eCounts,
+      
+      Length
+    };
+
+    // Basically buffers that have to be destroyed and recreated in order to grow their memory allocation
+    enum class BufferTempType {
+      eDistances,
+      eSimilarities,
       eNeighbors,
       
       Length
@@ -86,6 +99,7 @@ namespace dh::sne {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
     util::CUTimer _knnTimer;

@@ -34,7 +34,7 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer ANei { uint asymmetricNeighboursBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer ASym { float asymmetricSimilaritiesBuffer[]; };
-layout(binding = 2, std430) restrict coherent buffer Coun { uint countBuffer[]; };
+layout(binding = 2, std430) restrict coherent buffer Coun { uint countBuffer[]; }; // Initially zeros, maintains "additional" neighbours
 layout(binding = 3, std430) restrict readonly buffer Layu { Layout layoutBuffer[]; };
 layout(binding = 4, std430) restrict writeonly buffer Nei { uint symmetricNeighboursBuffer[]; };
 layout(binding = 5, std430) restrict writeonly buffer Sym { float symmetricSimilaritiesBuffer[]; };
@@ -43,10 +43,11 @@ layout(binding = 5, std430) restrict writeonly buffer Sym { float symmetricSimil
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint kNeighbours;
 
-uint searchk(uint j, uint i) {
+// Returns index of neighbour j in i's neighbour set
+uint searchk(uint i, uint j) {
   // Unfortunately the list is unsorted, so search is linear
   for (uint k = 1; k < kNeighbours; k++) {
-    if (asymmetricNeighboursBuffer[j * kNeighbours + k] == i) {
+    if (asymmetricNeighboursBuffer[i * kNeighbours + k] == j) {
       return k;
     }
   }
@@ -81,7 +82,7 @@ void main() {
   uint _k = searchk(j, i);
   if (_k == 0) {
     // Copy self to neighbour's indices, as they don't have ours yet
-    _k = atomicAdd(countBuffer[j], 1);
+    _k = atomicAdd(countBuffer[j], 1); // _k is assigned the old value of countBuffer[j]
     symmetricNeighboursBuffer[lj.offset + kNeighbours - 1 + _k] = i;
 
     // Symmetrize similarities

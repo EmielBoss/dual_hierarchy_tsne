@@ -1,0 +1,82 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 Mark van de Ruit (Delft University of Technology)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#include <iostream>
+
+#include <cmath>
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include "dh/util/aligned.hpp"
+#include "dh/vis/components/selection_input_task.hpp"
+
+namespace dh::vis {
+  SelectionInputTask::SelectionInputTask()
+  : InputTask(1, "SelectionInputTask"),
+    _spacePressed(false),
+    _mousePressed(false),
+    _mouseScroll(3.0f), 
+    _mousePos(-1.0f),
+    _mouseScrollMult(0.5f),
+    _mousePosMult(1.0f) {
+    // ...
+  }
+
+  void SelectionInputTask::process() {
+
+  }
+
+  void SelectionInputTask::mousePosInput(double xPos, double yPos) {
+    _mousePosPixel = glm::vec2(xPos, yPos);
+    
+    // Obtain current window handle for window size
+    util::GLWindow* window = util::GLWindow::currentWindow();
+    if (!window) {
+      return;
+    }
+
+    // Record current position in [-1, 1]
+    _mousePos = _mousePosPixel / glm::vec2(window->size());
+    _mousePos = 2.0f * _mousePos - 1.0f;
+  }
+
+  void SelectionInputTask::mouseButtonInput(int button, int action) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+      _mousePressed = true;
+    } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+      _mousePressed = false;
+    }
+  }
+
+  void SelectionInputTask::mouseScrollInput(double xScroll, double yScroll) {
+    _mouseScroll = std::max(0.001f, _mouseScroll - _mouseScrollMult * static_cast<float>(yScroll));
+  }
+
+  void SelectionInputTask::keyboardInput(int button, int action) {
+    if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+      _spacePressed = true;
+    } else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
+      _spacePressed = false;
+    }
+  }
+} // dh::vis

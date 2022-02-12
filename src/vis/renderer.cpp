@@ -71,9 +71,14 @@ namespace dh::vis {
     // second as 3D rendertasks need trackball input to generate transformation matrix
     // third for brush selecting datapoints
     InputQueue::instance().emplace(vis::EscInputTask());
-    _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
-
-    _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 1));
+    if (_params.nLowDims == 3) {
+      // In 3D, center embedding on screen, and allow trackball to provide view matrix
+      _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
+    } else if (_params.nLowDims == 2) {
+      // In 2D, center embedding on screen. We only do selection in 2D for now.
+      _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
+      _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 1));
+    }
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
     glCreateFramebuffers(1, &_fboHandle);
@@ -182,7 +187,7 @@ namespace dh::vis {
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
 
-    _selectionRenderTask->setMousePosition(_trackballInputTask->getMousePixelPos());
+    _selectionRenderTask->setMousePosition(_selectionInputTask->getMousePosPixel());
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {

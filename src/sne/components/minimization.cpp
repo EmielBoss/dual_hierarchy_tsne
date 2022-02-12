@@ -49,8 +49,8 @@ namespace dh::sne {
   }
 
   template <uint D>
-  Minimization<D>::Minimization(SimilaritiesBuffers similarities, Params params)
-  : _isInit(false), _similarities(similarities), _params(params), _iteration(0) {
+  Minimization<D>::Minimization(Similarities* similarities, Params params)
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(-1) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -95,7 +95,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eGradients), _params.n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zeroes.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), ones.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
     }
 
@@ -142,8 +142,8 @@ namespace dh::sne {
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
-    // Get trackballInputTask subcomponent for mouse input for selecting
-    _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask"));
+    // Get selectionInputTask subcomponent for mouse input for selecting
+    _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
 
     _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
 
@@ -176,8 +176,17 @@ namespace dh::sne {
     }
   }
 
-  template <uint D>
+    template <uint D>
   void Minimization<D>::compIteration() {
+    _mousePressed = _selectionInputTask->getMousePressed();
+    _spacePressed = _selectionInputTask->getSpacePressed();
+    if(!_spacePressed                     ) { compIterationMinimization(); }
+    if( _mousePressed || _mousePressedPrev) { compIterationSelection(); }
+    _mousePressedPrev = _mousePressed;
+  }
+
+  template <uint D>
+  void Minimization<D>::compIterationMinimization() {
 
     // 1.
     // Compute embedding bounds
@@ -210,14 +219,13 @@ namespace dh::sne {
     }
 
     // Copy bounds back to host (hey look: an expensive thing I shouldn't be doing)
-    Bounds bounds;
-    glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &bounds);
+    glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &_bounds);
 
     // 2.
     // Perform field approximation in subcomponent
     {
       // Determine field texture size by scaling bounds
-      const vec range = bounds.range();
+      const vec range = _bounds.range();
       const float ratio = (D == 2) ? _params.fieldScaling2D : _params.fieldScaling3D;
       uvec size = dh::util::max(uvec(range * ratio), uvec(fieldMinSize));
 
@@ -272,13 +280,14 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similarities.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similarities.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similarities.similarities);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.neighbors); // Each i's expanded neighbour set starts at eLayout[i].offset and contains eLayout[i].size neighbours, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.similarities); // Corresponding similarities
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttractive));
 
+
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/subgroup per i
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -360,8 +369,8 @@ namespace dh::sne {
     // 7.
     // Re-center embedding
     {
-      const vec boundsCenter = bounds.center();
-      const vec boundsRange = bounds.range();
+      const vec boundsCenter = _bounds.center();
+      const vec boundsRange = _bounds.range();
       float scaling = 1.0f;
       if (exaggeration > 1.2f && boundsRange.y < 0.1f) {
         scaling = 0.1f / boundsRange.y;
@@ -390,42 +399,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    // 8.
-    // Compute selection
-    {
-      if(_trackballInputTask->getMouseClicked()) {
-        auto& program = _programs(ProgramType::eSelectionComp);
-        program.bind();
-
-        // Get absolute cursor position
-        const vec2 boundsCenter = {bounds.center().x, bounds.center().y};
-        const vec boundsRange = bounds.range();
-        const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
-        vec2 boundsMin = {bounds.min.x, bounds.min.y}; // Only need the first two dimensions in case D == 3
-        vec2 boundsMax = {bounds.max.x, bounds.max.y};
-        vec2 mousePos = _trackballInputTask->getMousePos();
-        vec2 cursorPos = boundsCenter + boundsRangeHalf * mousePos;
-
-        float selectionRadiusPixel = _selectionRenderTask->getSelectionRadius();
-        float selectionRadius = boundsRange.y * selectionRadiusPixel / _params.resHeight;
-
-        // Set uniform
-        program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<float, 2>("cursorPos", cursorPos);
-        program.template uniform<float>("selectionRadius", selectionRadius);
-
-        // Set buffer bindings
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
-
-        // Dispatch shader
-        glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-        glAssert();
-      }
-    }
-
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture
     if (_iteration == 0) {
@@ -448,6 +421,55 @@ namespace dh::sne {
                                 : "Done!";
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
+    }
+
+
+  }
+
+  template <uint D>
+  void Minimization<D>::compIterationSelection() {
+    // 8.
+    // Compute selection
+    auto& program = _programs(ProgramType::eSelectionComp);
+    program.bind();
+
+    // Determine which of the two selections is being executed
+    if(!_mousePressedPrev) _selectionIdx = ++_selectionIdx % 2;
+    uint selectionNumber = _selectionIdx + 1;
+
+    // Get everything related with the cursor and selection brush
+    const vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
+    const vec boundsRange = _bounds.range();
+    const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
+    vec2 boundsMin = {_bounds.min.x, _bounds.min.y}; // Only need the first two dimensions in case D == 3
+    vec2 boundsMax = {_bounds.max.x, _bounds.max.y};
+    vec2 mousePos = _selectionInputTask->getMousePos();
+    vec2 cursorPos = boundsCenter + boundsRangeHalf * mousePos;
+    float selectionRadiusPixel = _selectionRenderTask->getSelectionRadius();
+    float selectionRadius = boundsRange.y * selectionRadiusPixel / _params.resHeight;
+
+    // Set uniform
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<float, 2>("cursorPos", cursorPos);
+    program.template uniform<float>("selectionRadius", selectionRadius);
+    program.template uniform<uint>("selectionNumber", selectionNumber);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    glAssert();
+
+    // 9.
+    // Update neighbours at the end of selection
+
+    if(!_mousePressed && _mousePressedPrev && selectionNumber == 2) {
+      _similarities->update(_buffers(BufferType::eSelection));
+      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
   }
 
