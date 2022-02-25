@@ -57,10 +57,16 @@ namespace dh::sne {
     enum class BufferType {
       eSimilarities,
       eLayout,
+      eLayoutPrev,
       eNeighbors,
       eSizes,
       eScan,
       eCounts,
+
+      eSelectionCount,
+      eSelectionCountReduce,
+      eSelected,
+      eSelectedScan,
       
       Length
     };
@@ -79,6 +85,10 @@ namespace dh::sne {
       eExpandComp,
       eLayoutComp,
       eNeighborsComp,
+
+      eSelectionCountComp,
+      eUpdateSizesComp,
+      eIndicateSelectedComp,
       
       Length
     };
@@ -122,6 +132,7 @@ namespace dh::sne {
       swap(a._params, b._params);
       swap(a._dataPtr, b._dataPtr);
       swap(a._buffers, b._buffers);
+      swap(a._buffersTemp, b._buffersTemp);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._knnTimer, b._knnTimer);

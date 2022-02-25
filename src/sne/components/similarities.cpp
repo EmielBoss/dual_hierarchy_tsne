@@ -53,6 +53,10 @@ namespace dh::sne {
       _programs(ProgramType::eExpandComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/expand.comp"));
       _programs(ProgramType::eLayoutComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/layout.comp"));
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
+
+      _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
+      _programs(ProgramType::eUpdateSizesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_sizes.comp"));
+      _programs(ProgramType::eIndicateSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/indicate_selected.comp"));
       
       for (auto& program : _programs) {
         program.link();
@@ -99,6 +103,12 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbour set sizes; every element is k-1 plus its number of "unregistered neighbours" that have it as neighbour but that it doesn't reciprocate
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
       glNamedBufferStorage(_buffers(BufferType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
+
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCount), 2 * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), nullptr, 0); // Bitfield indicating selection: 1 if selected, 0 if not selected (regardless of which selection)
+
+
       glAssert();
     }
     
@@ -159,8 +169,7 @@ namespace dh::sne {
     progressBar.setProgress(2.0f / 6.0f);
 
     // 3.
-    // Expand KNN data so it becomes symmetric. That is, every neigbor referred by a point
-    // itself refers to that point as a neighbor.
+    // Expand KNN data so it becomes symmetric. That is, every neigbor referred by a point itself refers to that point as a neighbor.
     {
       auto& timer = _timers(TimerType::eExpandComp);
       timer.tick();
@@ -200,6 +209,7 @@ namespace dh::sne {
 
     // Initialize permanent buffer objects
     glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
+    glNamedBufferStorage(_buffers(BufferType::eLayoutPrev), _params.n * 2 * sizeof(uint), nullptr, 0);
     glNamedBufferStorage(_buffers(BufferType::eNeighbors), symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbour set starts at eLayout[i].offset and contains eLayout[i].size neighbours, no longer including itself
     glNamedBufferStorage(_buffers(BufferType::eSimilarities), symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
     glAssert();    
@@ -281,122 +291,123 @@ namespace dh::sne {
     glPollTimers(_timers.size(), _timers.data());
     glPollTimers(_timers.size(), _timers.data());
   }
+
   // Update (i.e. add) neighbours to neighbour buffers and corresponding similarities
   void Similarities::update(GLuint selectionBuffer) {
 
-    // glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+    glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     
-    // // Count number of selected datapoints per selection
-    
-    // {
-    //   // Clear eSelectionCount buffers
-    //   glClearNamedBufferData(_buffers(BufferType::eSelectionCount), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    //   glClearNamedBufferData(_buffers(BufferType::eSelectionCountReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    //   glAssert();
-
-    //   auto& program = _programs(ProgramType::eSelectionCountComp);
-    //   program.bind();
-
-    //   // Set uniforms
-    //   program.template uniform<uint>("nPoints", _params.n);
-
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountReduce));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCount));
-    //   glAssert();
-
-    //   // Dispatch shader for selection i; i = {1, 2}
-    //   for (uint i = 1; i < 3; ++i) {
-    //     program.template uniform<uint>("selectionNumber", i);
-    //     program.template uniform<uint>("iter", 0);
-    //     glDispatchCompute(128, 1, 1);
-    //     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //     program.template uniform<uint>("iter", 1);
-    //     glDispatchCompute(1, 1, 1);
-    //     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   }
+    // 1.
+    // Count number of selected datapoints per selection
+    {
+      glClearNamedBufferData(_buffers(BufferType::eSelectionCount), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear previous counts
       
-    //   glAssert();
-    // }
+      auto& program = _programs(ProgramType::eSelectionCountComp);
+      program.bind();
 
-    // // Add selection counts (minus existing neighbours) to the NN size of each selected datapoint (eSizes)
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCount));
+      glAssert();
+
+      // Dispatch shader for selection i; i = {1, 2}
+      for (uint i = 1; i < 3; ++i) {
+        glClearNamedBufferData(_buffers(BufferType::eSelectionCountReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        program.template uniform<uint>("selectionNumber", i);
+        program.template uniform<uint>("iter", 0);
+        glDispatchCompute(128, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        program.template uniform<uint>("iter", 1);
+        glDispatchCompute(1, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      }
+      
+      glAssert();
+    }
+
+    uint selectionCounts[2];
+    glGetNamedBufferSubData(_buffers(BufferType::eSelectionCount), 0, 2 * sizeof(uint), &selectionCounts);
+    uint selectionCount = selectionCounts[0] + selectionCounts[1];
+
+    // 2.
+    // Add selection counts (minus existing neighbours) to the NN size of each selected datapoint (eSizes)
     
-    // {
-    //   auto &program = _programs(ProgramType::eSizesUpdateComp);
-    //   program.bind();
+    {
+      auto &program = _programs(ProgramType::eUpdateSizesComp);
+      program.bind();
 
-    //   program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params.n);
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCount));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLayout));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSizes));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCount));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSizes));
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
 
-    // // Prefix sum/inclusive sum over eSizes (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
+    // Prefix sum/inclusive sum over eSizes (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
   
-    // uint neighbourTotal;
-    // {
-    //   util::InclusiveScan scan(_buffers(BufferType::eSizes), _buffers(BufferType::eScan), _params.n);
-    //   scan.comp();
-    //   glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &neighbourTotal); // Copy the last element of the eScan buffer (which is the total size) to host
-    // }
+    uint neighbourTotal;
+    {
+      util::InclusiveScan scan(_buffers(BufferType::eSizes), _buffers(BufferType::eScan), _params.n);
+      scan.comp();
+      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &neighbourTotal); // Copy the last element (the total size) to host
+    }
 
-    // // Refill layout buffer
+    // Update (recompute) layout buffer
 
-    // std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
-    // {
-    //   auto& program = _programs(ProgramType::eLayoutComp);
-    //   program.bind();
+    std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
+    {
+      auto& program = _programs(ProgramType::eLayoutComp);
+      program.bind();
 
-    //   // Set uniforms
-    //   program.template uniform<uint>("nPoints", _params.n);
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eScan));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eScan));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
 
-    // // Getting a list of indices of selected datapoints, in order to avoid O(n^2)
+    // Getting a list of indices of selected datapoints, in order to avoid O(n^2)
 
-    // glNamedBufferStorage(_buffers(BufferType::eSelected), neighbourTotal * sizeof(uint), nullptr, 0); // neighbourTotal uints; 1 if selected, 0 if not selected (regardless of which selection)
+    glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
-    // {
-    //   auto& program = _programs(ProgramType::eIndicateSelectedComp); // Simply casts each 2 to 1 in eSelection
-    //   program.bind();
+    {
+      auto& program = _programs(ProgramType::eIndicateSelectedComp); // Simply casts each 2 to 1 in eSelection
+      program.bind();
 
-    //   // Set uniforms
-    //   program.template uniform<uint>("nPoints", _params.n);
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
 
-    // glNamedBufferStorage(_buffers(BufferType::eSelectedScan), neighbourTotal * sizeof(uint), nullptr, 0); // The ordinal of the selected datapoint within the selection (and bullshit if unselected)
-    // util::InclusiveScan(_buffers(BufferType::eSelected), _buffers(BufferType::eSelectedScan), _params.n).comp();
+    glNamedBufferStorage(_buffers(BufferType::eSelectedScan), neighbourTotal * sizeof(uint), nullptr, 0); // The ordinal of the selected datapoint within the selection (and bullshit if unselected)
+    util::InclusiveScan(_buffers(BufferType::eSelected), _buffers(BufferType::eSelectedScan), _params.n).comp();
 
-    // uint selectionSizes[2];
-    // glGetNamedBufferSubData(_buffers(BufferType::eSelectionCount), 0, 2 * sizeof(uint), &selectionSizes); // Copy the two sizes to CPU
-    // uint selectionSize = selectionSizes[0] + selectionSizes[1];
     // glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionSize * sizeof(uint), nullptr, 0); // The vector indices of the selected datapoints
 
     // {

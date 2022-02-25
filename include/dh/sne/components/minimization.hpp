@@ -147,6 +147,7 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
+      swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
