@@ -69,7 +69,7 @@ void main() {
 
   // Read original asymmetric neighbours
   const uint j = asymmetricNeighboursBuffer[i * kNeighbours + k];
-  const float f = asymmetricSimilaritiesBuffer[i * kNeighbours + k];
+  const float p_ji = asymmetricSimilaritiesBuffer[i * kNeighbours + k];
 
   // Read offsets and sizes
   const Layout li = layoutBuffer[i];
@@ -86,12 +86,12 @@ void main() {
     symmetricNeighboursBuffer[lj.offset + kNeighbours - 1 + _k] = i;
 
     // Symmetrize similarities
-    const float v = 0.5 * f;
+    const float v = 0.5 * p_ji;
     symmetricSimilaritiesBuffer[li.offset + k - 1] = v;
     symmetricSimilaritiesBuffer[lj.offset + (kNeighbours - 1) + _k] = v;
   } else if (j > i) {
     // Symmetrize similarities
-    const float v = 0.5 * (f + asymmetricSimilaritiesBuffer[j * kNeighbours + _k]);
+    const float v = 0.5 * (p_ji + asymmetricSimilaritiesBuffer[j * kNeighbours + _k]);
     symmetricSimilaritiesBuffer[li.offset + k - 1] = v;
     symmetricSimilaritiesBuffer[lj.offset + _k - 1] = v;
   }

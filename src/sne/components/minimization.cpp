@@ -469,6 +469,7 @@ namespace dh::sne {
 
     if(!_mousePressed && _mousePressedPrev && selectionNumber == 2) {
       _similarities->update(_buffers(BufferType::eSelection));
+      _similaritiesBuffers = _similarities->buffers(); // Update buffer handles
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
   }

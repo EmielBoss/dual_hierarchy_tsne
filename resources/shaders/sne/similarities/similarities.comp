@@ -33,6 +33,9 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict readonly buffer Indi { uint neighboursBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
 layout(binding = 2, std430) restrict buffer SimilaritiesM { float similaritiesBuffer[]; };
+layout(binding = 3, std430) restrict writeonly buffer Bet { float betasBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer BtF { bool betasFoundBuffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Sum { float v_jiSumBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -57,23 +60,23 @@ void main() {
   bool foundBeta = false;
   uint iter = 0;
   while (!foundBeta && iter < nIters) {
-    // Compute P_ij with current value of Beta (Sigma, actually)
+    // Compute P_i with current value of Beta (Sigma, actually)
     // Ignore j = 0, as that is i itself in the local neighbourhood
     sum = FLT_MIN;
     for (uint j = 1; j < kNeighbours; j++) {
       const uint ij = i * kNeighbours + j;
-      const float v = exp(-beta * distancesBuffer[ij]);
-      similaritiesBuffer[ij] = v;
-      sum += v;
+      const float v_ji = exp(-beta * distancesBuffer[ij]);
+      similaritiesBuffer[ij] = v_ji;
+      sum += v_ji;
     }
 
-    // Compute entropy over the current gaussian's values
+    // Compute entropy over the current Gaussian's values
     // float negativeEntropy = 0.f;
     float entropy = 0.f;
     for (uint j = 1; j < kNeighbours; j++) {
       const uint ij = i * kNeighbours + j;
-      const float v = similaritiesBuffer[ij];
-      const float e = v * log(v);
+      // const float v = similaritiesBuffer[ij];
+      // const float e = v * log(v);
       // negativeEntropy += (e != e) ? 0 : e;
       entropy += beta * distancesBuffer[ij] * similaritiesBuffer[ij];
     }
@@ -103,6 +106,10 @@ void main() {
     iter++;
   }
 
+  betasBuffer[i] = beta;
+  betasFoundBuffer[i] = foundBeta;
+  v_jiSumBuffer[i] = sum;
+
   // Normalize kernel at the end
   if (!foundBeta) {
     const float v = 1.f / float(kNeighbours - 1);
@@ -114,7 +121,7 @@ void main() {
     const float div = 1.f / sum;
     for (uint j = 1; j < kNeighbours; j++) {
       const uint ij = i * kNeighbours + j;
-      similaritiesBuffer[ij] *= div;
+      similaritiesBuffer[ij] *= div; // Now p_j|i is stored
     }
   }
 }

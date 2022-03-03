@@ -38,7 +38,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Similarities();
-    Similarities(const float * dataPtr, Params params);
+    Similarities(const std::vector<float>& data, const std::vector<uint>& labels, Params params);
     ~Similarities();
 
     // Copy constr/assignment is explicitly deleted
@@ -55,13 +55,17 @@ namespace dh::sne {
 
   private:
     enum class BufferType {
+      eDataset,
       eSimilarities,
+      eBetas,
+      eBetasFound,
+      eV_jiSumBuffer,
       eLayout,
       eLayoutPrev,
       eNeighbors,
       eSizes,
-      eScan,
       eCounts,
+      eScan,
 
       eSelectionCount,
       eSelectionCountReduce,
@@ -76,6 +80,7 @@ namespace dh::sne {
       eDistances,
       eSimilarities,
       eNeighbors,
+      eSelectionIndices,
       
       Length
     };
@@ -89,6 +94,9 @@ namespace dh::sne {
       eSelectionCountComp,
       eUpdateSizesComp,
       eIndicateSelectedComp,
+      eSelectionIndicesComp,
+      eNeighborsUpdateComp,
+      eSimilaritiesUpdateComp,
       
       Length
     };
@@ -106,6 +114,8 @@ namespace dh::sne {
     bool _isInit;
     Params _params;
     const float* _dataPtr;
+    const uint* _labelPtr;
+    uint _symmetricSize;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

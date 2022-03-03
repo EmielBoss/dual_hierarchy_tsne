@@ -43,8 +43,8 @@ namespace dh::sne {
     // ...
   }
 
-  Similarities::Similarities(const float * dataPtr, Params params)
-  : _isInit(false), _dataPtr(dataPtr), _params(params) {
+  Similarities::Similarities(const std::vector<float>& data, const std::vector<uint>& labels, Params params)
+  : _isInit(false), _dataPtr(data.data()), _labelPtr(labels.data()), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -57,7 +57,10 @@ namespace dh::sne {
       _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
       _programs(ProgramType::eUpdateSizesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_sizes.comp"));
       _programs(ProgramType::eIndicateSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/indicate_selected.comp"));
-      
+      _programs(ProgramType::eSelectionIndicesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_indices.comp"));
+      _programs(ProgramType::eNeighborsUpdateComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_neighbours.comp"));
+      _programs(ProgramType::eSimilaritiesUpdateComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_similarities.comp"));
+
       for (auto& program : _programs) {
         program.link();
       }
@@ -97,9 +100,13 @@ namespace dh::sne {
     // Initialize buffer objects. Comments state what data is supposed to go in the buffer (always row-wise, i.e. every vector in turn)
     {
       const std::vector<uint> zeroes(_params.n * k, 0);
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, 0); // Original dataset. TODO: make FAISS work from this instead of _dataPtr itself to avoid copying to GPU twice
       glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), _params.n * k * sizeof(uint), nullptr, 0); // n * k uints of neighbour indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
       glNamedBufferStorage(_buffersTemp(BufferTempType::eDistances), _params.n * k * sizeof(float), nullptr, 0); // n * k floats of neighbour distances; every k'th element is 0
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params.n * k * sizeof(float), zeroes.data(), 0); // n * k floats of neighbour similarities; every k'th element is 0
+      glNamedBufferStorage(_buffers(BufferType::eBetas), _params.n * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eBetasFound), _params.n * sizeof(bool), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eV_jiSumBuffer), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbour set sizes; every element is k-1 plus its number of "unregistered neighbours" that have it as neighbour but that it doesn't reciprocate
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
       glNamedBufferStorage(_buffers(BufferType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
@@ -135,8 +142,7 @@ namespace dh::sne {
     progressBar.setProgress(1.0f / 6.0f);
 
     // 2.
-    // Compute similarities over generated KNN. This is pretty much a direct copy of the formulation
-    // used in BH-SNE, and seems to also be used in CUDA-tSNE.
+    // Compute similarities over generated KNN. This is pretty much a direct copy of the formulation used in BH-SNE, and seems to also be used in CUDA-tSNE.
     {
       auto& timer = _timers(TimerType::eSimilaritiesComp);
       timer.tick();
@@ -155,6 +161,8 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eDistances));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBetas));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBetasFound));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -170,6 +178,7 @@ namespace dh::sne {
 
     // 3.
     // Expand KNN data so it becomes symmetric. That is, every neigbor referred by a point itself refers to that point as a neighbor.
+    // Actually just fills eSizes, which, for each element, is k-1+the number of "unregistered neighbours"; datapoints that have it as a neighbour but which it doesn't reciprocate
     {
       auto& timer = _timers(TimerType::eExpandComp);
       timer.tick();
@@ -198,14 +207,15 @@ namespace dh::sne {
     progressBar.setProgress(3.0f / 6.0f);
 
     // 4.
-    // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum)
-    // Leverages CUDA CUB library underneath
+    // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
+
     uint symmetricSize;
     {
       util::InclusiveScan scan(_buffers(BufferType::eSizes), _buffers(BufferType::eScan), _params.n);
       scan.comp();
       glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     }
+    _symmetricSize = symmetricSize; /////
 
     // Initialize permanent buffer objects
     glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
@@ -247,8 +257,7 @@ namespace dh::sne {
     progressBar.setProgress(5.0f / 6.0f);
 
     // 6.
-    // Generate expanded similarities and neighbor buffers, symmetrized and ready for
-    // use during the minimization
+    // Generate expanded similarities and neighbor buffers, symmetrized and ready for use during the minimization
     {
       auto& timer = _timers(TimerType::eNeighborsComp);
       timer.tick();
@@ -364,7 +373,7 @@ namespace dh::sne {
       glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &neighbourTotal); // Copy the last element (the total size) to host
     }
 
-    // Update (recompute) layout buffer
+    // Update (actually: recompute) layout buffer
 
     std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
     {
@@ -405,63 +414,140 @@ namespace dh::sne {
       glAssert();
     }
 
-    glNamedBufferStorage(_buffers(BufferType::eSelectedScan), neighbourTotal * sizeof(uint), nullptr, 0); // The ordinal of the selected datapoint within the selection (and bullshit if unselected)
+    glNamedBufferStorage(_buffers(BufferType::eSelectedScan), _params.n * sizeof(uint), nullptr, 0); // The ordinal of the selected datapoint within the selection (and bullshit if unselected)
     util::InclusiveScan(_buffers(BufferType::eSelected), _buffers(BufferType::eSelectedScan), _params.n).comp();
 
-    // glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionSize * sizeof(uint), nullptr, 0); // The vector indices of the selected datapoints
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionCount * sizeof(uint), nullptr, 0); // The vector indices of the selected datapoints
 
-    // {
-    //   auto& program = _programs(ProgramType::eSelectionIndicesComp);
-    //   program.bind();
+    {
+      auto& program = _programs(ProgramType::eSelectionIndicesComp);
+      program.bind();
 
-    //   // Set uniforms
-    //   program.template uniform<uint>("nPoints", _params.n);
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectedScan));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSelectionIndices));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectedScan));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
 
-    // // Generate updated similarities and neighbor buffers, symmetrized and ready foruse during the minimization
-    
-    // glClearNamedBufferData(_buffers(BufferType::eCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Reset atomic counter buffer
-    // glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), neighbourTotal * sizeof(uint), nullptr, 0);
-    // glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), neighbourTotal * sizeof(float), nullptr, 0);
-    // glAssert();
+    //// Update eNeighbours and eSimiliraties
+    const std::vector<uint> zeroes(_params.n, 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), neighbourTotal * sizeof(uint), nullptr, 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), neighbourTotal * sizeof(float), nullptr, 0);
+    glClearNamedBufferData(_buffers(BufferType::eCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear previous counts
+    glAssert();
 
-    // {
-    //   auto &program = _programs(ProgramType::eNeighborsUpdateComp);
-    //   program.bind();
+    // Update eNeighbours
 
-    //   program.template uniform<uint>("nPoints", _params.n);
-    //   program.template uniform<uint>("nSelected", selectionSize);
+    {
+      auto &program = _programs(ProgramType::eNeighborsUpdateComp);
+      program.bind();
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSelectionIndices));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eNeighbors));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSimilarities));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eLayoutPrev));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayout));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eCounts));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffersTemp(BufferTempType::eNeighbors));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eSimilarities));
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nSelected", selectionCount);
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(_params.n * selectionSize, 256u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
-    // std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
-    // std::swap(_buffersTemp(BufferTempType::eNeighbors), _buffers(BufferType::eNeighbors));
-    // glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayoutPrev));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eSimilarities));
 
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n * selectionCount, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
+
+    // // Calculate asymmetric similarities p_j|i
+
+    {
+      auto &program = _programs(ProgramType::eSimilaritiesUpdateComp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nHighDims", _params.nHighDims);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayoutPrev));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBetas));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eBetasFound));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eV_jiSumBuffer));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, _buffersTemp(BufferTempType::eSimilarities));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
+
+    //// DEBUGGING
+    std::vector<uint> selection(_params.n);
+    glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
+    std::vector<uint> layoutPrev(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayoutPrev), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
+    std::vector<uint> layout(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
+    std::vector<uint> neighboursPrev(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neighboursPrev.data());
+    std::vector<uint> neighbours(neighbourTotal);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, neighbourTotal * sizeof(uint), neighbours.data());
+    std::vector<float> similaritiesPrev(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), similaritiesPrev.data());
+    std::vector<float> similarities(neighbourTotal);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, neighbourTotal * sizeof(float), similarities.data());
+
+    int s1 = -1;
+    int s2 = -1;
+    for(int i = 0; i < _params.n; ++i) {
+      if(selection[i] == 1 && s1 < 0) {
+        s1 = i;
+      }
+      if(selection[i] == 2 && s2 < 0) {
+        s2 = i;
+      }
+    }
+
+    std::cout << "\n\nS1 Prev: ";
+    for(uint i = layoutPrev[s1 * 2]; i < layoutPrev[s1 * 2] + layoutPrev[s1 * 2 + 1]; ++i) {
+      std::cout << similaritiesPrev[i] << "|";
+    }
+    std::cout << "\n\nS1 Aft:  ";
+    for(uint i = layout[s1 * 2]; i < layout[s1 * 2] + layout[s1 * 2 + 1]; ++i) {
+      std::cout << similarities[i] << "|";
+    }
+    std::cout << "\n\nS2 Prev: ";
+    for(uint i = layoutPrev[s2 * 2]; i < layoutPrev[s2 * 2] + layoutPrev[s2 * 2 + 1]; ++i) {
+      std::cout << similaritiesPrev[i] << "|";
+    }
+    std::cout << "\n\nS2 Aft:  ";
+    for(uint i = layout[s2 * 2]; i < layout[s2 * 2] + layout[s2 * 2 + 1]; ++i) {
+      std::cout << similarities[i] << "|";
+    }
+
+    std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
+    std::swap(_buffersTemp(BufferTempType::eNeighbors), _buffers(BufferType::eNeighbors));
+    std::swap(_buffersTemp(BufferTempType::eSimilarities), _buffers(BufferType::eSimilarities));
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
 } // dh::sne

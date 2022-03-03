@@ -35,14 +35,14 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 3, std430) restrict readonly buffer SelB { uint selectionBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer SelC { uint selectionCount[2]; };
-layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 3, std430) restrict buffer Size { uint sizesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer SelB { uint selectionBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer SelC { uint selectionCount[2]; };
+layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 4, std430) restrict buffer Size { uint sizesBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nPos;
+layout(location = 0) uniform uint nPoints;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -57,7 +57,7 @@ void main () {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
   const uint si = selectionBuffer[i];
-  if (si == 0 || i >= nPos) { return; }
+  if (si == 0 || i >= nPoints) { return; }
 
   Layout l = layoutsBuffer[i];
 
@@ -71,6 +71,6 @@ void main () {
   alreadyNeighbourCount = subgroupAdd(alreadyNeighbourCount);
 
   // Store result
-  uint additionalNeighbourCount = selectionCount[other(si)] - alreadyNeighbourCount;
+  uint additionalNeighbourCount = selectionCount[other(si)-1] - alreadyNeighbourCount;
   if (thread < 1) { sizesBuffer[i] += additionalNeighbourCount; }
 }

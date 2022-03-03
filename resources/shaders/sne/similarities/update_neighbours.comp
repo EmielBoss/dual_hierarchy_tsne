@@ -32,56 +32,42 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 3, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer NeigP { uint neighboursBufferPrev[]; };
-layout(binding = 2, std430) restrict readonly buffer SimiP { uint similaritiesBufferPrev[]; };
-layout(binding = 1, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
-layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 2, std430) restrict buffer Counts { uint countsBuffer[]; };
-layout(binding = 2, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 2, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer NeigP { uint neighboursBufferPrev[]; };
+layout(binding = 4, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
+layout(binding = 5, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
+layout(binding = 6, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 7, std430) restrict buffer Counts { uint counts[]; };
+layout(binding = 8, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 9, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nSelected;
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / selectionSize;
-  const uint si = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % selectionSize;
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nSelected;
+  const uint si = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % nSelected;
 
   if (i >= nPoints) { return; }
 
-  // TODO Optimize this so the first index is just intrinsically not part of the computation
-  if (k == 0) {
-    return;
+  Layout li = layoutsBuffer[i];
+  Layout liPrev = layoutsBufferPrev[i];
+  // Copy old neighbours and corresponding similarities
+  if(si < liPrev.size) {
+    neighboursBuffer[li.offset + si] = neighboursBufferPrev[liPrev.offset + si];
+    similaritiesBuffer[li.offset + si] = similaritiesBufferPrev[liPrev.offset + si];
   }
 
-  // Read original asymmetric neighbours
-  const uint j = asymmetricNeighboursBuffer[i * kNeighbours + k];
-  const float f = asymmetricSimilaritiesBuffer[i * kNeighbours + k];
+  if (selectionBuffer[i] == 0) { return; }
 
-  // Read offsets and sizes
-  const Layout li = layoutBuffer[i];
-  const Layout lj = layoutBuffer[j];
-  
-  // Copy j over to new symmetric neighbour buffer
-  symmetricNeighboursBuffer[li.offset + k - 1] = j;
+  const uint j = selectionIndicesBuffer[si]; // Read potential neighbour to be added
 
-  // Potentially copy self over to neighbour's neighbour indices, if they don't already know it
-  uint _k = searchk(j, i);
-  if (_k == 0) {
-    // Copy self to neighbour's indices, as they don't have ours yet
-    _k = atomicAdd(countBuffer[j], 1); // _k is assigned the old value of countBuffer[j], starting at 0
-    symmetricNeighboursBuffer[lj.offset + kNeighbours - 1 + _k] = i;
+  if(selectionBuffer[i] == selectionBuffer[j]) { return; } // TODO: This can be avoided if the selectionIndices are segregated
 
-    // Symmetrize similarities
-    const float v = 0.5 * f;
-    symmetricSimilaritiesBuffer[li.offset + k - 1] = v;
-    symmetricSimilaritiesBuffer[lj.offset + (kNeighbours - 1) + _k] = v;
-  } else if (j > i) {
-    // Symmetrize similarities
-    const float v = 0.5 * (f + asymmetricSimilaritiesBuffer[j * kNeighbours + _k]);
-    symmetricSimilaritiesBuffer[li.offset + k - 1] = v;
-    symmetricSimilaritiesBuffer[lj.offset + _k - 1] = v;
-  }
+  uint c = atomicAdd(counts[i], 1);
+  neighboursBuffer[li.offset + liPrev.size + c] = j; // Add new neighbour
+
 }

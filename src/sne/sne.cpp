@@ -33,19 +33,19 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(const std::vector<float>& data, Params params)
+  SNE::SNE(const std::vector<float>& data, const std::vector<uint>& labels, Params params)
   : _params(params),
-    _similarities(data.data(), params),
+    _similarities(data, labels, params),
     _isInit(true) {
     // ...
   }
 
-  SNE::SNE(const float * data, Params params)
-  : _params(params),
-    _similarities(data, params),
-    _isInit(true) {
-    // ...
-  }
+  // SNE::SNE(const float * data, Params params)
+  // : _params(params),
+  //   _similarities(data, params),
+  //   _isInit(true) {
+  //   // ...
+  // }
 
   SNE::~SNE() {
     // ...
