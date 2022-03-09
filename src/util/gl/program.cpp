@@ -179,7 +179,7 @@ namespace dh::util {
 
   void GLProgram::bind() {
     glUseProgram(_handle);
-    std::cout << _handle << "!";
+    // std::cout << _handle << "!";
     glAssert();
   }
 
