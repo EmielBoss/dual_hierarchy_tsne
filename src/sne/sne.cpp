@@ -33,9 +33,9 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(const std::vector<float>& data, const std::vector<uint>& labels, Params params)
+  SNE::SNE(const std::vector<float>& data, Params params)
   : _params(params),
-    _similarities(data, labels, params),
+    _similarities(data, params),
     _isInit(true) {
     // ...
   }

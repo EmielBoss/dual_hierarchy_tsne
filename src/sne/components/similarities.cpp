@@ -43,8 +43,8 @@ namespace dh::sne {
     // ...
   }
 
-  Similarities::Similarities(const std::vector<float>& data, const std::vector<uint>& labels, Params params)
-  : _isInit(false), _dataPtr(data.data()), _labelPtr(labels.data()), _params(params) {
+  Similarities::Similarities(const std::vector<float>& data, Params params)
+  : _isInit(false), _dataPtr(data.data()), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -342,11 +342,16 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eSelectionCount), 0, 2 * sizeof(uint), &selectionCounts);
     uint selectionCount = selectionCounts[0] + selectionCounts[1];
 
+    //// DEBUGGIN
+    std::vector<uint> sizesPrev(_params.n);
+    glGetNamedBufferSubData(_buffers(BufferType::eSizes), 0, _params.n * sizeof(uint), sizesPrev.data());
+
     // 2.
     // Add selection counts (minus existing neighbours) to the NN size of each selected datapoint (eSizes)
     
     {
       auto &program = _programs(ProgramType::eUpdateSizesComp);
+      std::cout << _programs(ProgramType::eUpdateSizesComp).getHandle() << "!!!";
       program.bind();
 
       program.template uniform<uint>("nPoints", _params.n);
@@ -363,6 +368,45 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
+
+    //// DEBUGGING
+    // std::vector<uint> selection(_params.n);
+    // glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
+    // std::vector<uint> layout(_params.n * 2);
+    // glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
+    // std::vector<uint> sizes(_params.n);
+    // glGetNamedBufferSubData(_buffers(BufferType::eSizes), 0, _params.n * sizeof(uint), sizes.data());
+    
+
+    //// UNCOMMENT FOR PROBLEM 2
+    // std::vector<uint> neighbours(_symmetricSize);
+    // glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, _symmetricSize * sizeof(uint), neighbours.data());
+    //// UNCOMMENT FOR PROBLEM 2
+
+
+    // uint s1;
+    // uint s2;
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   if(selection[i] == 1) { s1 = i; }
+    //   if(selection[i] == 2) { s2 = i; }
+    // }
+
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   uint s = selection[i];
+    //   if(s == 0) { continue; }
+    //   uint size = sizesPrev[i] + selectionCounts[s % 2];
+    //   for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
+    //     uint j = neighbours[ij];
+    //     if(selection[j] == (s % 2) + 1) { size--; }
+    //   }
+    //   if (size != sizes[i]) {
+    //     for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
+    //       uint j = neighbours[ij];
+    //       std::cout << "\n" << ij << ", " << j << ": " << selection[j];
+    //     }
+    //     std::cout << (size == sizes[i]) << "|";
+    //   }
+    // }
 
     // Prefix sum/inclusive sum over eSizes (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
   
@@ -498,50 +542,6 @@ namespace dh::sne {
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
-    }
-
-    //// DEBUGGING
-    std::vector<uint> selection(_params.n);
-    glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
-    std::vector<uint> layoutPrev(_params.n * 2);
-    glGetNamedBufferSubData(_buffers(BufferType::eLayoutPrev), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
-    std::vector<uint> layout(_params.n * 2);
-    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
-    std::vector<uint> neighboursPrev(_symmetricSize);
-    glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neighboursPrev.data());
-    std::vector<uint> neighbours(neighbourTotal);
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, neighbourTotal * sizeof(uint), neighbours.data());
-    std::vector<float> similaritiesPrev(_symmetricSize);
-    glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), similaritiesPrev.data());
-    std::vector<float> similarities(neighbourTotal);
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, neighbourTotal * sizeof(float), similarities.data());
-
-    int s1 = -1;
-    int s2 = -1;
-    for(int i = 0; i < _params.n; ++i) {
-      if(selection[i] == 1 && s1 < 0) {
-        s1 = i;
-      }
-      if(selection[i] == 2 && s2 < 0) {
-        s2 = i;
-      }
-    }
-
-    std::cout << "\n\nS1 Prev: ";
-    for(uint i = layoutPrev[s1 * 2]; i < layoutPrev[s1 * 2] + layoutPrev[s1 * 2 + 1]; ++i) {
-      std::cout << similaritiesPrev[i] << "|";
-    }
-    std::cout << "\n\nS1 Aft:  ";
-    for(uint i = layout[s1 * 2]; i < layout[s1 * 2] + layout[s1 * 2 + 1]; ++i) {
-      std::cout << similarities[i] << "|";
-    }
-    std::cout << "\n\nS2 Prev: ";
-    for(uint i = layoutPrev[s2 * 2]; i < layoutPrev[s2 * 2] + layoutPrev[s2 * 2 + 1]; ++i) {
-      std::cout << similaritiesPrev[i] << "|";
-    }
-    std::cout << "\n\nS2 Aft:  ";
-    for(uint i = layout[s2 * 2]; i < layout[s2 * 2] + layout[s2 * 2 + 1]; ++i) {
-      std::cout << similarities[i] << "|";
     }
 
     std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));

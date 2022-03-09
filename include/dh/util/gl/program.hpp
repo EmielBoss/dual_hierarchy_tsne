@@ -89,6 +89,8 @@ namespace dh::util {
       if (!implUniformValue(s, t)) implUniform<GenType, M, N>(implUniformLocation(s), &(t[0].x));
     }
 
+    GLuint getHandle() { return _handle; }
+
   private:
     // State
     GLuint _handle;

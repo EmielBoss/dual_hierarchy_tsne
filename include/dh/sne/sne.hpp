@@ -40,7 +40,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     SNE();
-    SNE(const std::vector<float>& data, const std::vector<uint>& labels, Params params);
+    SNE(const std::vector<float>& data, Params params);
     SNE(const float * dataPtr, Params params);
     ~SNE();
 

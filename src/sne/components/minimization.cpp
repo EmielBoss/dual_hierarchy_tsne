@@ -50,7 +50,7 @@ namespace dh::sne {
 
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(-1) {
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(-1), _updated(false) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -180,13 +180,17 @@ namespace dh::sne {
   void Minimization<D>::compIteration() {
     _mousePressed = _selectionInputTask->getMousePressed();
     _spacePressed = _selectionInputTask->getSpacePressed();
-    if(!_spacePressed                     ) { compIterationMinimization(); }
+    // if(!_spacePressed                     ) { compIterationMinimization(); }
+    compIterationMinimization();
     if( _mousePressed || _mousePressedPrev) { compIterationSelection(); }
     _mousePressedPrev = _mousePressed;
   }
 
   template <uint D>
   void Minimization<D>::compIterationMinimization() {
+
+    std::vector<vec2> positions(_params.n);
+    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec2), positions.data());
 
     // 1.
     // Compute embedding bounds
@@ -471,6 +475,7 @@ namespace dh::sne {
       _similarities->update(_buffers(BufferType::eSelection));
       _similaritiesBuffers = _similarities->buffers(); // Update buffer handles
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      _updated = true;
     }
   }
 
