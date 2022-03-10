@@ -41,11 +41,13 @@ namespace dh::vis {
     glm::vec2 getMousePos() const { return _mousePos; }
     glm::vec2 getMousePosPixel() const { return _mousePosPixel; }
     bool getSpacePressed() const { return _spacePressed; }
+    bool getDPressed() const { return _dPressed; }
     bool getMousePressed() const { return _mousePressed; }
 
   private:
     // State
-    bool _spacePressed; // Whether spacebar is clicked
+    bool _spacePressed; // Whether spacebar is pressed
+    bool _dPressed; // Whether d is pressed
     bool _mousePressed; // Whether the mouse is clicked
     float _mouseScroll;
     glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates

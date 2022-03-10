@@ -24,8 +24,7 @@
 
 #version 460 core
 
-#extension GL_KHR_shader_subgroup_ballot : require
-#extension GL_KHR_shader_subgroup_arithmetic : require
+#define FLT_MIN 1.175494351e-38F
 
 struct Layout {
   uint offset;
@@ -51,13 +50,6 @@ layout(binding = 11, std430) restrict buffer Simi { float similaritiesBuffer[]; 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform float perplexity;
-layout(location = 3) uniform uint nIters;
-layout(location = 4) uniform float epsilon;
-
-// Shorthand subgroup/warp constants
-const uint thread = gl_SubgroupInvocationID;
-const uint nThreads = gl_SubgroupSize;
 
 float squaredDistance(uint i, uint j) {
   float sum = 0;
@@ -69,8 +61,8 @@ float squaredDistance(uint i, uint j) {
 
 // Returns index of neighbour j in i's neighbour set
 uint searchk(uint i, uint j) {
-  Layout lj = layoutsBuffer[j];
-  for (uint k = lj.offset; k < lj.offset + lj.size; k++) {
+  Layout li = layoutsBuffer[i];
+  for (uint k = li.offset; k < li.offset + li.size; k++) {
     if (neighboursBuffer[k] == j) {
       return k;
     }
@@ -79,7 +71,7 @@ uint searchk(uint i, uint j) {
 }
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nThreads;
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
   if (i >= nPoints) { return; }
 
@@ -88,46 +80,26 @@ void main() {
 
   // Calculate similarity
   if(betasFoundBuffer[i]) {
-    float v_jiSum = v_jiSumBuffer[i];
     const float beta = betasBuffer[i];
-    for (uint ij = li.offset + liPrev.size + thread; ij < li.offset + li.size; ij += nThreads) {
+    for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
       const uint j = neighboursBuffer[ij];
       const float v_ji = exp(-beta * squaredDistance(i, j));
       similaritiesBuffer[ij] = v_ji; // Add initial similarity
-      v_jiSum += v_ji;
+      v_jiSumBuffer[i] += v_ji;
     }
-    v_jiSum = subgroupAdd(v_jiSum);
-    if(thread < 1) { v_jiSumBuffer[i] = v_jiSum; }
   } else {
-    float v_jiKindOf = 1.f / float(li.size);
-    for (uint ij = li.offset + liPrev.size + thread; ij < li.offset + li.size; ij += nThreads) {
-      similaritiesBuffer[ij] = v_jiKindOf; // Add similarity
+    float v_jiButNotReally = 1.f / float(li.size);
+    for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
+      similaritiesBuffer[ij] = v_jiButNotReally; // Add similarity
     }
   }
 
-  barrier();
+  if(!betasFoundBuffer[i]) { return; }
 
-  if(betasFoundBuffer[i]) {
-    for (uint ij = li.offset + liPrev.size + thread; ij < li.offset + li.size; ij += nThreads) {
-      const float v_ji = similaritiesBuffer[ij];
-      const float p_ji = v_ji / v_jiSumBuffer[i];
-      similaritiesBuffer[ij] = p_ji; // Add definitive similarity
-    }
-  }
-
-  barrier();
-
-  if(betasFoundBuffer[i]) {
-    for (uint ij = li.offset + liPrev.size + thread; ij < li.offset + li.size; ij += nThreads) {
-      uint j = neighboursBuffer[ij];
-      if (i < j) {
-        uint ji = searchk(j, i);
-        const float p_ji = similaritiesBuffer[ij];
-        const float p_ij = 0.5 * (p_ji + similaritiesBuffer[ji]);
-        similaritiesBuffer[ij] = p_ij;
-        similaritiesBuffer[ji] = p_ij;
-      }
-    }
+  for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
+    const float v_ji = similaritiesBuffer[ij];
+    const float p_ji = v_ji / v_jiSumBuffer[i];
+    similaritiesBuffer[ij] = p_ji; // Add definitive similarity
   }
 
 }

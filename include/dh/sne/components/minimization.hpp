@@ -81,6 +81,8 @@ namespace dh::sne {
       ePrevGradients,
       eGain,
       eSelection,
+      eSelectionCounts,
+      eSelectionCountsReduce,
 
       Length
     };
@@ -93,6 +95,7 @@ namespace dh::sne {
       eUpdateEmbeddingComp,
       eCenterEmbeddingComp,
       eSelectionComp,
+      eSelectionCountComp,
 
       Length
     };
@@ -114,12 +117,14 @@ namespace dh::sne {
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
+    uint _iterSinceUpdate; ////
     Bounds _bounds;
-    int _selectionIdx;
+    uint _selectionIdx;
+    uint _selectionCounts[2];
+    bool _dPressed;
     bool _spacePressed;
     bool _mousePressed;
     bool _mousePressedPrev;
-    bool _updated; //
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -156,6 +161,8 @@ namespace dh::sne {
       swap(a._timers, b._timers);
       swap(a._field, b._field);
       swap(a._selectionIdx, b._selectionIdx);
+      swap(a._selectionCounts, b._selectionCounts);
+      swap(a._iterSinceUpdate, b._iterSinceUpdate); ////
       swap(a._selectionInputTask, b._selectionInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
     }

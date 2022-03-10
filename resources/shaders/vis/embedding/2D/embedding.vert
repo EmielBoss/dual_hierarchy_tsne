@@ -66,6 +66,7 @@ layout(location = 1) uniform mat4 proj;
 layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
 layout(location = 4) uniform bool drawLabels;
+// layout(location = 5) uniform vec3 randomColor;
 
 void main() {
   // Calculate embedding position, fragment position
@@ -82,6 +83,7 @@ void main() {
     colorOut = vec4(colors[label] / 155.0f, pointOpacity);
   } else if(selected[gl_InstanceID] == 2) {
     colorOut = vec4(colors[label] / 355.0f, pointOpacity);
+    // colorOut = vec4(randomColor, pointOpacity);
   } else {
     colorOut = vec4(colors[label] / 255.0f, pointOpacity);
   }

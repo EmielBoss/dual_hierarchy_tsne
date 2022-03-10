@@ -63,9 +63,7 @@ void main() {
   }
 
   // TODO Optimize this so the first index is just intrinsically not part of the computation
-  if (k == 0) {
-    return;
-  }
+  if (k == 0) { return; }
 
   // Read original asymmetric neighbours
   const uint j = asymmetricNeighboursBuffer[i * kNeighbours + k];
@@ -75,8 +73,7 @@ void main() {
   const Layout li = layoutBuffer[i];
   const Layout lj = layoutBuffer[j];
   
-  // Copy over to own neighbour indices
-  symmetricNeighboursBuffer[li.offset + k - 1] = j;
+  symmetricNeighboursBuffer[li.offset + k - 1] = j; // Copy over to own neighbour indices
 
   // Potentially copy self over to neighbour's neighbour indices, if they don't already know it
   uint _k = searchk(j, i);
