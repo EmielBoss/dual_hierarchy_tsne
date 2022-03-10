@@ -51,7 +51,7 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
-    void update(GLuint selectionBuffer);
+    void update(GLuint selectionBuffer, GLuint selectionCountsBuffer, uint* selectionCounts);
 
   private:
     enum class BufferType {
@@ -67,8 +67,6 @@ namespace dh::sne {
       eCounts,
       eScan,
 
-      eSelectionCount,
-      eSelectionCountReduce,
       eSelected,
       eSelectedScan,
       
@@ -91,12 +89,12 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
 
-      eSelectionCountComp,
       eUpdateSizesComp,
       eIndicateSelectedComp,
       eSelectionIndicesComp,
       eNeighborsUpdateComp,
       eSimilaritiesUpdateComp,
+      eSimilaritiesUpdateComp2,
       
       Length
     };

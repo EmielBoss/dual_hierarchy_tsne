@@ -34,7 +34,7 @@ layout(binding = 0, std430) restrict readonly buffer Indi { uint neighboursBuffe
 layout(binding = 1, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
 layout(binding = 2, std430) restrict buffer SimilaritiesM { float similaritiesBuffer[]; };
 layout(binding = 3, std430) restrict writeonly buffer Bet { float betasBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer BtF { bool betasFoundBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer BtF { uint betasFoundBuffer[]; };
 layout(binding = 5, std430) restrict writeonly buffer Sum { float v_jiSumBuffer[]; };
 
 // Uniform values
@@ -46,9 +46,7 @@ layout(location = 4) uniform float epsilon;
 
 void main() {
   const uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) {
-    return;
-  }
+  if (i >= nPoints) { return; }
 
   // Use beta instead of sigma, as per BH-SNE code
   float beta = 1.f;
@@ -71,20 +69,14 @@ void main() {
     }
 
     // Compute entropy over the current Gaussian's values
-    // float negativeEntropy = 0.f;
     float entropy = 0.f;
     for (uint j = 1; j < kNeighbours; j++) {
       const uint ij = i * kNeighbours + j;
-      // const float v = similaritiesBuffer[ij];
-      // const float e = v * log(v);
-      // negativeEntropy += (e != e) ? 0 : e;
       entropy += beta * distancesBuffer[ij] * similaritiesBuffer[ij];
     }
-    // negativeEntropy *= -1.f;
     entropy = (entropy / sum) + log(sum);
 
     // Test if the difference falls below epsilon
-    // float entropy = (negativeEntropy / sum) + log(sum);
     float entropyDiff = entropy - log(perplexity);
     foundBeta = entropyDiff < epsilon && -entropyDiff < epsilon;
 
@@ -107,7 +99,7 @@ void main() {
   }
 
   betasBuffer[i] = beta;
-  betasFoundBuffer[i] = foundBeta;
+  betasFoundBuffer[i] = int(foundBeta);
   v_jiSumBuffer[i] = sum;
 
   // Normalize kernel at the end

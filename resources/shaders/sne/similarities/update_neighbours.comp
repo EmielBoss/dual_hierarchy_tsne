@@ -32,42 +32,51 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer NeigP { uint neighboursBufferPrev[]; };
-layout(binding = 4, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
-layout(binding = 5, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
-layout(binding = 6, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 7, std430) restrict buffer Counts { uint counts[]; };
-layout(binding = 8, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 9, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer NeigP { uint neighboursBufferPrev[]; };
+layout(binding = 3, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
+layout(binding = 4, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
+layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 6, std430) restrict buffer Counts { uint counts[]; };
+layout(binding = 7, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 8, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nSelected;
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nSelected;
-  const uint si = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % nSelected;
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
   if (i >= nPoints) { return; }
 
-  Layout li = layoutsBuffer[i];
-  Layout liPrev = layoutsBufferPrev[i];
+  Layout l = layoutsBuffer[i];
+  Layout lPrev = layoutsBufferPrev[i];
   // Copy old neighbours and corresponding similarities
-  if(si < liPrev.size) {
-    neighboursBuffer[li.offset + si] = neighboursBufferPrev[liPrev.offset + si];
-    similaritiesBuffer[li.offset + si] = similaritiesBufferPrev[liPrev.offset + si];
+  for(uint n = 0; n < lPrev.size; n++) {
+    neighboursBuffer[l.offset + n] = neighboursBufferPrev[lPrev.offset + n];
+    similaritiesBuffer[l.offset + n] = similaritiesBufferPrev[lPrev.offset + n];
   }
 
   if (selectionBuffer[i] == 0) { return; }
 
-  const uint j = selectionIndicesBuffer[si]; // Read potential neighbour to be added
+  uint count = 0;
+  for(uint s = 0; s < nSelected; s++) {
+    uint j = selectionIndicesBuffer[s]; // Read potential neighbour to be added
 
-  if(selectionBuffer[i] == selectionBuffer[j]) { return; } // TODO: This can be avoided if the selectionIndices are segregated
+    if(selectionBuffer[i] == selectionBuffer[j]) { continue; } // TODO: This can be avoided if the selectionIndices are segregated
 
-  uint c = atomicAdd(counts[i], 1);
-  neighboursBuffer[li.offset + liPrev.size + c] = j; // Add new neighbour
+    // Check if j is not already a neighbour
+    bool alreadyPresent = false;
+    for(uint ij = lPrev.offset; ij < lPrev.offset + lPrev.size; ij++) {
+      if(neighboursBufferPrev[ij] == j) { alreadyPresent = true; }
+    }
+
+    if(!alreadyPresent) {
+      neighboursBuffer[l.offset + lPrev.size + count] = j; // Add new neighbour
+      count++;
+    }
+  }
 
 }

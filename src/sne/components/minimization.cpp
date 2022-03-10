@@ -33,6 +33,9 @@
 #include "dh/util/gl/metric.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
 #include "dh/vis/input_queue.hpp"
+#include <numeric> //
+#include <fstream> //
+#include <filesystem> //
 
 namespace dh::sne {
   // Logging shorthands
@@ -48,10 +51,25 @@ namespace dh::sne {
     // ...
   }
 
+  template<typename Type>
+  void checkBuffer(GLuint handle, uint n, bool d, uint s) {
+    std::vector<Type> buffer(n);
+    glGetNamedBufferSubData(handle, 0, n * sizeof(Type), buffer.data());
+    float avg = 0;
+    for(uint i = 0; i < n; ++i) {
+      avg += std::abs(buffer[i]);
+    }
+    // avg /= (float) n;
+    std::cout << d;
+  }
+
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(-1), _updated(false) {
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(0), _iterSinceUpdate(0) {
     Logger::newt() << prefix << "Initializing...";
+
+    _selectionCounts[0] = 0;
+    _selectionCounts[1] = 0;
 
     // Initialize shader programs
     {      
@@ -63,6 +81,7 @@ namespace dh::sne {
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
+        _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/Z.comp"));
@@ -70,6 +89,7 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
+        _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
       }
       
       for (auto& program : _programs) {
@@ -80,9 +100,18 @@ namespace dh::sne {
 
     // Initialize buffer objects
     {
+      std::vector<uint> selection(_params.n);
+      std::ifstream fin("../selection.txt", std::ios::in);
+      char byte = 0;
+      for (uint i = 0; fin.get(byte); ++i) {
+        selection[i] = byte - '0';
+      }
+      fin.close();
+      glAssert();
+
       const std::vector<vec> zeroes(_params.n, vec(0));
       const std::vector<vec> ones(_params.n, vec(1));
-      const std::vector<uint> falses(_params.n, 0); // Ideally these would be bools, but OpenGL hates bools and likes everything 4-byte aligned
+      const std::vector<uint> falses(_params.n, 0);
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -96,6 +125,8 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zeroes.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), ones.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCounts), 2 * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCountsReduce), 128 * sizeof(uint), nullptr, 0);
       glAssert();
     }
 
@@ -178,10 +209,10 @@ namespace dh::sne {
 
     template <uint D>
   void Minimization<D>::compIteration() {
+    _dPressed = _selectionInputTask->getDPressed(); // For debugging purposes
     _mousePressed = _selectionInputTask->getMousePressed();
     _spacePressed = _selectionInputTask->getSpacePressed();
-    // if(!_spacePressed                     ) { compIterationMinimization(); }
-    compIterationMinimization();
+    if(!_spacePressed                     ) { compIterationMinimization(); }
     if( _mousePressed || _mousePressedPrev) { compIterationSelection(); }
     _mousePressedPrev = _mousePressed;
   }
@@ -191,6 +222,7 @@ namespace dh::sne {
 
     std::vector<vec2> positions(_params.n);
     glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec2), positions.data());
+    if(_spacePressed) { std::cout << positions[0][0] << "|" << positions[1234][1] << "\n"; }
 
     // 1.
     // Compute embedding bounds
@@ -269,6 +301,8 @@ namespace dh::sne {
       glAssert();
     }
 
+    checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
+
     // 4.
     // Compute attractive forces
     { 
@@ -289,7 +323,6 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.similarities); // Corresponding similarities
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttractive));
 
-
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/subgroup per i
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -297,6 +330,8 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
+
+    checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // Compute exaggeration factor
     float exaggeration = 1.0f;
@@ -307,6 +342,8 @@ namespace dh::sne {
                          / static_cast<float>(_params.exponentialDecayIter);
       exaggeration = 1.0f + (_params.exaggerationFactor - 1.0f) * decay;
     }
+
+    checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // 5.
     // Compute gradients
@@ -334,6 +371,8 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
+
+    checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // Precompute instead of doing it in shader N times
     const float iterMult = (static_cast<double>(_iteration) < _params.momentumSwitchIter) 
@@ -426,56 +465,213 @@ namespace dh::sne {
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
     }
-
+    _iterSinceUpdate++;
 
   }
 
   template <uint D>
   void Minimization<D>::compIterationSelection() {
-    // 8.
-    // Compute selection
-    auto& program = _programs(ProgramType::eSelectionComp);
-    program.bind();
-
-    // Determine which of the two selections is being executed
-    if(!_mousePressedPrev) _selectionIdx = ++_selectionIdx % 2;
     uint selectionNumber = _selectionIdx + 1;
+    
+    // 1.
+    // Compute selection
+    {
+      auto& program = _programs(ProgramType::eSelectionComp);
+      program.bind();
 
-    // Get everything related with the cursor and selection brush
-    const vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
-    const vec boundsRange = _bounds.range();
-    const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
-    vec2 boundsMin = {_bounds.min.x, _bounds.min.y}; // Only need the first two dimensions in case D == 3
-    vec2 boundsMax = {_bounds.max.x, _bounds.max.y};
-    vec2 mousePos = _selectionInputTask->getMousePos();
-    vec2 cursorPos = boundsCenter + boundsRangeHalf * mousePos;
-    float selectionRadiusPixel = _selectionRenderTask->getSelectionRadius();
-    float selectionRadius = boundsRange.y * selectionRadiusPixel / _params.resHeight;
+      // Get everything related with the cursor and selection brush
+      const vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
+      const vec boundsRange = _bounds.range();
+      const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
+      vec2 boundsMin = {_bounds.min.x, _bounds.min.y}; // Only need the first two dimensions in case D == 3
+      vec2 boundsMax = {_bounds.max.x, _bounds.max.y};
+      vec2 mousePos = _selectionInputTask->getMousePos();
+      vec2 cursorPos = boundsCenter + boundsRangeHalf * mousePos;
+      float selectionRadiusPixel = _selectionRenderTask->getSelectionRadius();
+      float selectionRadius = boundsRange.y * selectionRadiusPixel / _params.resHeight;
 
-    // Set uniform
-    program.template uniform<uint>("nPoints", _params.n);
-    program.template uniform<float, 2>("cursorPos", cursorPos);
-    program.template uniform<float>("selectionRadius", selectionRadius);
-    program.template uniform<uint>("selectionNumber", selectionNumber);
+      // Set uniform
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<float, 2>("cursorPos", cursorPos);
+      program.template uniform<float>("selectionRadius", selectionRadius);
+      program.template uniform<uint>("selectionNumber", selectionNumber);
 
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
 
-    // Dispatch shader
-    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    glAssert();
+      glAssert();
+    }
+    
+    // 2.
+    // Things to do when at the end of any selection
+    if(!_mousePressed && _mousePressedPrev) {
 
-    // 9.
-    // Update neighbours at the end of selection
+      // Count number of selected datapoints in the just-finished selection
+      {
+        
+        auto& program = _programs(ProgramType::eSelectionCountComp);
+        program.bind();
+
+        // Set uniforms
+        program.template uniform<uint>("nPoints", _params.n);
+
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountsReduce));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCounts));
+        glAssert();
+
+        for(uint s = 1; s < selectionNumber + 1; s++) {
+          glClearNamedBufferData(_buffers(BufferType::eSelectionCountsReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+          program.template uniform<uint>("selectionNumber", s);
+          program.template uniform<uint>("iter", 0);
+          glDispatchCompute(128, 1, 1);
+          glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+          program.template uniform<uint>("iter", 1);
+          glDispatchCompute(1, 1, 1);
+          glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        }
+
+        glAssert();
+      }
+
+      glGetNamedBufferSubData(_buffers(BufferType::eSelectionCounts), 0, 2 * sizeof(uint), _selectionCounts);
+
+      //// DEBUGGING
+      // std::vector<uint> selection(_params.n);
+      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
+      // // std::vector<uint> selectionCounts(2); //
+      // selectionCounts[_selectionIdx] = 0;
+      // for(uint i = 0; i < _params.n; ++i) {
+      //   if(selection[i] == selectionNumber) { selectionCounts[_selectionIdx]++; }
+      // }
+
+      // if(_selectionCounts[_selectionIdx] != selectionCounts[_selectionIdx]) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      // selectionCounts[_selectionIdx] = 0;
+      // for(uint i = 0; i < _params.n; ++i) {
+      //   if(selection[i] == selectionNumber) { selectionCounts[_selectionIdx]++; }
+      // }
+
+      // if(_selectionCounts[_selectionIdx] != selectionCounts[_selectionIdx]) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      if(_selectionCounts[_selectionIdx] < 5) { return; }
+      _selectionIdx = ++_selectionIdx % 2; // Increment selection index
+      glAssert();
+
+    }
+
+    // 3.
+    // Update neighbours at the end of second selection
 
     if(!_mousePressed && _mousePressedPrev && selectionNumber == 2) {
-      _similarities->update(_buffers(BufferType::eSelection));
+      
+      //// DEBUGGING
+      // std::vector<uint> selection(_params.n);
+      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
+
+      // // std::vector<uint> selectionCounts(2);
+      // selectionCounts[0] = 0;
+      // selectionCounts[1] = 0;
+      // for(uint i = 0; i < _params.n; i++) {
+      //   if(selection[i] == 1) {
+      //     selectionCounts[0]++;
+      //   }
+      //   if(selection[i] == 2) { selectionCounts[1]++; }
+      // }
+      // if(selectionCounts[0] != _selectionCounts[0]) {
+      //   std::ofstream fout("../selection.txt", std::ios::out);
+      //   for (uint i = 0; i < _params.n; ++i) {
+      //     fout << selection[i];
+      //   }
+      //   fout.close();
+      //   std::cout << "\nERROR\n";
+      // }
+      // if(selectionCounts[1] != _selectionCounts[1]) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      {
+        glClearNamedBufferData(_buffers(BufferType::eSelectionCountsReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        
+        auto& program = _programs(ProgramType::eSelectionCountComp);
+        program.bind();
+
+        // Set uniforms
+        program.template uniform<uint>("nPoints", _params.n);
+        program.template uniform<uint>("selectionNumber", selectionNumber);
+
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountsReduce));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCounts));
+        glAssert();
+
+        program.template uniform<uint>("iter", 0);
+        glDispatchCompute(128, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        program.template uniform<uint>("iter", 1);
+        glDispatchCompute(1, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        
+        glAssert();
+      }
+
+      glGetNamedBufferSubData(_buffers(BufferType::eSelectionCounts), 0, 2 * sizeof(uint), &_selectionCounts);
+
+      //// DEBUGGING
+      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
+      // std::vector<uint> selectionCounts(2); //
+      // selectionCounts[_selectionIdx] = 0;
+      // for(uint i = 0; i < _params.n; ++i) {
+      //   if(selection[i] == 1) {
+      //     selectionCounts[0]++;
+      //   }
+      // }
+
+      // if(_selectionCounts[0] != selectionCounts[0]) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      // uint selectionCount = 0;
+      // for(uint i = 0; i < _params.n; ++i) {
+      //   if(selection[i] == 1) { selectionCount++; }
+      // }
+
+      // if(_selectionCounts[0] != selectionCount) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      // selectionCounts[0] = 0;
+      // selectionCounts[1] = 0;
+      // for(uint i = 0; i < _params.n; i++) {
+      //   if(selection[i] == 1) {
+      //     selectionCounts[0]++;
+      //   }
+      //   if(selection[i] == 2) { selectionCounts[1]++; }
+      // }
+      // if(selectionCounts[0] != _selectionCounts[0]) {
+      //   std::cout << "\nERROR\n";
+      // }
+      // if(selectionCounts[1] != _selectionCounts[1]) {
+      //   std::cout << "\nERROR\n";
+      // }
+
+      _similarities->update(_buffers(BufferType::eSelection), _buffers(BufferType::eSelectionCounts), _selectionCounts);
       _similaritiesBuffers = _similarities->buffers(); // Update buffer handles
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      _updated = true;
+      glClearNamedBufferData(_buffers(BufferType::eSelectionCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear counts
+      glAssert();
+      _iterSinceUpdate = 0;
     }
   }
 

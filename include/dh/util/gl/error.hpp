@@ -67,6 +67,7 @@ namespace dh::util {
         error.line = line;
         throw error;
       }
+
     }
   }
 } // dh::util

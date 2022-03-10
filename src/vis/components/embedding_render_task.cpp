@@ -23,6 +23,7 @@
  */
 
 #include <array>
+#include <random>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -57,7 +58,7 @@ namespace dh::vis {
     _params(params),
     _canDrawLabels(false),
     _drawLabels(true),
-    _pointRadius(0.001f),
+    _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
@@ -139,6 +140,10 @@ namespace dh::vis {
       return;
     }
 
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // std::uniform_real_distribution<float> dist;
+
     // Only allow drawing labels if a buffer is provided with said labels
     _canDrawLabels = (labelsHandle > 0);
 
@@ -150,6 +155,7 @@ namespace dh::vis {
     _program.template uniform<float>("pointOpacity", _pointOpacity);
     _program.template uniform<float>("pointRadius", _pointRadius);
     _program.template uniform<bool>("drawLabels", _canDrawLabels && _drawLabels);
+    // _program.template uniform<float, 3>("randomColor", glm::vec3(dist(gen), dist(gen), dist(gen)));
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
