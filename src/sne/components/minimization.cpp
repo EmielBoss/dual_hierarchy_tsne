@@ -301,7 +301,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
+    // checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // 4.
     // Compute attractive forces
@@ -331,7 +331,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
+    // checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // Compute exaggeration factor
     float exaggeration = 1.0f;
@@ -343,7 +343,7 @@ namespace dh::sne {
       exaggeration = 1.0f + (_params.exaggerationFactor - 1.0f) * decay;
     }
 
-    checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
+    // checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // 5.
     // Compute gradients
@@ -372,7 +372,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
+    // checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // Precompute instead of doing it in shader N times
     const float iterMult = (static_cast<double>(_iteration) < _params.momentumSwitchIter) 

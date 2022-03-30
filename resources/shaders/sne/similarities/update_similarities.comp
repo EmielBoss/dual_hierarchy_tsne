@@ -24,6 +24,7 @@
 
 #version 460 core
 
+#define FLT_MAX 3.402823466e+38F
 #define FLT_MIN 1.175494351e-38F
 
 struct Layout {
@@ -52,7 +53,7 @@ layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
 
 float squaredDistance(uint i, uint j) {
-  float sum = 0;
+  float sum = 0.0f;
   for(uint d = 0; d < nHighDims; d++) {
     sum += pow(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d], 2);
   }
@@ -94,12 +95,12 @@ void main() {
     }
   }
 
-  if(!betasFoundBuffer[i]) { return; }
-
-  for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
-    const float v_ji = similaritiesBuffer[ij];
-    const float p_ji = v_ji / v_jiSumBuffer[i];
-    similaritiesBuffer[ij] = p_ji; // Add definitive similarity
+  if(betasFoundBuffer[i]) {
+    for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
+      const float v_ji = similaritiesBuffer[ij];
+      const float p_ji = v_ji / v_jiSumBuffer[i];
+      similaritiesBuffer[ij] = p_ji; // Add definitive similarity
+    }
   }
 
 }

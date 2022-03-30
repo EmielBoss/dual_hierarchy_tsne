@@ -396,8 +396,8 @@ namespace dh::sne {
     }
 
     //// DEBUGGING
-    // std::vector<uint> layoutPrev(_params.n * 2);
-    // glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
+    std::vector<uint> layoutPrev(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
     // std::vector<uint> sizes(_params.n);
     // glGetNamedBufferSubData(_buffers(BufferType::eSizes), 0, _params.n * sizeof(uint), sizes.data());
     // std::vector<uint> neighboursPrev(_symmetricSize);
@@ -471,8 +471,8 @@ namespace dh::sne {
     }
 
     //// DEBUGGING
-    // std::vector<uint> layout(_params.n * 2);
-    // glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
+    std::vector<uint> layout(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
     // std::ofstream flayout("../layout.txt", std::ios::out);
     // for(uint i = 0; i < _params.n; ++i) { flayout << layout[i] << "\n"; }
     // flayout.close();
@@ -775,8 +775,29 @@ namespace dh::sne {
       glAssert();
     }
 
-    // checkNan<float>(_buffers(BufferType::eSimilarities), _symmetricSize);
-    // checkNan<float>(_buffersTemp(BufferTempType::eSimilarities), neighbourTotal);
+    //// DEBUGGING
+    std::vector<float> similaritiesPrev(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), similaritiesPrev.data());
+    std::vector<float> similarities(neighbourTotal);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, neighbourTotal * sizeof(float), similarities.data());
+
+    bool justSelected = false;
+    for(uint i = 0; i < _params.n; ++i) {
+      for(uint ij = 0; ij < layoutPrev[i * 2 + 1]; ++ij) {
+        float pPrev = similaritiesPrev[layoutPrev[i * 2] + ij];
+        float p = similarities[layout[i * 2] + ij];
+        if(p != pPrev) {
+          std::cout << "\nERROR\n";
+        }
+        std::cout << p << "\n";
+        justSelected = false;
+      }
+      for(uint ij = layoutPrev[i * 2 + 1]; ij < layout[i * 2 + 1]; ++ij) {
+        float p = similarities[layout[i * 2] + ij];
+        std::cout << p << "\n";
+        justSelected = true;
+      }
+    }
 
     std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
     std::swap(_buffersTemp(BufferTempType::eNeighbors), _buffers(BufferType::eNeighbors));
