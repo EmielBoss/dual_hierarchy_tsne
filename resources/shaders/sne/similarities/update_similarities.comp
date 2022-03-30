@@ -24,6 +24,7 @@
 
 #version 460 core
 
+#define FLT_MAX 3.402823466e+38F
 #define FLT_MIN 1.175494351e-38F
 
 struct Layout {
@@ -75,10 +76,12 @@ void main() {
 
   if (i >= nPoints) { return; }
 
+  //const uint i = selectionIndicesBuffer[thread];
+
   Layout liPrev = layoutsBufferPrev[i];
   Layout li = layoutsBuffer[i];
 
-  // Calculate similarity
+  // Calculate similarities
   if(betasFoundBuffer[i]) {
     const float beta = betasBuffer[i];
     for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
@@ -100,6 +103,16 @@ void main() {
     const float v_ji = similaritiesBuffer[ij];
     const float p_ji = v_ji / v_jiSumBuffer[i];
     similaritiesBuffer[ij] = p_ji; // Add definitive similarity
+  }
+
+  for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
+    uint j = neighboursBuffer[ij];
+    if (i < j) {
+      uint ji = searchk(j, i);
+      const float p_ij = 0.5 * (similaritiesBuffer[ij] + similaritiesBuffer[ji]);
+      similaritiesBuffer[ij] = p_ij;
+      similaritiesBuffer[ji] = p_ij;
+    }
   }
 
 }
