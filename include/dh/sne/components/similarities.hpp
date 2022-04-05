@@ -64,7 +64,6 @@ namespace dh::sne {
       eLayoutPrev,
       eNeighbors,
       eSizes,
-      eCounts,
       eScan,
 
       eSelected,
@@ -79,6 +78,7 @@ namespace dh::sne {
       eSimilarities,
       eNeighbors,
       eSelectionIndices,
+      eCounts,
       
       Length
     };

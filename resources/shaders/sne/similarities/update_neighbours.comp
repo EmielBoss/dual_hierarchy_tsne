@@ -38,9 +38,8 @@ layout(binding = 2, std430) restrict readonly buffer NeigP { uint neighboursBuff
 layout(binding = 3, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
 layout(binding = 4, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 6, std430) restrict buffer Counts { uint counts[]; };
-layout(binding = 7, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 8, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 7, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -49,10 +48,13 @@ layout(location = 1) uniform uint nSelected;
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
+  //if (i < 1) { neighboursBuffer[0] = 12345; }
+
   if (i >= nPoints) { return; }
 
   Layout l = layoutsBuffer[i];
   Layout lPrev = layoutsBufferPrev[i];
+  
   // Copy old neighbours and corresponding similarities
   for(uint n = 0; n < lPrev.size; n++) {
     neighboursBuffer[l.offset + n] = neighboursBufferPrev[lPrev.offset + n];

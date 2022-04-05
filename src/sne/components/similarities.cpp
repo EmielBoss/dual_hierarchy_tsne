@@ -131,7 +131,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eV_jiSumBuffer), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbour set sizes; every element is k-1 plus its number of "unregistered neighbours" that have it as neighbour but that it doesn't reciprocate
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
-      glNamedBufferStorage(_buffers(BufferType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
 
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), nullptr, 0); // Bitfield indicating selection: 1 if selected, 0 if not selected (regardless of which selection)
       glNamedBufferStorage(_buffers(BufferType::eSelectedScan), _params.n * sizeof(uint), nullptr, 0);
@@ -192,27 +192,6 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
-
-    // std::vector<uint> betasBuffer(_params.n);
-    // glGetNamedBufferSubData(_buffers(BufferType::eBetasFound), 0, _params.n * sizeof(uint), betasBuffer.data());
-
-    // for(uint i = 0; i < n; ++i) {
-    //   if(std::isnan(betasBuffer[i]) || betasBuffer[i] == 0) {
-    //     Type culprit = betasBuffer[i];
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-
-    // std::vector<uint> v_ijSumBuffer(_params.n);
-    // glGetNamedBufferSubData(_buffers(BufferType::eBetasFound), 0, _params.n * sizeof(uint), betasBuffer.data());
-
-    // for(uint i = 0; i < n; ++i) {
-    //   if(std::isnan(betasBuffer[i]) || betasBuffer[i] == 0) {
-    //     Type culprit = betasBuffer[i];
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-    
 
     // Update progress bar
     progressBar.setPostfix("Symmetrizing KNN data");
@@ -313,7 +292,7 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSimilarities));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eCounts));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eSimilarities));
@@ -350,30 +329,7 @@ namespace dh::sne {
 
     uint selectionCount = selectionCounts[0] + selectionCounts[1];
 
-    //// DEBUGGING
-    // std::vector<uint> sizesPrev(_params.n);
-    // glGetNamedBufferSubData(_buffers(BufferType::eSizes), 0, _params.n * sizeof(uint), sizesPrev.data());
-    // std::vector<uint> selection(_params.n);
-    // glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
-
-    // std::ofstream fsizesPrev("../sizesPrev.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) { fsizesPrev << sizesPrev[i] << "\n"; }
-    // fsizesPrev.close();
-
-    // uint count1 = 0;
-    // uint count2 = 0;
-    // for(uint i = 0; i < _params.n; i++) {
-    //   if(selection[i] == 1) { count1++; }
-    //   if(selection[i] == 2) { count2++; }
-    // }
-    // if(count1 != selectionCounts[0]) {
-    //   std::cout << "\nERROR\n";
-    // }
-    // if(count2 != selectionCounts[1]) {
-    //   std::cout << "\nERROR\n";
-    // }
-
-    // 2.
+    // 1.
     // Add selection counts (minus existing neighbours) to the NN size of each selected datapoint (eSizes)
     
     {
@@ -395,53 +351,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    //// DEBUGGING
-    std::vector<uint> layoutPrev(_params.n * 2);
-    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
-    // std::vector<uint> sizes(_params.n);
-    // glGetNamedBufferSubData(_buffers(BufferType::eSizes), 0, _params.n * sizeof(uint), sizes.data());
-    // std::vector<uint> neighboursPrev(_symmetricSize);
-    // glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neighboursPrev.data());
-    
-    // std::ofstream flayoutPrev("../layoutPrev.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) { flayoutPrev << layoutPrev[i] << "\n"; }
-    // flayoutPrev.close();
-    // std::ofstream fsizes("../sizes.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) { fsizes << sizes[i] << "\n"; }
-    // fsizes.close();
-    // std::ofstream fneighboursPrev("../neighboursPrev.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   for(uint ij = layoutPrev[i * 2]; ij < layoutPrev[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
-    //     fneighboursPrev << neighboursPrev[ij] << "|";
-    //   }
-    //   fneighboursPrev << "\n";
-    // }
-    // fneighboursPrev.close();
-
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   uint si = selection[i];
-    //   if(si == 0) {
-    //     if(sizes[i] != sizesPrev[i] && sizes[i] != layoutPrev[i * 2 + 1]) {
-    //       std::cout << "\nERROR\n";
-    //     }
-    //   } else {
-    //     uint size = sizesPrev[i] + selectionCounts[si % 2];
-    //     for(uint ij = layoutPrev[i * 2]; ij < layoutPrev[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
-    //       uint j = neighboursPrev[ij];
-    //       uint sj = selection[j];
-    //       if(i == j) {
-    //         std::cout << "\nERROR\n";
-    //       }
-    //       if(sj > 0 && si == (sj % 2) + 1) {
-    //         size--;
-    //       }
-    //     }
-    //     if(size != sizes[i]) {
-    //       std::cout << "\nERROR\n";
-    //     }
-    //   }
-    // }
-
     // Prefix sum/inclusive sum over eSizes (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
   
     uint neighbourTotal;
@@ -450,6 +359,7 @@ namespace dh::sne {
       glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &neighbourTotal); // Copy the last element (the total size) to host
     }
 
+    // 2.
     // Update (actually: recompute) layout buffer
 
     std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
@@ -470,25 +380,8 @@ namespace dh::sne {
       glAssert();
     }
 
-    //// DEBUGGING
-    std::vector<uint> layout(_params.n * 2);
-    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
-    // std::ofstream flayout("../layout.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) { flayout << layout[i] << "\n"; }
-    // flayout.close();
-
-    // uint offset = 0;
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   if(layout[i * 2] != offset) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    //   offset += layout[i * 2 + 1];
-    //   if(layout[i * 2 + 1] != sizes[i]) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-
-    // Getting a list of indices of selected datapoints, in order to avoid O(n^2)
+    // 3.
+    // Convert ints to bools
 
     glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     glAssert();
@@ -510,27 +403,13 @@ namespace dh::sne {
       glAssert();
     }
 
-    //// DEBUGGING
-    // std::vector<uint> selected(_params.n);
-    // glGetNamedBufferSubData(_buffers(BufferType::eSelected), 0, _params.n * sizeof(uint), selected.data());
-    // std::ofstream fselected("../selected.txt", std::ios::out);
-    // for(uint i = 0; i < _params.n; ++i) { fselected << selected[i] << "\n"; }
-    // fselected.close();
-
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   if(selection[i] == 0 && selected[i] != 0) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    //   if(selection[i] > 0 && selected[i] != 1) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-
     util::InclusiveScan(_buffers(BufferType::eSelected), _buffers(BufferType::eSelectedScan), _params.n).comp();
 
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionCount * sizeof(uint), nullptr, 0); // The vector indices of the selected datapoints
     glAssert();
 
+    // 4.
+    // Getting a list of indices of selected datapoints, in order to avoid O(n^2)
     {
       auto& program = _programs(ProgramType::eSelectionIndicesComp);
       program.bind();
@@ -549,37 +428,25 @@ namespace dh::sne {
       glAssert();
     }
 
-    //// DEBUGGING
-    // std::vector<uint> selectionIndices(selectionCount);
-    // glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());
-    // std::ofstream fselectionIndices("../selectionIndices.txt", std::ios::out);
-    // for(uint i = 0; i < selectionCount; ++i) { fselectionIndices << selectionIndices[i] << "\n"; }
-    // fselectionIndices.close();
-
-    // for(uint s = 0; s < selectionCount; ++s) {
-    //   if(selection[selectionIndices[s]] == 0) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   uint count = 0;
-    //   for(uint s = 0; s < selectionCount; ++s) {
-    //     if(selectionIndices[s] == i) { count++; }
-    //   }
-    //   if(selection[i] == 0 && count != 0) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    //   if(selection[i] > 0 && count != 1) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    // }
-
-    //// Update eNeighbours and eSimiliraties
     glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), neighbourTotal * sizeof(uint), nullptr, 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), neighbourTotal * sizeof(float), nullptr, 0);
-    glClearNamedBufferData(_buffers(BufferType::eCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear previous counts
     glAssert();
 
+    //// DEBUGGING
+    std::vector<uint> selection(_params.n);
+    glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
+    std::vector<uint> selectionIndices(selectionCount);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());
+    std::vector<uint> neighboursPrev(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neighboursPrev.data());
+    std::vector<float> similaritiesPrev(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), similaritiesPrev.data());
+    std::vector<uint> layoutPrev(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayoutPrev), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
+    std::vector<uint> layout(_params.n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
+
+    // 5.
     // Update eNeighbours
 
     {
@@ -596,9 +463,8 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayoutPrev));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eCounts));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarities));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -607,119 +473,23 @@ namespace dh::sne {
     }
 
     //// DEBUGGING
-    // std::vector<uint> neighbours(neighbourTotal);
-    // glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, neighbourTotal * sizeof(uint), neighbours.data());
-    // std::ofstream fneighbours("../neighbours.txt", std::ios::out);
+    std::vector<uint> neighbours(neighbourTotal);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, neighbourTotal * sizeof(uint), neighbours.data());
+
+    // uint nCounterPrev = 0;
+    // uint nCounter = 0;
     // for(uint i = 0; i < _params.n; ++i) {
-    //   for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //     fneighbours << neighbours[ij] << "|";
+    //   for(uint ij = layout[i * 2]; ij < layout[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
+    //     if(neighbours[ij] == 0) { nCounterPrev++; }
     //   }
-    //   fneighbours << "\n";
-    // }
-    // fneighbours.close();
-
-    // offset = 0;
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   uint si = selection[i];
-    //   if(layout[i * 2] != offset) {
-    //     std::cout << "\nERROR\n";
-    //   }
-    //   offset += layout[i * 2 + 1];
-
-    //   for(uint k = 0; k < layoutPrev[i * 2 + 1]; ++k) {
-    //     uint neighbourPrev = neighboursPrev[layoutPrev[i * 2] + k];
-    //     uint neighbour = neighbours[layout[i * 2] + k];
-    //     if(neighbour != neighbourPrev) {
-    //       std::cout << "\nERROR\n";
-    //     }
-    //   }
-
-    //   if(si == 0) {
-    //     if(layout[i * 2 + 1] != layoutPrev[i * 2 + 1]) {
-    //       std::cout << "\nERROR\n";
-    //     }
-    //     continue;
-    //   }
-
-    //   for(uint ij1 = layout[i * 2]; ij1 < layout[i * 2] + layout[i * 2 + 1]; ++ij1) {
-    //     uint n1 = neighbours[ij1];
-    //     uint sn1 = selection[n1];
-    //     for(uint ij2 = ij1 + 1; ij2 < layout[i * 2] + layout[i * 2 + 1]; ++ij2) {
-    //       uint n2 = neighbours[ij2];
-    //       uint sn2 = selection[n2];
-    //       if(n1 == n2) {
-    //         std::cout << "\nERROR\n";
-    //       }
-    //     }
-    //   }
-
-    //   for(uint j = 0; j < _params.n; ++j) {
-    //     uint sj = selection[j];
-
-    //     if(i == j) {
-    //       for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //       }
-    //       continue;
-    //     }
-
-    //     if(sj == 0 || si == sj) {
-    //       uint count = 0;
-    //       for(uint ij = layout[i * 2] + layoutPrev[i * 2 + 1]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) {
-    //           count++;
-    //         }
-    //       }
-    //       if(count != 0) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == j) { countcheck++; }
-    //         }
-    //         if(countcheck != 0) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-    //       continue;
-    //     }
-
-    //     if(si == (sj % 2) + 1) {
-    //       uint count = 0;
-    //       for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) { count++; }
-    //       }
-    //       if(count != 1) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == j) { countcheck++; }
-    //         }
-    //         if(countcheck != 1) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-
-    //       count = 0;
-    //       for(uint ij = layout[j * 2]; ij < layout[j * 2] + layout[j * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == i) { count++; }
-    //       }
-    //       if(count != 1) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == i) { countcheck++; }
-    //         }
-    //         if(countcheck != 1) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-    //     }
+    //   for(uint ij = layout[i * 2] + layoutPrev[i * 2 + 1]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
+    //     if(neighbours[ij] == 0) { nCounter++; }
     //   }
     // }
+    // std::cout << "\nneighbours: " << nCounterPrev << " + " << nCounter << " = " << nCounterPrev + nCounter << "\n";
 
-    // Calculate similarities p_ij
+    // 6.
+    // Calculate similarities p_j|i
     {
       auto &program = _programs(ProgramType::eSimilaritiesUpdateAsymComp);
       program.bind();
@@ -729,17 +499,14 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilarities));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayoutPrev));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBetas));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eBetasFound));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eV_jiSumBuffer));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffersTemp(BufferTempType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayoutPrev));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBetas));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBetasFound));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eV_jiSumBuffer));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarities));
+      //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eSelectionIndices));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -747,130 +514,58 @@ namespace dh::sne {
       glAssert();
     }
 
-    // checkNan<float>(_buffersTemp(BufferTempType::eSimilarities), neighbourTotal);
-
-    //   for(uint j = 0; j < _params.n; ++j) {
-    //     uint sj = selection[j];
-
-    //     if(i == j) {
-    //       for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //       }
-    //       continue;
-    //     }
-
-    //     if(sj == 0 || si == sj) {
-    //       uint count = 0;
-    //       for(uint ij = layout[i * 2] + layoutPrev[i * 2 + 1]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) {
-    //           count++;
-    //         }
-    //       }
-    //       if(count != 0) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == j) { countcheck++; }
-    //         }
-    //         if(countcheck != 0) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-    //       continue;
-    //     }
-
-    //     if(si == (sj % 2) + 1) {
-    //       uint count = 0;
-    //       for(uint ij = layout[i * 2]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == j) { count++; }
-    //       }
-    //       if(count != 1) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == j) { countcheck++; }
-    //         }
-    //         if(countcheck != 1) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-
-    //       count = 0;
-    //       for(uint ij = layout[j * 2]; ij < layout[j * 2] + layout[j * 2 + 1]; ++ij) {
-    //         if(neighbours[ij] == i) { count++; }
-    //       }
-    //       if(count != 1) {
-    //         uint countcheck = 0;
-    //         for(uint s = 0; s < selectionCount; s++) {
-    //           if(selectionIndices[s] == i) { countcheck++; }
-    //         }
-    //         if(countcheck != 1) {
-    //           std::cout << "\nERROR\n";
-    //         }
-    //         std::cout << "\nERROR\n";
-    //       }
-    //     }
-    //   }
-    // }
-
+    // 7.
     // Calculate similarities p_ij
     {
       auto &program = _programs(ProgramType::eSimilaritiesUpdateSymmComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nSelected", selectionCount);
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilarities));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayoutPrev));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBetas));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eBetasFound));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eV_jiSumBuffer));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffersTemp(BufferTempType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayoutPrev));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTemp(BufferTempType::eSelectionIndices));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(selectionCount, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
 
     //// DEBUGGING
-    std::vector<float> similaritiesPrev(_symmetricSize);
-    glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), similaritiesPrev.data());
     std::vector<float> similarities(neighbourTotal);
     glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, neighbourTotal * sizeof(float), similarities.data());
 
-    bool justSelected = false;
-    uint counterPrev = 0;
-    uint counter = 0;
-    float avgPrev = 0;
-    float avg = 0;
+    uint sPrevCounter = 0;
+    float sPrevAvg = 0.0f;
     for(uint i = 0; i < _params.n; ++i) {
-      for(uint ij = 0; ij < layoutPrev[i * 2 + 1]; ++ij) {
-        float pPrev = similaritiesPrev[layoutPrev[i * 2] + ij];
-        float p = similarities[layout[i * 2] + ij];
-        if(p == 0) {
-          counterPrev++;
-        }
-        justSelected = false;
-      }
-      for(uint ij = layoutPrev[i * 2 + 1]; ij < layout[i * 2 + 1]; ++ij) {
-        float p = similarities[layout[i * 2] + ij];
-        justSelected = true;
-        if(p == 0) {
-          counter++;
-        }
+      for(uint ij = layoutPrev[i * 2]; ij < layoutPrev[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
+        if(similaritiesPrev[ij] == 0) { sPrevCounter++; }
+        sPrevAvg += similaritiesPrev[ij];
       }
     }
-    std::cout << counterPrev << " + " << counter << " = " << counterPrev + counter << "\n";
+    std::cout << "\nsimilaritiesPrev count: " << sPrevCounter << "\n";
+    std::cout << "\nsimilaritiesPrev averg: " << sPrevAvg / float(_symmetricSize) << "\n";
+
+    uint sCounterPrev = 0;
+    uint sCounter = 0;
+    float sAvgPrev = 0.0f;
+    float sAvg = 0.0f;
+    for(uint i = 0; i < _params.n; ++i) {
+      for(uint ij = layout[i * 2]; ij < layout[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
+        if(similarities[ij] == 0) { sCounterPrev++; }
+        sAvgPrev += similarities[ij];
+      }
+      for(uint ij = layout[i * 2] + layoutPrev[i * 2 + 1]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
+        if(similarities[ij] == 0) { sCounter++; }
+        sAvg += similarities[ij];
+      }
+    }
+    std::cout << "\nsimilarities count: " << sCounterPrev << " + " << sCounter << " = " << sCounterPrev + sCounter << "\n";
+    std::cout << "\nsimilarities averg: " << sAvgPrev / float(_symmetricSize) << " | " << sAvg / float(neighbourTotal - _symmetricSize) << "\n";
 
     std::swap(_buffers(BufferType::eLayout), _buffers(BufferType::eLayoutPrev));
     std::swap(_buffersTemp(BufferTempType::eNeighbors), _buffers(BufferType::eNeighbors));

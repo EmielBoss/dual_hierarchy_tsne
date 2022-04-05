@@ -35,21 +35,14 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer NeigP { uint neighboursBufferPrev[]; };
-layout(binding = 4, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
-layout(binding = 5, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
-layout(binding = 6, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer Beta { float betasBuffer[]; };
-layout(binding = 8, std430) restrict readonly buffer BetF { bool betasFoundBuffer[]; };
-layout(binding = 9, std430) restrict buffer v_jiSum { float v_jiSumBuffer[]; };
-layout(binding = 10, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 11, std430) restrict buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
+layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 3, std430) restrict buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nPoints;
+layout(location = 0) uniform uint nSelected;
 
 // Returns index of neighbour j in i's layout
 uint searchk(uint i, uint j) {
@@ -63,9 +56,11 @@ uint searchk(uint i, uint j) {
 }
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
+  const uint thread = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if (i >= nPoints) { return; }
+  if (thread >= nSelected) { return; }
+
+  const uint i = selectionIndicesBuffer[thread];
 
   Layout liPrev = layoutsBufferPrev[i];
   Layout li = layoutsBuffer[i];
