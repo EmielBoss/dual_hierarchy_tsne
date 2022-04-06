@@ -90,8 +90,8 @@ namespace dh::sne {
       eNeighborsComp,
 
       eUpdateSizesComp,
-      eIndicateSelectedComp,
-      eSelectionIndicesComp,
+      // eIndicateSelectedComp,
+      // eSelectionIndicesComp,
       eNeighborsUpdateComp,
       eSimilaritiesUpdateAsymComp,
       eSimilaritiesUpdateSymmComp,

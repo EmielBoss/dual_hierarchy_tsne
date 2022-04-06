@@ -542,28 +542,6 @@ namespace dh::sne {
 
       glGetNamedBufferSubData(_buffers(BufferType::eSelectionCounts), 0, 2 * sizeof(uint), _selectionCounts);
 
-      //// DEBUGGING
-      // std::vector<uint> selection(_params.n);
-      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
-      // // std::vector<uint> selectionCounts(2); //
-      // selectionCounts[_selectionIdx] = 0;
-      // for(uint i = 0; i < _params.n; ++i) {
-      //   if(selection[i] == selectionNumber) { selectionCounts[_selectionIdx]++; }
-      // }
-
-      // if(_selectionCounts[_selectionIdx] != selectionCounts[_selectionIdx]) {
-      //   std::cout << "\nERROR\n";
-      // }
-
-      // selectionCounts[_selectionIdx] = 0;
-      // for(uint i = 0; i < _params.n; ++i) {
-      //   if(selection[i] == selectionNumber) { selectionCounts[_selectionIdx]++; }
-      // }
-
-      // if(_selectionCounts[_selectionIdx] != selectionCounts[_selectionIdx]) {
-      //   std::cout << "\nERROR\n";
-      // }
-
       if(_selectionCounts[_selectionIdx] < 5) { return; }
       _selectionIdx = ++_selectionIdx % 2; // Increment selection index
       glAssert();
@@ -574,31 +552,6 @@ namespace dh::sne {
     // Update neighbours at the end of second selection
 
     if(!_mousePressed && _mousePressedPrev && selectionNumber == 2) {
-      
-      //// DEBUGGING
-      // std::vector<uint> selection(_params.n);
-      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
-
-      // // std::vector<uint> selectionCounts(2);
-      // selectionCounts[0] = 0;
-      // selectionCounts[1] = 0;
-      // for(uint i = 0; i < _params.n; i++) {
-      //   if(selection[i] == 1) {
-      //     selectionCounts[0]++;
-      //   }
-      //   if(selection[i] == 2) { selectionCounts[1]++; }
-      // }
-      // if(selectionCounts[0] != _selectionCounts[0]) {
-      //   std::ofstream fout("../selection.txt", std::ios::out);
-      //   for (uint i = 0; i < _params.n; ++i) {
-      //     fout << selection[i];
-      //   }
-      //   fout.close();
-      //   std::cout << "\nERROR\n";
-      // }
-      // if(selectionCounts[1] != _selectionCounts[1]) {
-      //   std::cout << "\nERROR\n";
-      // }
 
       {
         glClearNamedBufferData(_buffers(BufferType::eSelectionCountsReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
@@ -627,44 +580,6 @@ namespace dh::sne {
       }
 
       glGetNamedBufferSubData(_buffers(BufferType::eSelectionCounts), 0, 2 * sizeof(uint), &_selectionCounts);
-
-      //// DEBUGGING
-      // glGetNamedBufferSubData(_buffers(BufferType::eSelection), 0, _params.n * sizeof(uint), selection.data());
-      // std::vector<uint> selectionCounts(2); //
-      // selectionCounts[_selectionIdx] = 0;
-      // for(uint i = 0; i < _params.n; ++i) {
-      //   if(selection[i] == 1) {
-      //     selectionCounts[0]++;
-      //   }
-      // }
-
-      // if(_selectionCounts[0] != selectionCounts[0]) {
-      //   std::cout << "\nERROR\n";
-      // }
-
-      // uint selectionCount = 0;
-      // for(uint i = 0; i < _params.n; ++i) {
-      //   if(selection[i] == 1) { selectionCount++; }
-      // }
-
-      // if(_selectionCounts[0] != selectionCount) {
-      //   std::cout << "\nERROR\n";
-      // }
-
-      // selectionCounts[0] = 0;
-      // selectionCounts[1] = 0;
-      // for(uint i = 0; i < _params.n; i++) {
-      //   if(selection[i] == 1) {
-      //     selectionCounts[0]++;
-      //   }
-      //   if(selection[i] == 2) { selectionCounts[1]++; }
-      // }
-      // if(selectionCounts[0] != _selectionCounts[0]) {
-      //   std::cout << "\nERROR\n";
-      // }
-      // if(selectionCounts[1] != _selectionCounts[1]) {
-      //   std::cout << "\nERROR\n";
-      // }
 
       _similarities->update(_buffers(BufferType::eSelection), _buffers(BufferType::eSelectionCounts), _selectionCounts);
       _similaritiesBuffers = _similarities->buffers(); // Update buffer handles

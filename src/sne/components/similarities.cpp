@@ -77,8 +77,8 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
 
       _programs(ProgramType::eUpdateSizesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_sizes.comp"));
-      _programs(ProgramType::eIndicateSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/indicate_selected.comp"));
-      _programs(ProgramType::eSelectionIndicesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_indices.comp"));
+      // _programs(ProgramType::eIndicateSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/indicate_selected.comp"));
+      // _programs(ProgramType::eSelectionIndicesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_indices.comp"));
       _programs(ProgramType::eNeighborsUpdateComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_neighbours.comp"));
       _programs(ProgramType::eSimilaritiesUpdateAsymComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_similarities_asym.comp"));
       _programs(ProgramType::eSimilaritiesUpdateSymmComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_similarities_symm.comp"));
@@ -132,10 +132,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbour set sizes; every element is k-1 plus its number of "unregistered neighbours" that have it as neighbour but that it doesn't reciprocate
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
       glNamedBufferStorage(_buffers(BufferType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
-
-      glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), nullptr, 0); // Bitfield indicating selection: 1 if selected, 0 if not selected (regardless of which selection)
-      glNamedBufferStorage(_buffers(BufferType::eSelectedScan), _params.n * sizeof(uint), nullptr, 0);
-
       glAssert();
     }
     
@@ -382,63 +378,26 @@ namespace dh::sne {
     }
 
     // 3.
-    // Convert ints to bools
-
-    glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    glAssert();
-
-    {
-      auto& program = _programs(ProgramType::eIndicateSelectedComp); // Simply casts each 2 to 1 in eSelection
-      program.bind();
-
-      // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
-    }
-
-    util::InclusiveScan(_buffers(BufferType::eSelected), _buffers(BufferType::eSelectedScan), _params.n).comp();
-
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionCount * sizeof(uint), nullptr, 0); // The vector indices of the selected datapoints
-    glAssert();
-
-    // 4.
     // Getting a list of indices of selected datapoints, in order to avoid O(n^2)
+    // This can probably be done more efficiently, but this works fine for small datasets and is MUCH easier
+
     {
-      auto& program = _programs(ProgramType::eSelectionIndicesComp);
-      program.bind();
-
-      // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectedScan));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSelectionIndices));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
+      std::vector<uint> selection(_params.n);
+      glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
+      std::vector<uint> selectionIndices(selectionCount);
+      uint counts[2] = { 0 };
+      for(uint i = 0; i < _params.n; ++i) {
+        if(selection[i] == 0) { continue; }
+        uint s = selection[i] - 1;
+        selectionIndices[s * selectionCounts[0] + counts[s]] = i;
+        counts[s]++;
+      }
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectionIndices), selectionCount * sizeof(uint), selectionIndices.data(), 0); // The vector indices of the selected datapoints
     }
-
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), totalNeighbours * sizeof(uint), nullptr, 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), totalNeighbours * sizeof(float), nullptr, 0);
-    glClearNamedBufferData(_buffers(BufferType::eCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear previous counts
-    glAssert();
 
     //// DEBUGGING
     std::vector<uint> selection(_params.n);
     glGetNamedBufferSubData(selectionBuffer, 0, _params.n * sizeof(uint), selection.data());
-    std::vector<uint> selectionIndices(selectionCount);
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());
     std::vector<uint> neighboursPrev(_totalNeighboursPrev);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _totalNeighboursPrev * sizeof(uint), neighboursPrev.data());
     std::vector<float> similaritiesPrev(_totalNeighboursPrev);
@@ -447,11 +406,38 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eLayoutPrev), 0, _params.n * 2 * sizeof(uint), layoutPrev.data());
     std::vector<uint> layout(_params.n * 2);
     glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
+    std::vector<uint> selectionIndices(selectionCount);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());
+    // std::ofstream fselectionIndices("../selectionIndices.txt", std::ios::out);
+    // for(uint i = 0; i < selectionCount; ++i) { fselectionIndices << selectionIndices[i] << "\n"; }
+    // fselectionIndices.close();
+
+    for(uint s = 0; s < selectionCount; ++s) {
+      if(selection[selectionIndices[s]] == 0) {
+        std::cout << "\nERROR\n";
+      }
+    }
+    for(uint i = 0; i < _params.n; ++i) {
+      uint count = 0;
+      for(uint s = 0; s < selectionCount; ++s) {
+        if(selectionIndices[s] == i) { count++; }
+      }
+      if(selection[i] == 0 && count != 0) {
+        std::cout << "\nERROR\n";
+      }
+      if(selection[i] > 0 && count != 1) {
+        std::cout << "\nERROR\n";
+      }
+    }
 
     // 5.
     // Update eNeighbours
 
     {
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), totalNeighbours * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), totalNeighbours * sizeof(float), nullptr, 0);
+      glClearNamedBufferData(_buffers(BufferType::eCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear previous counts
+
       auto &program = _programs(ProgramType::eNeighborsUpdateComp);
       program.bind();
 
