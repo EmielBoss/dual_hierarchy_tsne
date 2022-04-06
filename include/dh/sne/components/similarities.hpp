@@ -65,6 +65,7 @@ namespace dh::sne {
       eNeighbors,
       eSizes,
       eScan,
+      eCounts,
 
       eSelected,
       eSelectedScan,
@@ -78,7 +79,6 @@ namespace dh::sne {
       eSimilarities,
       eNeighbors,
       eSelectionIndices,
-      eCounts,
       
       Length
     };
@@ -112,7 +112,7 @@ namespace dh::sne {
     bool _isInit;
     Params _params;
     const float* _dataPtr;
-    uint _symmetricSize;
+    uint _totalNeighboursPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
