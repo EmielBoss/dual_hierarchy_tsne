@@ -442,7 +442,6 @@ namespace dh::sne {
       program.bind();
 
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("nSelected", selectionCount);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
@@ -451,9 +450,10 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayoutPrev));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eCounts));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, selectionCountsBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eSimilarities));
 
       // Dispatch shader
       program.template uniform<uint>("phase", 1); // Copy old neighbours
@@ -461,7 +461,7 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
       program.template uniform<uint>("phase", 2); // Add new neighbours
-      glDispatchCompute(ceilDiv(selectionCount * selectionCount, 256u), 1, 1);
+      glDispatchCompute(2 * ceilDiv(selectionCounts[0] * selectionCounts[1], 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
@@ -469,18 +469,6 @@ namespace dh::sne {
     //// DEBUGGING
     std::vector<uint> neighbours(totalNeighbours);
     glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, totalNeighbours * sizeof(uint), neighbours.data());
-
-    // uint nCounterPrev = 0;
-    // uint nCounter = 0;
-    // for(uint i = 0; i < _params.n; ++i) {
-    //   for(uint ij = layout[i * 2]; ij < layout[i * 2] + layoutPrev[i * 2 + 1]; ++ij) {
-    //     if(neighbours[ij] == 0) { nCounterPrev++; }
-    //   }
-    //   for(uint ij = layout[i * 2] + layoutPrev[i * 2 + 1]; ij < layout[i * 2] + layout[i * 2 + 1]; ++ij) {
-    //     if(neighbours[ij] == 0) { nCounter++; }
-    //   }
-    // }
-    // std::cout << "\nneighbours: " << nCounterPrev << " + " << nCounter << " = " << nCounterPrev + nCounter << "\n";
 
     // 6.
     // Calculate similarities p_j|i

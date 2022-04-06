@@ -38,14 +38,14 @@ layout(binding = 2, std430) restrict readonly buffer NeigP { uint neighboursBuff
 layout(binding = 3, std430) restrict readonly buffer SimiP { float similaritiesBufferPrev[]; };
 layout(binding = 4, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 6, std430) restrict buffer Counts { uint counts[]; };
-layout(binding = 7, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
-layout(binding = 8, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer SelC { uint selectionCounts[2]; };
+layout(binding = 7, std430) restrict buffer Counts { uint counts[]; };
+layout(binding = 8, std430) restrict writeonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 9, std430) restrict writeonly buffer Simi { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint nSelected;
-layout(location = 4) uniform uint phase;
+layout(location = 1) uniform uint phase;
 
 // Returns whether j is a neighbour of i
 bool containsk(uint i, uint j, Layout liPrev) {
@@ -55,6 +55,10 @@ bool containsk(uint i, uint j, Layout liPrev) {
     }
   }
   return false;
+}
+
+uint other(uint s) {
+  return (s + 1) % 2;
 }
 
 void main() {
@@ -74,15 +78,19 @@ void main() {
   }
 
   if(phase == 2) {
-    const uint index = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nSelected;
-    const uint s = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % nSelected;
+    uint nThreads = 2 * selectionCounts[0] * selectionCounts[1];
+    uint nThreadsHalf = selectionCounts[0] * selectionCounts[1];
+    uint thread = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+    if(thread >= nThreads) { return; }
 
-    if (index >= nSelected || s >= nSelected) { return; }
+    const uint s = int(thread >= nThreadsHalf);
+    thread -= (s * nThreadsHalf);
+    
+    const uint index = thread / selectionCounts[other(s)];
+    const uint ijndex = thread % selectionCounts[other(s)];
 
-    const uint i = selectionIndicesBuffer[index];
-    const uint j = selectionIndicesBuffer[s]; // Read potential neighbour to be added
-
-    if(selectionBuffer[i] == selectionBuffer[j]) { return; } // TODO: This can be avoided if the selectionIndices are segregated
+    const uint i = selectionIndicesBuffer[selectionCounts[0] * s + index];
+    const uint j = selectionIndicesBuffer[selectionCounts[0] * other(s) + ijndex]; // Read potential neighbour to be added
 
     Layout l = layoutsBuffer[i];
     Layout lPrev = layoutsBufferPrev[i];
