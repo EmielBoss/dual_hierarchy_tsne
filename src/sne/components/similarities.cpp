@@ -407,28 +407,7 @@ namespace dh::sne {
     std::vector<uint> layout(_params.n * 2);
     glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layout.data());
     std::vector<uint> selectionIndices(selectionCount);
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());
-    // std::ofstream fselectionIndices("../selectionIndices.txt", std::ios::out);
-    // for(uint i = 0; i < selectionCount; ++i) { fselectionIndices << selectionIndices[i] << "\n"; }
-    // fselectionIndices.close();
-
-    for(uint s = 0; s < selectionCount; ++s) {
-      if(selection[selectionIndices[s]] == 0) {
-        std::cout << "\nERROR\n";
-      }
-    }
-    for(uint i = 0; i < _params.n; ++i) {
-      uint count = 0;
-      for(uint s = 0; s < selectionCount; ++s) {
-        if(selectionIndices[s] == i) { count++; }
-      }
-      if(selection[i] == 0 && count != 0) {
-        std::cout << "\nERROR\n";
-      }
-      if(selection[i] > 0 && count != 1) {
-        std::cout << "\nERROR\n";
-      }
-    }
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSelectionIndices), 0, selectionCount * sizeof(uint), selectionIndices.data());   
 
     // 5.
     // Update eNeighbours
@@ -463,12 +442,16 @@ namespace dh::sne {
       program.template uniform<uint>("phase", 2); // Add new neighbours
       glDispatchCompute(2 * ceilDiv(selectionCounts[0] * selectionCounts[1], 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glFlush();
+      glFinish();
       glAssert();
     }
 
     //// DEBUGGING
     std::vector<uint> neighbours(totalNeighbours);
     glGetNamedBufferSubData(_buffersTemp(BufferTempType::eNeighbors), 0, totalNeighbours * sizeof(uint), neighbours.data());
+    std::vector<float> similaritiesBefore(totalNeighbours);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, totalNeighbours * sizeof(float), similaritiesBefore.data());
 
     // 6.
     // Calculate similarities p_j|i
@@ -496,26 +479,31 @@ namespace dh::sne {
       glAssert();
     }
 
+    //// DEBUGGING
+    // std::vector<float> similarities(totalNeighbours);
+    // glGetNamedBufferSubData(_buffersTemp(BufferTempType::eSimilarities), 0, totalNeighbours * sizeof(float), similarities.data());
+    // std::cout << "BREAK HERE";
+
     // 7.
     // Calculate similarities p_ij
-    // {
-    //   auto &program = _programs(ProgramType::eSimilaritiesUpdateSymmComp);
-    //   program.bind();
+    {
+      auto &program = _programs(ProgramType::eSimilaritiesUpdateSymmComp);
+      program.bind();
 
-    //   program.template uniform<uint>("nSelected", selectionCount);
+      program.template uniform<uint>("nSelected", selectionCount);
 
-    //   // Set buffer bindings
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayoutPrev));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eNeighbors));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eSimilarities));
-    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTemp(BufferTempType::eSelectionIndices));
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayoutPrev));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTemp(BufferTempType::eSelectionIndices));
 
-    //   // Dispatch shader
-    //   glDispatchCompute(ceilDiv(selectionCount, 256u), 1, 1);
-    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    //   glAssert();
-    // }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(selectionCount, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
 
     //// DEBUGGING
     std::vector<float> similarities(totalNeighbours);
