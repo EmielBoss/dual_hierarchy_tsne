@@ -33,6 +33,7 @@
 #include "dh/util/gl/metric.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
 #include "dh/vis/input_queue.hpp"
+#include "dh/util/cu/knn.cuh"
 #include <numeric> //
 #include <fstream> //
 #include <filesystem> //
@@ -65,7 +66,7 @@ namespace dh::sne {
 
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(0), _iterSinceUpdate(0) {
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _selectionIdx(0) {
     Logger::newt() << prefix << "Initializing...";
 
     _selectionCounts[0] = 0;
@@ -80,6 +81,7 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
+        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
         _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
       } else if constexpr (D == 3) {
@@ -124,6 +126,8 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eGradients), _params.n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zeroes.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), ones.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCounts), 2 * sizeof(uint), nullptr, 0);
@@ -170,7 +174,7 @@ namespace dh::sne {
 #ifdef DH_ENABLE_VIS_EMBEDDING
     // Setup render task
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
-      queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
@@ -220,10 +224,6 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIterationMinimization() {
-
-    std::vector<vec2> positions(_params.n);
-    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec2), positions.data());
-    if(_spacePressed) { std::cout << positions[0][0] << "|" << positions[1234][1] << "\n"; }
 
     // 1.
     // Compute embedding bounds
@@ -302,8 +302,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    // checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
-
     // 4.
     // Compute attractive forces
     { 
@@ -332,8 +330,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    // checkBuffer<float>(_buffers(BufferType::eAttractive), 2 * _params.n, _dPressed, _iterSinceUpdate);
-
     // Compute exaggeration factor
     float exaggeration = 1.0f;
     if (_iteration <= _params.removeExaggerationIter) {
@@ -343,8 +339,6 @@ namespace dh::sne {
                          / static_cast<float>(_params.exponentialDecayIter);
       exaggeration = 1.0f + (_params.exaggerationFactor - 1.0f) * decay;
     }
-
-    // checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // 5.
     // Compute gradients
@@ -372,8 +366,6 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
-
-    // checkBuffer<float>(_buffers(BufferType::eGradients), 2 * _params.n, _dPressed, _iterSinceUpdate);
 
     // Precompute instead of doing it in shader N times
     const float iterMult = (static_cast<double>(_iteration) < _params.momentumSwitchIter) 
@@ -443,6 +435,44 @@ namespace dh::sne {
       glAssert();
     }
 
+    // // 8.
+    // // Compute neighborhood preservation per datapoint
+    if(_embeddingRenderTask->getColorMapping() == 1) {
+      
+      // Compute approximate KNN of each point in embedding, delegated to FAISS
+      std::vector<float> embedding(2 * _params.n);
+      glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, 2 * _params.n * sizeof(float), embedding.data());
+      {
+        util::KNN knn(
+          embedding.data(),
+          _buffers(BufferType::eDistancesEmb),
+          _buffers(BufferType::eNeighborsEmb),
+          _params.n, _params.k, D);
+        knn.comp();
+      }
+
+      {
+        auto& program = _programs(ProgramType::eNeighborhoodPreservationComp);
+        program.bind();
+
+        // Set uniforms
+        program.template uniform<uint>("nPoints", _params.n);
+        program.template uniform<uint>("k", _params.k);
+
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _similaritiesBuffers.layout);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.neighbors);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighborsEmb));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighborhoodPreservation));
+
+        // Dispatch shader
+        glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      }
+      
+      glAssert();
+    }
+
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture
     if (_iteration == 0) {
@@ -466,7 +496,6 @@ namespace dh::sne {
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
     }
-    _iterSinceUpdate++;
 
   }
 
@@ -587,7 +616,6 @@ namespace dh::sne {
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearNamedBufferData(_buffers(BufferType::eSelectionCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear counts
       glAssert();
-      _iterSinceUpdate = 0;
     }
   }
 

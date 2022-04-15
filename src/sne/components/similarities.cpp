@@ -72,13 +72,7 @@ namespace dh::sne {
       _programs(ProgramType::eExpandComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/expand.comp"));
       _programs(ProgramType::eLayoutComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/layout.comp"));
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
-
-      _programs(ProgramType::eUpdateSizesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_sizes.comp"));
-      // _programs(ProgramType::eIndicateSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/indicate_selected.comp"));
-      // _programs(ProgramType::eSelectionIndicesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_indices.comp"));
-      _programs(ProgramType::eNeighborsUpdateComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_neighbors.comp"));
-      _programs(ProgramType::eSimilaritiesUpdateAsymComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_similarities_asym.comp"));
-      _programs(ProgramType::eSimilaritiesUpdateSymmComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/update_similarities_symm.comp"));
+      _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
 
       for (auto& program : _programs) {
         program.link();

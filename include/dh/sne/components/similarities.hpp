@@ -88,13 +88,7 @@ namespace dh::sne {
       eExpandComp,
       eLayoutComp,
       eNeighborsComp,
-
-      eUpdateSizesComp,
-      // eIndicateSelectedComp,
-      // eSelectionIndicesComp,
-      eNeighborsUpdateComp,
-      eSimilaritiesUpdateAsymComp,
-      eSimilaritiesUpdateSymmComp,
+      eNeighborsSortComp,
       
       Length
     };

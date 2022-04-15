@@ -38,6 +38,7 @@
 #include "dh/vis/input_queue.hpp"
 #include "dh/vis/components/selection_input_task.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
+#include "dh/vis/components/embedding_render_task.hpp"
 
 namespace dh::sne {
   template <uint D> // Dimension of produced embedding
@@ -80,6 +81,8 @@ namespace dh::sne {
       eGradients,
       ePrevGradients,
       eGain,
+      eDistancesEmb,
+      eNeighborsEmb,
       eNeighborhoodPreservation,
       eSelection,
       eSelectionCounts,
@@ -95,6 +98,7 @@ namespace dh::sne {
       eGradientsComp,
       eUpdateEmbeddingComp,
       eCenterEmbeddingComp,
+      eNeighborhoodPreservationComp,
       eSelectionComp,
       eSelectionCountComp,
 
@@ -118,7 +122,6 @@ namespace dh::sne {
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
-    uint _iterSinceUpdate; ////
     Bounds _bounds;
     uint _selectionIdx;
     uint _selectionCounts[2];
@@ -136,6 +139,7 @@ namespace dh::sne {
     Field<D> _field;
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
+    std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
 
   public:
     // Getters
@@ -164,9 +168,9 @@ namespace dh::sne {
       swap(a._field, b._field);
       swap(a._selectionIdx, b._selectionIdx);
       swap(a._selectionCounts, b._selectionCounts);
-      swap(a._iterSinceUpdate, b._iterSinceUpdate); ////
       swap(a._selectionInputTask, b._selectionInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
+      swap(a._embeddingRenderTask, b._embeddingRenderTask);
     }
   };
 } // dh::sne
