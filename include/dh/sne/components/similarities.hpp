@@ -112,7 +112,7 @@ namespace dh::sne {
     bool _isInit;
     Params _params;
     const float* _dataPtr;
-    uint _totalNeighboursPrev;
+    uint _totalNeighborsPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

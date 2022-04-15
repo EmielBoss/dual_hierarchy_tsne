@@ -124,6 +124,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eGradients), _params.n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zeroes.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), ones.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCounts), 2 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountsReduce), 128 * sizeof(uint), nullptr, 0);
@@ -319,7 +320,7 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.neighbors); // Each i's expanded neighbour set starts at eLayout[i].offset and contains eLayout[i].size neighbours, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.similarities); // Corresponding similarities
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttractive));
 
@@ -549,7 +550,7 @@ namespace dh::sne {
     }
 
     // 3.
-    // Update neighbours at the end of second selection
+    // Update neighbors at the end of second selection
 
     if(!_mousePressed && _mousePressedPrev && selectionNumber == 2) {
 
@@ -581,8 +582,8 @@ namespace dh::sne {
 
       glGetNamedBufferSubData(_buffers(BufferType::eSelectionCounts), 0, 2 * sizeof(uint), &_selectionCounts);
 
-      _similarities->update(_buffers(BufferType::eSelection), _buffers(BufferType::eSelectionCounts), _selectionCounts);
-      _similaritiesBuffers = _similarities->buffers(); // Update buffer handles
+      // _similarities->update(_buffers(BufferType::eSelection), _buffers(BufferType::eSelectionCounts), _selectionCounts);
+      // _similaritiesBuffers = _similarities->buffers(); // Update buffer handles
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearNamedBufferData(_buffers(BufferType::eSelectionCounts), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); // Clear counts
       glAssert();

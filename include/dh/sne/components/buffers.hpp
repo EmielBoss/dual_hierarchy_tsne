@@ -33,6 +33,7 @@ namespace dh::sne {
     GLuint field;
     GLuint bounds;
     GLuint selection;
+    GLuint neighborhoodPreservation;
   };
 
   // Data class provided by dh::sne::Similarities<D>::buffers() for other components

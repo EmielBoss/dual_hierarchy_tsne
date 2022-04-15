@@ -27,18 +27,18 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 1, std430) restrict coherent buffer Layu { uint sizesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint kNeighbours;
+layout(location = 1) uniform uint kNeighbors;
 
-// Returns whether j is a neighbour of i
+// Returns whether j is a neighbor of i
 bool containsk(uint i, uint j) {
   // Unfortunately the list is unsorted, so search time is linear
-  for (uint k = 1; k < kNeighbours; k++) {
-    if (neighboursBuffer[i * kNeighbours + k] == j) {
+  for (uint k = 1; k < kNeighbors; k++) {
+    if (neighborsBuffer[i * kNeighbors + k] == j) {
       return true;
     }
   }
@@ -51,14 +51,14 @@ void main() {
     return;
   }
 
-  atomicAdd(sizesBuffer[i], kNeighbours - 1); // Remove 1 to remove self from own indices
+  atomicAdd(sizesBuffer[i], kNeighbors - 1); // Remove 1 to remove self from own indices
 
-  for (uint k = 1; k < kNeighbours; k++) {
-    // Get index of neighbour
-    const uint j = neighboursBuffer[i * kNeighbours + k];
+  for (uint k = 1; k < kNeighbors; k++) {
+    // Get index of neighbor
+    const uint j = neighborsBuffer[i * kNeighbors + k];
     
-    // Find index of self in neighbour's list of neighbours
-    // Self not found, add 1 to neighbour's size
+    // Find index of self in neighbor's list of neighbors
+    // Self not found, add 1 to neighbor's size
     if (!containsk(j, i)) {
       atomicAdd(sizesBuffer[j], 1);
     }

@@ -1,0 +1,80 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 Mark van de Ruit (Delft University of Technology)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#version 460 core
+
+struct Layout {
+  uint offset;
+  uint size;
+};
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// Buffer bindings
+layout(binding = 0, std430) restrict readonly buffer Layu { Layout layoutBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Neigh { uint neighborsBuffer[]; };
+layout(binding = 2, std430) restrict buffer NeighEmb { uint neighborsEmbBuffer[]; };
+layout(binding = 3, std430) restrict writeonly buffer NeighPres { float neighborhoodPreservationBuffer[]; };
+
+// Uniform values
+layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform uint k;
+
+void main() {
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
+
+  if (i >= nPoints) { return; }
+
+  Layout l = layoutBuffer[i];
+
+  // Sort embedding neighbors buffer
+  for (uint ijMax = i * k + k - 1; ijMax > i * k; ijMax--) {
+    for (uint ij = i * k; ij < ijMax; ij++) {
+      uint tmp = min(neighborsEmbBuffer[ij], neighborsEmbBuffer[ij+1]);
+      neighborsEmbBuffer[ij+1] = neighborsEmbBuffer[ij] + neighborsEmbBuffer[ij+1] - tmp;
+      neighborsEmbBuffer[ij] = tmp;
+    }
+  }
+
+  uint intersection = 0;
+  uint uunion = 0; // union is a reserved keyword
+  uint neighb = l.offset;
+  uint neighbEmb = i * k;
+  while(neighb < l.offset + k || neighbEmb < i * k + k) {
+    uunion++;
+    if(neighborsBuffer[neighb] == neighborsEmbBuffer[neighbEmb]) {
+      intersection++;
+      neighb++;
+      neighbEmb++;
+    }
+    else if(neighborsBuffer[neighb] < neighborsEmbBuffer[neighbEmb]) {
+      neighb++;
+    }
+    else if(neighborsBuffer[neighb] > neighborsEmbBuffer[neighbEmb]) {
+      neighbEmb++;
+    }
+  }
+  uunion += min(neighb - l.offset, neighbEmb - i * k) - k;
+  neighborhoodPreservationBuffer[i] = float(intersection) / float(uunion);
+}

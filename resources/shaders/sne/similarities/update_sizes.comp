@@ -35,7 +35,7 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict readonly buffer SelB { uint selectionBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer SelC { uint selectionCounts[2]; };
 layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 4, std430) restrict writeonly buffer Size { uint sizesBuffer[]; };
 
 // Uniform values
@@ -51,9 +51,9 @@ void main () {
 
   uint size = l.size + selectionCounts[si % 2];
   for (uint ij = l.offset; ij < l.offset + l.size; ij++) {
-    uint j = neighboursBuffer[ij];
+    uint j = neighborsBuffer[ij];
     uint sj = selectionBuffer[j];
-    if(sj > 0 && si == ((sj % 2) + 1)) { size--; } // This pairing from the different clusters are already neighbours, so i does not need to add j again
+    if(sj > 0 && si == ((sj % 2) + 1)) { size--; } // This pairing from the different clusters are already neighbors, so i does not need to add j again
   }
 
   // Store result

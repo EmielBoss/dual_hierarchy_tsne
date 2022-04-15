@@ -41,7 +41,7 @@ layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer
 layout(binding = 3, std430) restrict readonly buffer Beta { float betasBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer BetF { bool betasFoundBuffer[]; };
 layout(binding = 5, std430) restrict buffer v_jiSum { float v_jiSumBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 7, std430) restrict buffer Simi { float similaritiesBuffer[]; };
 layout(binding = 8, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
 
@@ -71,7 +71,7 @@ void main() {
   if(betasFoundBuffer[i]) {
     const float beta = betasBuffer[i];
     for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
-      const uint j = neighboursBuffer[ij];
+      const uint j = neighborsBuffer[ij];
       const float v_ji = exp(-beta * squaredDistance(i, j));
       similaritiesBuffer[ij] = v_ji; // Add initial similarity
       v_jiSumBuffer[i] += v_ji;

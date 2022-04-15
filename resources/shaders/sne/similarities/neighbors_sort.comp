@@ -24,9 +24,6 @@
 
 #version 460 core
 
-#define FLT_MAX 3.402823466e+38F
-#define FLT_MIN 1.175494351e-38F
-
 struct Layout {
   uint offset;
   uint size;
@@ -35,44 +32,31 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer LayoP { Layout layoutsBufferPrev[]; };
-layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 3, std430) restrict buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer SelI { uint selectionIndicesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Layu { Layout layoutBuffer[]; };
+layout(binding = 1, std430) restrict buffer Nei { uint neighborsBuffer[]; };
+layout(binding = 2, std430) restrict buffer Sym { float similaritiesBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nSelected;
-
-// Returns index of neighbor j in i's layout
-uint searchk(uint i, uint j) {
-  Layout li = layoutsBuffer[i];
-  for (uint k = li.offset; k < li.offset + li.size; k++) {
-    if (neighborsBuffer[k] == j) {
-      return k;
-    }
-  }
-  return -1;
-}
+layout(location = 0) uniform uint nPoints;
 
 void main() {
-  const uint thread = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if (thread >= nSelected) { return; }
+  if (i >= nPoints) { return; }
 
-  const uint i = selectionIndicesBuffer[thread];
+  Layout l = layoutBuffer[i];
 
-  Layout liPrev = layoutsBufferPrev[i];
-  Layout li = layoutsBuffer[i];
+  for (uint ijMax = l.offset + l.size - 1; ijMax > l.offset; ijMax--) {
+    for (uint ij = l.offset; ij < ijMax; ij++) {
+      if(neighborsBuffer[ij] > neighborsBuffer[ij+1]) {
+        uint tmp = neighborsBuffer[ij];
+        neighborsBuffer[ij] = neighborsBuffer[ij+1];
+        neighborsBuffer[ij+1] = tmp;
 
-  for (uint ij = li.offset + liPrev.size; ij < li.offset + li.size; ij++) {
-    uint j = neighborsBuffer[ij];
-    if (i < j) {
-      uint ji = searchk(j, i);
-      const float p_ij = 0.5 * (similaritiesBuffer[ij] + similaritiesBuffer[ji]);
-      similaritiesBuffer[ij] = p_ij;
-      similaritiesBuffer[ji] = p_ij;
+        float tmpS = similaritiesBuffer[ij];
+        similaritiesBuffer[ij] = similaritiesBuffer[ij+1];
+        similaritiesBuffer[ij+1] = tmpS;
+      }
     }
   }
-
 }

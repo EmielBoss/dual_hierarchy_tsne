@@ -80,6 +80,7 @@ namespace dh::sne {
       eGradients,
       ePrevGradients,
       eGain,
+      eNeighborhoodPreservation,
       eSelection,
       eSelectionCounts,
       eSelectionCountsReduce,
@@ -143,7 +144,8 @@ namespace dh::sne {
         _buffers(BufferType::eEmbedding),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
-        _buffers(BufferType::eSelection)
+        _buffers(BufferType::eSelection),
+        _buffers(BufferType::eNeighborhoodPreservation),
       };
     }
     bool isInit() const { return _isInit; }

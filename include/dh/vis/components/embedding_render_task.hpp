@@ -52,6 +52,7 @@ namespace dh::vis {
 
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    uint getColorMapping() { return _colorMapping; }
 
   private:
     enum class BufferType {
@@ -61,6 +62,12 @@ namespace dh::vis {
       Length
     };
 
+    enum ColorMapping {
+      labels,
+      neighborhoodPreservation,
+      none
+    };
+
     // State
     bool _isInit;
     sne::MinimizationBuffers _minimization;
@@ -68,7 +75,7 @@ namespace dh::vis {
 
     // ImGui state
     bool _canDrawLabels;
-    bool _drawLabels;
+    uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;
 
@@ -88,7 +95,7 @@ namespace dh::vis {
       swap(a._minimization, b._minimization);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);
-      swap(a._drawLabels, b._drawLabels);
+      swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
       swap(a._buffers, b._buffers);

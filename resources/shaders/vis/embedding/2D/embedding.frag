@@ -37,7 +37,8 @@ layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
 layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
-layout(location = 4) uniform bool drawLabels;
+layout(location = 4) uniform uint colorMapping;
+layout(location = 5) uniform bool canDrawLabels;
 
 void main() {
   // Discard fragments outside of circular point's radius

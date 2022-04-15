@@ -59,14 +59,15 @@ layout(location = 2) out vec4 colorOut;
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { uint labels[]; };
 layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
+layout(binding = 3, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
 layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
-layout(location = 4) uniform bool drawLabels;
-// layout(location = 5) uniform vec3 randomColor;
+layout(location = 4) uniform uint colorMapping;
+layout(location = 5) uniform bool canDrawLabels;
 
 void main() {
   // Calculate embedding position, fragment position
@@ -77,14 +78,27 @@ void main() {
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
 
-  // Calculate output color depending on label and whether it is selected, whether to even draw labels
-  const uint label = drawLabels ? labels[gl_InstanceID] % 10 : 9;
+
+  // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
+  vec3 color;
+  if(colorMapping == 0) { // Labels
+    const uint label = canDrawLabels ? labels[gl_InstanceID] % 10 : 9;
+    color = colors[label];
+  }
+  else if(colorMapping == 1) { // Neighborhood preservation
+    float value = neighborhoodPreservation[gl_InstanceID];
+    // color = value * vec3(255.0f, 255.0f, 175.0f) + (1-value) * vec3(255.0f, 0.0f, 0.0f);
+    color = colors[5];
+  }
+  else {
+    color = colors[9];
+  }
+
   if(selected[gl_InstanceID] == 1) {
-    colorOut = vec4(colors[label] / 155.0f, pointOpacity);
+    colorOut = vec4(color / 155.0f, pointOpacity);
   } else if(selected[gl_InstanceID] == 2) {
-    colorOut = vec4(colors[label] / 355.0f, pointOpacity);
-    // colorOut = vec4(randomColor, pointOpacity);
+    colorOut = vec4(color / 355.0f, pointOpacity);
   } else {
-    colorOut = vec4(colors[label] / 255.0f, pointOpacity);
+    colorOut = vec4(color / 255.0f, pointOpacity);
   }
 }

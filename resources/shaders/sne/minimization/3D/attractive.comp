@@ -37,7 +37,7 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Posi { vec3 positionsBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
 layout(binding = 4, std430) restrict writeonly buffer Att { vec3 attrForcesBuffer[]; };
 
@@ -58,12 +58,12 @@ void main() {
   // Load data for subgroup
   const vec3 position = subgroupBroadcastFirst(thread < 1 ? positionsBuffer[i] : vec3(0));
 
-  // Sum attractive force over nearest neighbours
+  // Sum attractive force over nearest neighbors
   Layout l = layoutsBuffer[i];
   vec3 attrForce = vec3(0);
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     // Calculate difference between the two positions
-    const vec3 diff = position - positionsBuffer[neighboursBuffer[ij]];
+    const vec3 diff = position - positionsBuffer[neighborsBuffer[ij]];
 
     // High/low dimensional similarity measures of i and j
     const float p_ij = similaritiesBuffer[ij];

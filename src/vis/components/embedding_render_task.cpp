@@ -57,7 +57,7 @@ namespace dh::vis {
     _minimization(minimization),
     _params(params),
     _canDrawLabels(false),
-    _drawLabels(true),
+    _colorMapping(ColorMapping::labels),
     _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
@@ -140,10 +140,6 @@ namespace dh::vis {
       return;
     }
 
-    // std::random_device rd;
-    // std::mt19937 gen(rd());
-    // std::uniform_real_distribution<float> dist;
-
     // Only allow drawing labels if a buffer is provided with said labels
     _canDrawLabels = (labelsHandle > 0);
 
@@ -154,13 +150,14 @@ namespace dh::vis {
     _program.template uniform<float, 4, 4>("proj", proj);
     _program.template uniform<float>("pointOpacity", _pointOpacity);
     _program.template uniform<float>("pointRadius", _pointRadius);
-    _program.template uniform<bool>("drawLabels", _canDrawLabels && _drawLabels);
-    // _program.template uniform<float, 3>("randomColor", glm::vec3(dist(gen), dist(gen), dist(gen)));
+    _program.template uniform<uint>("colorMapping", _colorMapping);
+    _program.template uniform<bool>("canDrawLabels", _canDrawLabels);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimization.neighborhoodPreservation);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
@@ -172,7 +169,10 @@ namespace dh::vis {
     if (ImGui::CollapsingHeader("Embedding render settings")) {
       ImGui::Spacing();
       if (_canDrawLabels) {
-        ImGui::Checkbox("Use label colors", &_drawLabels);
+        ImGui::Text("Color mapping:");
+        if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
+        if (ImGui::RadioButton("Neighborhood preservation", _colorMapping==ColorMapping::neighborhoodPreservation)) { _colorMapping = ColorMapping::neighborhoodPreservation; }
+        if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");

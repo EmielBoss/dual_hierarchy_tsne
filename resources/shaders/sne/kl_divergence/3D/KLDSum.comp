@@ -35,7 +35,7 @@ layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict readonly buffer Posi { vec3 posBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer SumQ { float sumQBuffer; };
 layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Neig { uint neighboursBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
 layout(binding = 5, std430) restrict writeonly buffer KLD { float klBuffer[]; };
 
@@ -56,14 +56,14 @@ void main() {
   vec3 pos = posBuffer[gid];
   Layout l = layoutsBuffer[gid];
 
-  // Sum over nearest neighbours data with a full workgroup
+  // Sum over nearest neighbors data with a full workgroup
   float klc = 0.0;
   for (uint k = l.offset + lid; k < l.offset + l.size; k += groupSize) {
     const float p_ij = similaritiesBuffer[k] / (2.f * float(nPoints));
     if (p_ij == 0.f) {
       continue;
     }
-    vec3 t = pos - posBuffer[neighboursBuffer[k]];
+    vec3 t = pos - posBuffer[neighborsBuffer[k]];
     float q_ij = 1.0 / (1.0 + dot(t, t));
     float v = p_ij / (q_ij * invSumQ);
     klc += p_ij * log(v);
