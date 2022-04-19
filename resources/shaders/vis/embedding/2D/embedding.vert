@@ -81,14 +81,13 @@ void main() {
 
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
   vec3 color;
-  if(colorMapping == 0) { // Labels
+  if(colorMapping == 1) { // Labels
     const uint label = canDrawLabels ? labels[gl_InstanceID] % 10 : 9;
     color = colors[label];
   }
-  else if(colorMapping == 1) { // Neighborhood preservation
+  else if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
     color = value * vec3(255.0f, 255.0f, 175.0f) + (1-value) * vec3(255.0f, 0.0f, 0.0f);
-    // color = colors[5];
   }
   else {
     color = colors[9];

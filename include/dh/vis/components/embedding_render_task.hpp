@@ -53,6 +53,7 @@ namespace dh::vis {
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
     uint getColorMapping() { return _colorMapping; }
+    void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
 
   private:
     enum class BufferType {
@@ -60,12 +61,6 @@ namespace dh::vis {
       eElements,
 
       Length
-    };
-
-    enum ColorMapping {
-      labels,
-      neighborhoodPreservation,
-      none
     };
 
     // State
@@ -86,6 +81,12 @@ namespace dh::vis {
 
   public:
     bool isInit() const { return _isInit; }
+
+    enum ColorMapping {
+      none,
+      labels,
+      neighborhoodPreservation
+    };
     
     // std::swap impl
     friend void swap(EmbeddingRenderTask& a, EmbeddingRenderTask& b) noexcept {

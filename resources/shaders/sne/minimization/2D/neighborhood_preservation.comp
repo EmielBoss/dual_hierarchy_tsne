@@ -48,14 +48,6 @@ void main() {
 
   Layout l = layoutBuffer[i];
 
-  // for (uint ijMax = i * k + k - 1; ijMax > i * k; ijMax--) {
-  //   for (uint ij = i * k; ij < ijMax; ij++) {
-  //     uint tmp = min(neighborsBuffer[ij], neighborsBuffer[ij+1]);
-  //     neighborsBuffer[ij+1] = neighborsBuffer[ij] + neighborsBuffer[ij+1] - tmp;
-  //     neighborsBuffer[ij] = tmp;
-  //   }
-  // }
-
   // Sort embedding neighbors buffer
   for (uint ijMax = i * k + k - 1; ijMax > i * k + 1; ijMax--) {
     for (uint ij = i * k + 1; ij < ijMax; ij++) {
@@ -70,18 +62,14 @@ void main() {
   // uint neighb = l.offset;
   // uint neighbEmb = i * k;
   // while(neighb < l.offset + k || neighbEmb < i * k + k) {
+  //   bool eq = neighborsBuffer[neighb] == neighborsEmbBuffer[neighbEmb];
+  //   bool leq = neighborsBuffer[neighb] < neighborsEmbBuffer[neighbEmb];
+  //   bool geq = neighborsBuffer[neighb] > neighborsEmbBuffer[neighbEmb];
+
   //   uunion++;
-  //   if(neighborsBuffer[neighb] == neighborsEmbBuffer[neighbEmb]) {
-  //     intersection++;
-  //     neighb++;
-  //     neighbEmb++;
-  //   }
-  //   else if(neighborsBuffer[neighb] < neighborsEmbBuffer[neighbEmb]) {
-  //     neighb++;
-  //   }
-  //   else if(neighborsBuffer[neighb] > neighborsEmbBuffer[neighbEmb]) {
-  //     neighbEmb++;
-  //   }
+  //   intersection += int(eq);
+  //   neighb += int(eq || leq);
+  //   neighbEmb += int(eq || geq);
   // }
   // uunion += min(neighb - l.offset, neighbEmb - i * k) - k;
   // neighborhoodPreservationBuffer[i] = float(intersection) / float(uunion);

@@ -129,6 +129,7 @@ namespace dh::sne {
     bool _spacePressed;
     bool _mousePressed;
     bool _mousePressedPrev;
+    uint _colorMapping;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

@@ -435,10 +435,16 @@ namespace dh::sne {
       glAssert();
     }
 
-    // // 8.
-    // // Compute neighborhood preservation per datapoint
-    if(_embeddingRenderTask->getColorMapping() == 1) {
-      
+    // 8.
+    // Compute neighborhood preservation per datapoint
+
+    // This is super stupid, but its a way to synchronize colorMapping between the two input methods (GUI and numkeys)
+    int num = _selectionInputTask->getNumPressed();
+    if(num != _colorMapping && num >= 0) { _embeddingRenderTask->setColorMapping(num); }
+    num = _embeddingRenderTask->getColorMapping();
+    if (num != _colorMapping && num >= 0) { _selectionInputTask->setNumPressed(num); }
+
+    if(num == 2 && _colorMapping != 2) {
       // Compute approximate KNN of each point in embedding, delegated to FAISS
       std::vector<float> embedding(2 * _params.n);
       glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, 2 * _params.n * sizeof(float), embedding.data());
@@ -472,6 +478,13 @@ namespace dh::sne {
       
       glAssert();
     }
+    _colorMapping = num;
+
+
+    std::vector<uint> layout(2);
+    glGetNamedBufferSubData(_similaritiesBuffers.layout, 2 * (_params.n - 1) * sizeof(uint), 2, layout.data());
+    std::vector<float> neighboursEmb(layout[0] + layout[1]);
+    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, (layout[0] + layout[1]) * sizeof(uint), neighboursEmb.data());
 
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture

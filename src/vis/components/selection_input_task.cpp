@@ -35,6 +35,7 @@ namespace dh::vis {
   : InputTask(1, "SelectionInputTask"),
     _spacePressed(false),
     _dPressed(false),
+    _numPressed(1),
     _mousePressed(false),
     _mouseScroll(3.0f), 
     _mousePos(-1.0f),
@@ -84,6 +85,20 @@ namespace dh::vis {
       _dPressed = true;
     } else if (button == GLFW_KEY_D && action == GLFW_RELEASE) {
       _dPressed = false;
+    }
+
+    if (button == GLFW_KEY_0 && action == GLFW_PRESS) {
+      _numPressed = 0;
+    } else if (button == GLFW_KEY_1 && action == GLFW_PRESS) {
+      _numPressed = 1;
+    } else if (button == GLFW_KEY_2 && action == GLFW_PRESS) {
+      _numPressed = 2;
+    } else if (button == GLFW_KEY_3 && action == GLFW_PRESS) {
+      _numPressed = 3;
+    } else if (button == GLFW_KEY_4 && action == GLFW_PRESS) {
+      _numPressed = 4;
+    } else if (action == GLFW_RELEASE) {
+      // _numPressed = -1;
     }
   }
 
