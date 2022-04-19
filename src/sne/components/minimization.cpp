@@ -129,7 +129,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCounts), 2 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountsReduce), 128 * sizeof(uint), nullptr, 0);
       glAssert();
@@ -463,7 +463,7 @@ namespace dh::sne {
 
         // Set uniforms
         program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("k", _params.k);
+        program.template uniform<uint>("kParam", _params.k);
 
         // Set buffer bindings
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _similaritiesBuffers.layout);
@@ -474,17 +474,11 @@ namespace dh::sne {
         // Dispatch shader
         glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        
+        glAssert();
       }
-      
-      glAssert();
     }
     _colorMapping = num;
-
-
-    std::vector<uint> layout(2);
-    glGetNamedBufferSubData(_similaritiesBuffers.layout, 2 * (_params.n - 1) * sizeof(uint), 2, layout.data());
-    std::vector<float> neighboursEmb(layout[0] + layout[1]);
-    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, (layout[0] + layout[1]) * sizeof(uint), neighboursEmb.data());
 
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture

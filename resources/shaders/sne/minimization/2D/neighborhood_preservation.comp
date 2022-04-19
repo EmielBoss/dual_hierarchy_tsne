@@ -39,38 +39,42 @@ layout(binding = 3, std430) restrict writeonly buffer NeighPres { float neighbor
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint k;
+layout(location = 1) uniform uint kParam;
 
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
   if (i >= nPoints) { return; }
 
-  Layout l = layoutBuffer[i];
+  uint k = kParam - 1; // Actual value of k, since FAISS returns datapoint itself as nearest neighbor
 
   // Sort embedding neighbors buffer
-  for (uint ijMax = i * k + k - 1; ijMax > i * k + 1; ijMax--) {
-    for (uint ij = i * k + 1; ij < ijMax; ij++) {
+  for (uint ijMax = i * kParam + k; ijMax > i * kParam + 1; ijMax--) { // Ignore the first "neighbour", as that's the datapoint itself
+    for (uint ij = i * kParam + 1; ij < ijMax; ij++) {
       uint tmp = min(neighborsEmbBuffer[ij], neighborsEmbBuffer[ij+1]);
       neighborsEmbBuffer[ij+1] = neighborsEmbBuffer[ij] + neighborsEmbBuffer[ij+1] - tmp;
       neighborsEmbBuffer[ij] = tmp;
     }
   }
 
-  // uint intersection = 0;
-  // uint uunion = 0; // union is a reserved keyword
-  // uint neighb = l.offset;
-  // uint neighbEmb = i * k;
-  // while(neighb < l.offset + k || neighbEmb < i * k + k) {
-  //   bool eq = neighborsBuffer[neighb] == neighborsEmbBuffer[neighbEmb];
-  //   bool leq = neighborsBuffer[neighb] < neighborsEmbBuffer[neighbEmb];
-  //   bool geq = neighborsBuffer[neighb] > neighborsEmbBuffer[neighbEmb];
+  Layout l = layoutBuffer[i];
 
-  //   uunion++;
-  //   intersection += int(eq);
-  //   neighb += int(eq || leq);
-  //   neighbEmb += int(eq || geq);
-  // }
-  // uunion += min(neighb - l.offset, neighbEmb - i * k) - k;
-  // neighborhoodPreservationBuffer[i] = float(intersection) / float(uunion);
+  uint intersection = 0;
+  uint uunion = 0; // union is a reserved keyword
+  uint neighCounterHigh = 0;
+  uint neighCounterEmbd = 0;
+  while(neighCounterHigh < k && neighCounterEmbd < k) {
+    uint neighIndexHigh = l.offset + neighCounterHigh;
+    uint neighIndexEmbd = i * kParam + 1 + neighCounterEmbd;
+    bool eq = neighborsBuffer[neighIndexHigh] == neighborsEmbBuffer[neighIndexEmbd];
+    bool leq = neighborsBuffer[neighIndexHigh] < neighborsEmbBuffer[neighIndexEmbd];
+    bool geq = neighborsBuffer[neighIndexHigh] > neighborsEmbBuffer[neighIndexEmbd];
+
+    uunion++;
+    intersection += int(eq);
+    neighCounterHigh += int(eq || leq);
+    neighCounterEmbd += int(eq || geq);
+  }
+  uunion += k - min(neighCounterHigh, neighCounterEmbd);
+  neighborhoodPreservationBuffer[i] = float(intersection) / float(uunion);
 }

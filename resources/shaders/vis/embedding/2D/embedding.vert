@@ -87,7 +87,7 @@ void main() {
   }
   else if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
-    color = value * vec3(255.0f, 255.0f, 175.0f) + (1-value) * vec3(255.0f, 0.0f, 0.0f);
+    color = vec3(255, (1-value) * 255, (1-value) * 200);
   }
   else {
     color = colors[9];
