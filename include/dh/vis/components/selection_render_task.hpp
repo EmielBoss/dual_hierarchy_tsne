@@ -76,6 +76,7 @@ namespace dh::vis {
     bool isInit() const { return _isInit; }
 
     int getSelectionRadius() { return _selectionRadius; }
+    void setSelectionRadius(int selectionRadius) { _selectionRadius = selectionRadius; }
     void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
     
     // std::swap impl

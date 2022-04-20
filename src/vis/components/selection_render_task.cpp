@@ -52,7 +52,7 @@ namespace dh::vis {
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _params(params),
-    _selectionRadius(50),
+    _selectionRadius(30),
     _mousePosition({0.0, 0.0}) {
 
     // Initialize shader program

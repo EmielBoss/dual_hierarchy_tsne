@@ -28,7 +28,19 @@
 #include "dh/util/aligned.hpp"
 
 namespace dh::vis {
+  struct Input {
+    glm::vec2 mousePos;
+    float mouseScroll;
+    bool mouseLeft;
+    bool mouseRight;
+    bool r;
+    bool d;
+    bool space;
+    int num;
+  };
+
   class SelectionInputTask : public InputTask {
+  
   public:
     SelectionInputTask();
 
@@ -38,20 +50,37 @@ namespace dh::vis {
     void keyboardInput(int button, int action) override;
     void mouseScrollInput(double xScroll, double yScroll) override;
 
+    // Getters
+    Input getInput() const {
+      return {
+        _mousePos,
+        _mouseScroll,
+        _mouseLeftPressed,
+        _mouseRightPressed,
+        _rPressed,
+        _dPressed,
+        _spacePressed,
+        _numPressed
+      };
+    }
+
     glm::vec2 getMousePos() const { return _mousePos; }
     glm::vec2 getMousePosPixel() const { return _mousePosPixel; }
     bool getSpacePressed() const { return _spacePressed; }
     bool getDPressed() const { return _dPressed; }
-    bool getMousePressed() const { return _mousePressed; }
+    bool getMousePressed() const { return _mouseLeftPressed; }
     int getNumPressed() const { return _numPressed; }
     void setNumPressed(int num) { _numPressed = num; }
+    void setMouseScroll(float mouseScroll) { _mouseScroll = mouseScroll; }
 
   private:
     // State
     bool _spacePressed; // Whether spacebar is pressed
+    bool _rPressed;
     bool _dPressed; // Whether d is pressed
-    bool _mousePressed; // Whether the mouse is clicked
-    int _numPressed; // Whether the mouse is clicked
+    bool _mouseLeftPressed; // Whether the left mouse is clicked
+    bool _mouseRightPressed; // Whether the left mouse is clicked
+    int _numPressed;
     float _mouseScroll;
     glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates
     glm::vec2 _mousePos;

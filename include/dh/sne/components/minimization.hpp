@@ -65,9 +65,10 @@ namespace dh::sne {
 
     // Computation
     void comp();                        // Compute full minimization (i.e. params.iterations)
-    void compIteration();               // Compute a single iteration of minimization + selection
-    void compIterationMinimization();   // Compute a single iteration of minimization
-    void compIterationSelection();      // Compute the selection part of a single iteration of minimization
+    void compIteration();               // Compute a single iteration: minimization + selection + translation
+    void compIterationMinimization();   // Compute the minimization part of a single iteration
+    void compIterationSelection();      // Compute the selection part of a single iteration
+    void compIterationTranslation();    // Compute the translation part of a single iteration
 
   private:
     enum class BufferType {
@@ -123,13 +124,12 @@ namespace dh::sne {
     SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
     Bounds _bounds;
-    uint _selectionIdx;
-    uint _selectionCounts[2];
-    bool _dPressed;
-    bool _spacePressed;
-    bool _mousePressed;
-    bool _mousePressedPrev;
+    vis::Input _input;
+    uint _cursorMode;
     uint _colorMapping;
+    uint _colorMappingPrev;
+    int _selectionRadius;
+    int _selectionRadiusPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -167,8 +167,6 @@ namespace dh::sne {
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
-      swap(a._selectionIdx, b._selectionIdx);
-      swap(a._selectionCounts, b._selectionCounts);
       swap(a._selectionInputTask, b._selectionInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);

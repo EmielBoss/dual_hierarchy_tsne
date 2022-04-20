@@ -94,9 +94,9 @@ void main() {
   }
 
   if(selected[gl_InstanceID] == 1) {
-    colorOut = vec4(color / 155.0f, pointOpacity);
-  } else if(selected[gl_InstanceID] == 2) {
     colorOut = vec4(color / 355.0f, pointOpacity);
+  } else if(selected[gl_InstanceID] == 2) {
+    colorOut = vec4(color / 155.0f, pointOpacity);
   } else {
     colorOut = vec4(color / 255.0f, pointOpacity);
   }
