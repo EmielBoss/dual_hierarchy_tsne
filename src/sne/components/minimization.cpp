@@ -79,7 +79,7 @@ namespace dh::sne {
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
         _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-        _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
+        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/Z.comp"));
@@ -87,7 +87,6 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
-        _programs(ProgramType::eSelectionCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/selection_count.comp"));
       }
       
       for (auto& program : _programs) {
@@ -125,7 +124,10 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eTranslated), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
 
@@ -208,7 +210,10 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIteration() {
+    glm::vec2 mousePosPrev = _input.mousePos;
+    _mouseRightPrev = _input.mouseRight;
     _input = _selectionInputTask->getInput();
+    bool mouseRight = _input.mouseRight;
 
     // Synchronizing color mapping between GUi and input
     _colorMappingPrev = _colorMapping;
@@ -224,12 +229,19 @@ namespace dh::sne {
     _selectionRadius = _selectionRenderTask->getSelectionRadius();
     if (_selectionRadius != selectionRadiusPrev) { _selectionInputTask->setMouseScroll(std::round(_selectionRadius * 2) / 20); }
 
-    if(!_input.space      ) { compIterationMinimization(); }
-    if( _input.mouseLeft  ) { compIterationSelection(); }
-    if( _input.mouseRight  ) { compIterationTranslation(); }
-    if( _input.r) {
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    }
+    if(!_input.space) { compIterationMinimization(); }
+
+    // Get everything related with the cursor and selection brush
+    const glm::vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
+    const glm::vec2 boundsRangeHalf = {_bounds.range().x, _bounds.range().y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
+    _cursorPos = boundsCenter + boundsRangeHalf * _input.mousePos;
+    _cursorPosPrev = boundsCenter + boundsRangeHalf * mousePosPrev; // Else _cursorPosPrev would be relative to the previous embedding bounds
+
+    if(_input.mouseLeft  ) { compIterationSelection(); }
+    if(_input.mouseRight  ) { compIterationTranslation(); }
+    if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_input.r) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_mouseRightPrev && !mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslated), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
   }
 
   template <uint D>
@@ -250,8 +262,10 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eBoundsReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eBounds));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTranslated));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBoundsReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       program.template uniform<uint>("iter", 0);
@@ -266,6 +280,7 @@ namespace dh::sne {
     }
 
     // Copy bounds back to host (hey look: an expensive thing I shouldn't be doing)
+    _boundsPrev = _bounds;
     glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &_bounds);
 
     // 2.
@@ -385,6 +400,9 @@ namespace dh::sne {
     // 6.
     // Update embedding
     {
+      glm::vec2 boundsTranslation = _bounds.center() - _boundsPrev.center();
+      glm::vec2 boundsScaling = _bounds.range() / _boundsPrev.range();
+
       auto& timer = _timers(TimerType::eUpdateEmbeddingComp);
       timer.tick();
 
@@ -397,12 +415,15 @@ namespace dh::sne {
       program.template uniform<float>("minGain", _params.minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
+      program.template uniform<float, 2>("boundsScaling", boundsScaling);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eGradients));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::ePrevGradients));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eGain));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eGradients));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::ePrevGradients));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eGain));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eFixed));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -518,23 +539,16 @@ namespace dh::sne {
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
-      // Get everything related with the cursor and selection brush
-      const vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
-      const vec boundsRange = _bounds.range();
-      const vec2 boundsRangeHalf = {boundsRange.x, boundsRange.y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
-      vec2 boundsMin = {_bounds.min.x, _bounds.min.y}; // Only need the first two dimensions in case D == 3
-      vec2 boundsMax = {_bounds.max.x, _bounds.max.y};
-      vec2 cursorPos = boundsCenter + boundsRangeHalf * _input.mousePos;
-      float selectionRadius = boundsRange.y * _selectionRadius / _params.resHeight;
+      float selectionRadius = _bounds.range().y * _selectionRadius / _params.resHeight;
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("cursorPos", cursorPos);
+      program.template uniform<float, 2>("cursorPos", _cursorPos);
       program.template uniform<float>("selectionRadius", selectionRadius);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -546,7 +560,31 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIterationTranslation() {
+    
+    // 1.
+    // Compute translation
+    {
+      auto& program = _programs(ProgramType::eTranslationComp);
+      program.bind();
 
+      // Set uniform
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<float, 2>("shift", _cursorPos - _cursorPosPrev);
+      program.template uniform<bool>("firstFrame", !_mouseRightPrev);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbedding));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eTranslated));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+      glAssert();
+    }
   }
 
   // Template instantiations for 2/3 dimensions

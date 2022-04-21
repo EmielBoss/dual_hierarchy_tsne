@@ -47,7 +47,6 @@ namespace dh::sne {
     using Bounds = util::AlignedBounds<D>;
     using vec = util::AlignedVec<D, float>;
     using uvec = util::AlignedVec<D, uint>;
-    using vec2 = util::AlignedVec<2, float>;
 
   public:
     // Constr/destr
@@ -85,9 +84,10 @@ namespace dh::sne {
       eDistancesEmb,
       eNeighborsEmb,
       eNeighborhoodPreservation,
-      eSelection,
-      eSelectionCounts,
-      eSelectionCountsReduce,
+      eSelected,
+      eFixed,
+      eTranslated,
+      eEmbeddingBeforeTranslation,
 
       Length
     };
@@ -101,7 +101,7 @@ namespace dh::sne {
       eCenterEmbeddingComp,
       eNeighborhoodPreservationComp,
       eSelectionComp,
-      eSelectionCountComp,
+      eTranslationComp,
 
       Length
     };
@@ -124,12 +124,16 @@ namespace dh::sne {
     SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
     Bounds _bounds;
+    Bounds _boundsPrev;
     vis::Input _input;
+    glm::vec2 _cursorPos; // Position of the mouse in embedding space, i.e. relative to _bounds
+    glm::vec2 _cursorPosPrev;
     uint _cursorMode;
     uint _colorMapping;
     uint _colorMappingPrev;
     int _selectionRadius;
     int _selectionRadiusPrev;
+    bool _mouseRightPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -149,7 +153,7 @@ namespace dh::sne {
         _buffers(BufferType::eEmbedding),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
-        _buffers(BufferType::eSelection),
+        _buffers(BufferType::eSelected),
         _buffers(BufferType::eNeighborhoodPreservation),
       };
     }

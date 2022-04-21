@@ -26,23 +26,22 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
-layout(binding = 1, std430) restrict writeonly buffer Sel { uint selected[]; };
+layout(binding = 0, std430) restrict readonly buffer Selected { uint selectedBuffer[]; };
+layout(binding = 1, std430) restrict buffer Positions { vec2 positionsBuffer[]; };
+layout(binding = 2, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsBeforeTranslationBuffer[]; };
+layout(binding = 3, std430) restrict writeonly buffer Fixed { uint fixedBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
-layout(location = 2) uniform float selectionRadius;
+layout(location = 1) uniform vec2 shift;
+layout(location = 2) uniform bool firstFrame;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) { return; }
+  if (i >= nPoints || selectedBuffer[i] == 0) { return; }
 
-  vec2 difference = abs(cursorPos - positions[i]);
-  float dist = length(difference);
-
-  if(dist < selectionRadius) { // Embedding position lies inside the circle radius
-    selected[i] = int(true);
-  } else {
-    return;
-  }
+  if (firstFrame) { positionsBeforeTranslationBuffer[i] = positionsBuffer[i]; }
+  positionsBuffer[i] += shift;
+  fixedBuffer[i] = int(true);
+  movingBuffer[i] = int(true);
 }

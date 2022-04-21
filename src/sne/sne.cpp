@@ -80,7 +80,7 @@ namespace dh::sne {
     if (_params.nLowDims == 2) {
       _minimization = sne::Minimization<2>(&_similarities, _params);
     } else if (_params.nLowDims == 3) {
-      _minimization = sne::Minimization<3>(&_similarities, _params);
+      // _minimization = sne::Minimization<3>(&_similarities, _params);
     }
 
     // After similarities are available, initialize KL-divergence subcomponent
@@ -95,7 +95,7 @@ namespace dh::sne {
 
     // Run timer to track full minimization computation
     _minimizationTimer.tick();
-    std::visit([&](auto& m) { m.comp(); }, _minimization);
+    std::visit([&](auto& m) { m.comp(); }, _minimization);  // This selects the correct template instantiation, i.e. Minimization<_params.nLowDims>
     _minimizationTimer.tock();
     _minimizationTimer.poll();
   }

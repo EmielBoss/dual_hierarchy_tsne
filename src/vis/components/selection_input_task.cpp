@@ -39,6 +39,7 @@ namespace dh::vis {
     _numPressed(1),
     _mouseLeftPressed(false),
     _mouseRightPressed(false),
+    _mouseMiddlePressed(false),
     _mouseScroll(3.0f), 
     _mousePos(-1.0f),
     _mouseScrollMult(0.5f),
@@ -75,6 +76,12 @@ namespace dh::vis {
       _mouseRightPressed = true;
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
       _mouseRightPressed = false;
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
+      _mouseMiddlePressed = true;
+    } else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) {
+      _mouseMiddlePressed = false;
     }
   }
 

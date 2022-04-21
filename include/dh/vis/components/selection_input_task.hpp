@@ -33,6 +33,7 @@ namespace dh::vis {
     float mouseScroll;
     bool mouseLeft;
     bool mouseRight;
+    bool mouseMiddle;
     bool r;
     bool d;
     bool space;
@@ -57,6 +58,7 @@ namespace dh::vis {
         _mouseScroll,
         _mouseLeftPressed,
         _mouseRightPressed,
+        _mouseMiddlePressed,
         _rPressed,
         _dPressed,
         _spacePressed,
@@ -79,7 +81,8 @@ namespace dh::vis {
     bool _rPressed;
     bool _dPressed; // Whether d is pressed
     bool _mouseLeftPressed; // Whether the left mouse is clicked
-    bool _mouseRightPressed; // Whether the left mouse is clicked
+    bool _mouseRightPressed;
+    bool _mouseMiddlePressed;
     int _numPressed;
     float _mouseScroll;
     glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates
