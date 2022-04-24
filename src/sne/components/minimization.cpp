@@ -240,8 +240,9 @@ namespace dh::sne {
     if(_input.mouseLeft  ) { compIterationSelection(); }
     if(_input.mouseRight  ) { compIterationTranslation(); }
     if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
-    if(_input.r) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_mouseRightPrev && !mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslated), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_input.e) { _iteration = 1; }
   }
 
   template <uint D>

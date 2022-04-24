@@ -34,8 +34,10 @@ namespace dh::vis {
   SelectionInputTask::SelectionInputTask()
   : InputTask(1, "SelectionInputTask"),
     _spacePressed(false),
-    _dPressed(false),
     _rPressed(false),
+    _fPressed(false),
+    _ePressed(false),
+    _dPressed(false),
     _numPressed(1),
     _mouseLeftPressed(false),
     _mouseRightPressed(false),
@@ -66,23 +68,14 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::mouseButtonInput(int button, int action) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-      _mouseLeftPressed = true;
-    } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-      _mouseLeftPressed = false;
-    }
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) { _mouseLeftPressed = true; }
+    else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) { _mouseLeftPressed = false; }
 
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-      _mouseRightPressed = true;
-    } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
-      _mouseRightPressed = false;
-    }
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) { _mouseRightPressed = true; }
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) { _mouseRightPressed = false; }
 
-    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
-      _mouseMiddlePressed = true;
-    } else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) {
-      _mouseMiddlePressed = false;
-    }
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) { _mouseMiddlePressed = true; }
+    else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) { _mouseMiddlePressed = false; }
   }
 
   void SelectionInputTask::mouseScrollInput(double xScroll, double yScroll) {
@@ -90,37 +83,26 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::keyboardInput(int button, int action) {
-    if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-      _spacePressed = true;
-    } else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
-      _spacePressed = false;
-    }
-  
-    if (button == GLFW_KEY_D && action == GLFW_PRESS) {
-      _dPressed = true;
-    } else if (button == GLFW_KEY_D && action == GLFW_RELEASE) {
-      _dPressed = false;
-    }
+    if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) { _spacePressed = true; }
+    else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) { _spacePressed = false; }
 
-    if (button == GLFW_KEY_R && action == GLFW_PRESS) {
-      _rPressed = true;
-    } else if (button == GLFW_KEY_R && action == GLFW_RELEASE) {
-      _rPressed = false;
-    }
+    if (button == GLFW_KEY_R && action == GLFW_PRESS) { _rPressed = true; }
+    else if (button == GLFW_KEY_R && action == GLFW_RELEASE) { _rPressed = false; }
 
-    if (button == GLFW_KEY_0 && action == GLFW_PRESS) {
-      _numPressed = 0;
-    } else if (button == GLFW_KEY_1 && action == GLFW_PRESS) {
-      _numPressed = 1;
-    } else if (button == GLFW_KEY_2 && action == GLFW_PRESS) {
-      _numPressed = 2;
-    } else if (button == GLFW_KEY_3 && action == GLFW_PRESS) {
-      _numPressed = 3;
-    } else if (button == GLFW_KEY_4 && action == GLFW_PRESS) {
-      _numPressed = 4;
-    } else if (action == GLFW_RELEASE) {
-      // _numPressed = -1;
-    }
+    if (button == GLFW_KEY_F && action == GLFW_PRESS) { _fPressed = true; }
+    else if (button == GLFW_KEY_F && action == GLFW_RELEASE) { _fPressed = false; }
+
+    if (button == GLFW_KEY_E && action == GLFW_PRESS) { _ePressed = true; }
+    else if (button == GLFW_KEY_E && action == GLFW_RELEASE) { _ePressed = false; }
+
+    if (button == GLFW_KEY_D && action == GLFW_PRESS) { _dPressed = true; }
+    else if (button == GLFW_KEY_D && action == GLFW_RELEASE) { _dPressed = false; }
+
+    if (button == GLFW_KEY_0 && action == GLFW_PRESS) { _numPressed = 0; }
+    else if (button == GLFW_KEY_1 && action == GLFW_PRESS) { _numPressed = 1; }
+    else if (button == GLFW_KEY_2 && action == GLFW_PRESS) { _numPressed = 2; }
+    else if (button == GLFW_KEY_3 && action == GLFW_PRESS) { _numPressed = 3; }
+    else if (button == GLFW_KEY_4 && action == GLFW_PRESS) { _numPressed = 4; }
   }
 
 } // dh::vis

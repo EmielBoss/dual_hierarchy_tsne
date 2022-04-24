@@ -40,13 +40,6 @@ namespace dh::sne {
     // ...
   }
 
-  // SNE::SNE(const float * data, Params params)
-  // : _params(params),
-  //   _similarities(data, params),
-  //   _isInit(true) {
-  //   // ...
-  // }
-
   SNE::~SNE() {
     // ...
   }
