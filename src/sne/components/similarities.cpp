@@ -43,25 +43,6 @@ namespace dh::sne {
     // ...
   }
 
-  template<typename Type>
-  void checkNan(GLuint handle, uint n) {
-    std::vector<Type> buffer(n);
-    glGetNamedBufferSubData(handle, 0, n * sizeof(Type), buffer.data());
-    uint nans = 0;
-    uint zeros = 0;
-    for(uint i = 0; i < n; ++i) {
-      if(std::isnan(buffer[i])) {
-        Type culprit = buffer[i];
-        nans++;
-      }
-      if(buffer[i] < FLT_MIN) {
-        Type culprit = buffer[i];
-        zeros++;
-      }
-    }
-    std::cout << "\nZeros: " << zeros;
-  }
-
   Similarities::Similarities(const std::vector<float>& data, Params params)
   : _isInit(false), _dataPtr(data.data()), _params(params) {
     Logger::newt() << prefix << "Initializing...";

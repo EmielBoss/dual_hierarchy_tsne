@@ -51,21 +51,9 @@ namespace dh::sne {
     // ...
   }
 
-  template<typename Type>
-  void checkBuffer(GLuint handle, uint n, bool d, uint s) {
-    std::vector<Type> buffer(n);
-    glGetNamedBufferSubData(handle, 0, n * sizeof(Type), buffer.data());
-    float avg = 0;
-    for(uint i = 0; i < n; ++i) {
-      avg += std::abs(buffer[i]);
-    }
-    // avg /= (float) n;
-    std::cout << d;
-  }
-
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0) {
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _reinit(false) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -108,7 +96,7 @@ namespace dh::sne {
 
       const std::vector<vec> zeroes(_params.n, vec(0));
       const std::vector<vec> ones(_params.n, vec(1));
-      const std::vector<uint> falses(_params.n, 0);
+      const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -126,39 +114,13 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eTranslated), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
+      glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
 
-    // Generate randomized embedding data
-    // TODO: look at CUDA-tSNE's approach, they have several options available for initialization
-    {
-      // Seed the (bad) rng
-      std::srand(_params.seed);
-      
-      // Generate n random D-dimensional vectors
-      std::vector<vec> embedding(_params.n, vec(0.f));
-      for (uint i = 0; i < _params.n; ++i) {
-        vec v;
-        float r;
-
-        do {
-          r = 0.f;
-          for (uint j = 0; j < D; ++j) {
-            v[j] = 2.f * (static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX) + 1.f)) - 1.f;
-          }
-          r = dot(v, v);
-        } while (r > 1.f || r == 0.f);
-
-        r = std::sqrt(-2.f * std::log(r) / r);
-        embedding[i] = v * r * _params.rngRange;
-      }
-
-      // Copy to buffer
-      glNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
-      glAssert();
-    }
+    initializeEmbeddingRandomly();
 
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
@@ -180,6 +142,44 @@ namespace dh::sne {
     _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
 
     _isInit = true;
+  }
+
+  // Generate randomized embedding data
+  // TODO: look at CUDA-tSNE's approach, they have several options available for initialization
+  template <uint D>
+  void Minimization<D>::initializeEmbeddingRandomly() {
+    
+    // Copy over embedding and fixed buffers to host
+    std::vector<vec> embedding(_params.n);
+    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
+    // _embeddingPrev = embedding; ////
+    std::vector<uint> fixed(_params.n); // These are all zeroes on first initialization anyways
+    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
+
+    // Seed the (bad) rng
+    std::srand(_params.seed);
+    
+    // Generate n random D-dimensional vectors
+    for (uint i = 0; i < _params.n; ++i) {
+      if(fixed[i]) { continue; }
+      vec v;
+      float r;
+
+      do {
+        r = 0.f;
+        for (uint j = 0; j < D; ++j) {
+          v[j] = 2.f * (static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX) + 1.f)) - 1.f;
+        }
+        r = dot(v, v);
+      } while (r > 1.f || r == 0.f);
+
+      r = std::sqrt(-2.f * std::log(r) / r);
+      embedding[i] = v * r * _params.rngRange;
+    }
+
+    // Copy to buffer
+    glNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
+    glAssert();
   }
 
   template <uint D>
@@ -215,20 +215,21 @@ namespace dh::sne {
     _input = _selectionInputTask->getInput();
     bool mouseRight = _input.mouseRight;
 
-    // Synchronizing color mapping between GUi and input
+    // Synchronizing color mapping between GUI and input
     _colorMappingPrev = _colorMapping;
     _colorMapping = _input.num;
     if(_colorMapping != _colorMappingPrev) { _embeddingRenderTask->setColorMapping(_colorMapping); }
     _colorMapping = _embeddingRenderTask->getColorMapping();
     if (_colorMapping != _colorMappingPrev) { _selectionInputTask->setNumPressed(_colorMapping); }
 
-    // Synchronizing selection radius between GUi and input
+    // Synchronizing selection radius between GUI and input
     int selectionRadiusPrev = _selectionRadius;
     _selectionRadius = _input.mouseScroll * 10 + 0.5f;
     if(_selectionRadius != selectionRadiusPrev) { _selectionRenderTask->setSelectionRadius(_selectionRadius); }
     _selectionRadius = _selectionRenderTask->getSelectionRadius();
     if (_selectionRadius != selectionRadiusPrev) { _selectionInputTask->setMouseScroll(std::round(_selectionRadius * 2) / 20); }
 
+    if(_input.r) { compIterationMinimizationRestart(); }
     if(!_input.space) { compIterationMinimization(); }
 
     // Get everything related with the cursor and selection brush
@@ -240,9 +241,17 @@ namespace dh::sne {
     if(_input.mouseLeft  ) { compIterationSelection(); }
     if(_input.mouseRight  ) { compIterationTranslation(); }
     if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
-    if(_mouseRightPrev && !mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslated), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_mouseRightPrev && !mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.e) { _iteration = 1; }
+  }
+
+  template <uint D>
+  void Minimization<D>::compIterationMinimizationRestart() {
+    if(_iteration < 100) { return; }
+    _iteration = 1;
+    initializeEmbeddingRandomly();
+    _reinit = true;
   }
 
   template <uint D>
@@ -260,13 +269,15 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<float>("padding", 0.0f);
+      // program.template uniform<float>("reinit", _reinit);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTranslated));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBoundsReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBounds));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTranslating));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBoundsReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       program.template uniform<uint>("iter", 0);
@@ -401,8 +412,8 @@ namespace dh::sne {
     // 6.
     // Update embedding
     {
-      glm::vec2 boundsTranslation = _bounds.center() - _boundsPrev.center();
       glm::vec2 boundsScaling = _bounds.range() / _boundsPrev.range();
+      glm::vec2 boundsTranslation = _bounds.center() - _boundsPrev.center();
 
       auto& timer = _timers(TimerType::eUpdateEmbeddingComp);
       timer.tick();
@@ -417,14 +428,17 @@ namespace dh::sne {
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
       program.template uniform<float, 2>("boundsScaling", boundsScaling);
+      // program.template uniform<bool>("reinit", _reinit);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eGradients));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::ePrevGradients));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eGain));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eGradients));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::ePrevGradients));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eGain));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -529,6 +543,7 @@ namespace dh::sne {
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
     }
 
+    if(_iteration > 100) { _reinit = false; }
   }
 
   template <uint D>
@@ -576,9 +591,11 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingBeforeTranslation));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eTranslated));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eTranslating));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);

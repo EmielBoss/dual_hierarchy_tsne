@@ -27,10 +27,17 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict buffer Pos { vec2 Positions[]; };
 layout(binding = 1, std430) restrict buffer PosB4 { vec2 PositionsBeforeEmbedding[]; };
-layout(binding = 2, std430) restrict readonly buffer Grad { vec2 Gradients[]; };
-layout(binding = 3, std430) restrict buffer PrevGrad { vec2 PrevGradients[]; };
-layout(binding = 4, std430) restrict buffer Gains { vec2 Gain[]; };
-layout(binding = 5, std430) restrict readonly buffer Fix { uint Fixed[]; };
+layout(binding = 2, std430) restrict readonly buffer PosRel { vec2 PositionsRelative[]; };
+layout(binding = 3, std430) restrict readonly buffer Grad { vec2 Gradients[]; };
+layout(binding = 4, std430) restrict buffer PrevGrad { vec2 PrevGradients[]; };
+layout(binding = 5, std430) restrict buffer Gains { vec2 Gain[]; };
+layout(binding = 6, std430) restrict readonly buffer Fix { uint Fixed[]; };
+layout(binding = 7, std430) restrict readonly buffer Bounds { 
+  vec2 minBounds;
+  vec2 maxBounds;
+  vec2 range;
+  vec2 invRange;
+};
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform float eta;
@@ -38,6 +45,7 @@ layout(location = 2) uniform float minGain;
 layout(location = 3) uniform float mult;
 layout(location = 4) uniform float iterMult;
 layout(location = 5) uniform vec2 boundsScaling;
+//layout(location = 6) uniform bool reinit;
 
 void main() {
   // Invocation location
@@ -46,6 +54,7 @@ void main() {
   if(Fixed[i] == 1) {
     Positions[i] *= boundsScaling;
     PositionsBeforeEmbedding[i] *= boundsScaling;
+    Positions[i] = PositionsRelative[i] * range + minBounds;
     return;
   }
 

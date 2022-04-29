@@ -28,9 +28,16 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer Selected { uint selectedBuffer[]; };
 layout(binding = 1, std430) restrict buffer Positions { vec2 positionsBuffer[]; };
-layout(binding = 2, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsBeforeTranslationBuffer[]; };
-layout(binding = 3, std430) restrict writeonly buffer Fixed { uint fixedBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
+layout(binding = 2, std430) restrict writeonly buffer PosRel { vec2 positionsRelativeBuffer[]; };
+layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsBeforeTranslationBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer Fixed { uint fixedBuffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer Bounds {
+  vec2 minBounds;
+  vec2 maxBounds;
+  vec2 range;
+  vec2 invRange;
+};
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec2 shift;
@@ -42,6 +49,7 @@ void main() {
 
   if (firstFrame) { positionsBeforeTranslationBuffer[i] = positionsBuffer[i]; }
   positionsBuffer[i] += shift;
+  positionsRelativeBuffer[i] = (positionsBuffer[i] - minBounds) / range;
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
 }

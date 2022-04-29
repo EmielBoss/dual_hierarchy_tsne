@@ -62,12 +62,15 @@ namespace dh::sne {
     Minimization(Minimization&&) noexcept;
     Minimization& operator=(Minimization&&) noexcept;
 
+    void initializeEmbeddingRandomly();
+
     // Computation
-    void comp();                        // Compute full minimization (i.e. params.iterations)
-    void compIteration();               // Compute a single iteration: minimization + selection + translation
-    void compIterationMinimization();   // Compute the minimization part of a single iteration
-    void compIterationSelection();      // Compute the selection part of a single iteration
-    void compIterationTranslation();    // Compute the translation part of a single iteration
+    void comp();                              // Compute full minimization (i.e. params.iterations)
+    void compIteration();                     // Compute a single iteration: minimization + selection + translation
+    void compIterationMinimizationRestart();  // Compute a restart of the minimization
+    void compIterationMinimization();         // Compute the minimization part of a single iteration
+    void compIterationSelection();            // Compute the selection part of a single iteration
+    void compIterationTranslation();          // Compute the translation part of a single iteration
 
   private:
     enum class BufferType {
@@ -86,7 +89,8 @@ namespace dh::sne {
       eNeighborhoodPreservation,
       eSelected,
       eFixed,
-      eTranslated,
+      eTranslating,
+      eEmbeddingRelative,
       eEmbeddingBeforeTranslation,
 
       Length
@@ -134,6 +138,9 @@ namespace dh::sne {
     int _selectionRadius;
     int _selectionRadiusPrev;
     bool _mouseRightPrev;
+    bool _reinit;
+    uint _firstFixed; ////
+    std::vector<vec> _embeddingPrev; ////
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

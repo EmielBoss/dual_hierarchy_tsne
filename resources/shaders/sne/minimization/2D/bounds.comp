@@ -28,13 +28,14 @@ layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
-layout(binding = 1, std430) restrict readonly buffer PosB4 { vec2 positionsBeforeEmbedding[]; };
+layout(binding = 1, std430) restrict readonly buffer PosB4 { vec2 positionsBeforeTranslation[]; };
 layout(binding = 2, std430) restrict readonly buffer Mov { uint moving[]; };
-layout(binding = 3, std430) restrict buffer BoundsReduce {
+layout(binding = 3, std430) restrict readonly buffer Fix { uint fixxed[]; };
+layout(binding = 4, std430) restrict buffer BoundsReduce {
   vec2 minBoundsReduceAdd[128];
   vec2 maxBoundsReduceAdd[128];
 };
-layout(binding = 4, std430) restrict writeonly buffer Bounds { 
+layout(binding = 5, std430) restrict writeonly buffer Bounds { 
   vec2 minBounds;
   vec2 maxBounds;
   vec2 range;
@@ -43,8 +44,9 @@ layout(binding = 4, std430) restrict writeonly buffer Bounds {
 
 // Uniform bindings
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint iter;
-layout(location = 2) uniform float padding;
+layout(location = 1) uniform float padding;
+// layout(location = 2) uniform bool reinit;
+layout(location = 2) uniform uint iter;
 
 // Constants, shared memory
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
@@ -62,7 +64,8 @@ void main() {
         i < nPoints;
         i += gl_NumWorkGroups.x * gl_WorkGroupSize.x) {
       vec2 pos = positions[i];
-      if(moving[i] == 1) { pos = positionsBeforeEmbedding[i]; }
+      if(moving[i] == 1) { pos = positionsBeforeTranslation[i]; }
+      if(fixxed[i] == 1) { continue; }
       min_local = min(pos, min_local);
       max_local = max(pos, max_local);
     }
