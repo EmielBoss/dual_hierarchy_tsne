@@ -65,7 +65,6 @@ void main() {
         i += gl_NumWorkGroups.x * gl_WorkGroupSize.x) {
       vec2 pos = positions[i];
       if(moving[i] == 1) { pos = positionsBeforeTranslation[i]; }
-      if(fixxed[i] == 1) { continue; }
       min_local = min(pos, min_local);
       max_local = max(pos, max_local);
     }

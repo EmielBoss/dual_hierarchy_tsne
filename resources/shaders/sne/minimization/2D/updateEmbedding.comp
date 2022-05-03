@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict buffer Pos { vec2 Positions[]; };
-layout(binding = 1, std430) restrict buffer PosB4 { vec2 PositionsBeforeEmbedding[]; };
+layout(binding = 1, std430) restrict buffer PosB4 { vec2 PositionsBeforeTranslation[]; };
 layout(binding = 2, std430) restrict readonly buffer PosRel { vec2 PositionsRelative[]; };
 layout(binding = 3, std430) restrict readonly buffer Grad { vec2 Gradients[]; };
 layout(binding = 4, std430) restrict buffer PrevGrad { vec2 PrevGradients[]; };
@@ -45,16 +45,16 @@ layout(location = 2) uniform float minGain;
 layout(location = 3) uniform float mult;
 layout(location = 4) uniform float iterMult;
 layout(location = 5) uniform vec2 boundsScaling;
-//layout(location = 6) uniform bool reinit;
+layout(location = 6) uniform bool translationFinished;
 
 void main() {
   // Invocation location
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex.x;
   if (i >= nPoints) { return; }
   if(Fixed[i] == 1) {
-    Positions[i] *= boundsScaling;
-    PositionsBeforeEmbedding[i] *= boundsScaling;
+    if(translationFinished) { return; }
     Positions[i] = PositionsRelative[i] * range + minBounds;
+    PositionsBeforeTranslation[i] *= boundsScaling;
     return;
   }
 

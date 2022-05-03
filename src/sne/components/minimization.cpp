@@ -229,6 +229,10 @@ namespace dh::sne {
     _selectionRadius = _selectionRenderTask->getSelectionRadius();
     if (_selectionRadius != selectionRadiusPrev) { _selectionInputTask->setMouseScroll(std::round(_selectionRadius * 2) / 20); }
 
+    if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+
     if(_input.r) { compIterationMinimizationRestart(); }
     if(!_input.space) { compIterationMinimization(); }
 
@@ -239,11 +243,7 @@ namespace dh::sne {
     _cursorPosPrev = boundsCenter + boundsRangeHalf * mousePosPrev; // Else _cursorPosPrev would be relative to the previous embedding bounds
 
     if(_input.mouseLeft  ) { compIterationSelection(); }
-    if(_input.mouseRight  ) { compIterationTranslation(); }
-    if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
-    if(_mouseRightPrev && !mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
-    if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
-    if(_input.e) { _iteration = 1; }
+    if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
   }
 
   template <uint D>
@@ -428,7 +428,7 @@ namespace dh::sne {
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
       program.template uniform<float, 2>("boundsScaling", boundsScaling);
-      // program.template uniform<bool>("reinit", _reinit);
+      program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -586,7 +586,7 @@ namespace dh::sne {
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<float, 2>("shift", _cursorPos - _cursorPosPrev);
-      program.template uniform<bool>("firstFrame", !_mouseRightPrev);
+      program.template uniform<bool>("translationStarted", !_mouseRightPrev);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));

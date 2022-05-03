@@ -65,12 +65,12 @@ namespace dh::sne {
     void initializeEmbeddingRandomly();
 
     // Computation
-    void comp();                              // Compute full minimization (i.e. params.iterations)
-    void compIteration();                     // Compute a single iteration: minimization + selection + translation
-    void compIterationMinimizationRestart();  // Compute a restart of the minimization
-    void compIterationMinimization();         // Compute the minimization part of a single iteration
-    void compIterationSelection();            // Compute the selection part of a single iteration
-    void compIterationTranslation();          // Compute the translation part of a single iteration
+    void comp();                                            // Compute full minimization (i.e. params.iterations)
+    void compIteration();                                   // Compute a single iteration: minimization + selection + translation
+    void compIterationMinimizationRestart();                // Compute a restart of the minimization
+    void compIterationMinimization();                       // Compute the minimization part of a single iteration
+    void compIterationSelection();                          // Compute the selection part of a single iteration
+    void compIterationTranslation();           // Compute the translation part of a single iteration
 
   private:
     enum class BufferType {

@@ -41,13 +41,13 @@ layout(binding = 6, std430) restrict readonly buffer Bounds {
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec2 shift;
-layout(location = 2) uniform bool firstFrame;
+layout(location = 2) uniform bool translationStarted;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints || selectedBuffer[i] == 0) { return; }
 
-  if (firstFrame) { positionsBeforeTranslationBuffer[i] = positionsBuffer[i]; }
+  if (translationStarted) { positionsBeforeTranslationBuffer[i] = positionsBuffer[i]; }
   positionsBuffer[i] += shift;
   positionsRelativeBuffer[i] = (positionsBuffer[i] - minBounds) / range;
   fixedBuffer[i] = int(true);
