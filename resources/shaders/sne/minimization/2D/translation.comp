@@ -27,9 +27,9 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer Selected { uint selectedBuffer[]; };
-layout(binding = 1, std430) restrict buffer Positions { vec2 positionsBuffer[]; };
-layout(binding = 2, std430) restrict writeonly buffer PosRel { vec2 positionsRelativeBuffer[]; };
-layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsBeforeTranslationBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Positions { vec2 positionsBuffer[]; };
+layout(binding = 2, std430) restrict buffer PosRel { vec2 positionsRelativeBuffer[]; };
+layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsRelativeBeforeTranslationBuffer[]; };
 layout(binding = 4, std430) restrict writeonly buffer Fixed { uint fixedBuffer[]; };
 layout(binding = 5, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Bounds {
@@ -40,16 +40,24 @@ layout(binding = 6, std430) restrict readonly buffer Bounds {
 };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 shift;
-layout(location = 2) uniform bool translationStarted;
+layout(location = 1) uniform vec2 cursorPos;
+layout(location = 2) uniform vec2 cursorPosPrev;
+layout(location = 3) uniform bool translationStarted;
+layout(location = 4) uniform bool translationFinished;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints || selectedBuffer[i] == 0) { return; }
 
-  if (translationStarted) { positionsBeforeTranslationBuffer[i] = positionsBuffer[i]; }
-  positionsBuffer[i] += shift;
-  positionsRelativeBuffer[i] = (positionsBuffer[i] - minBounds) / range;
+  if (translationStarted || translationFinished) {
+    vec2 positionRelative = (positionsBuffer[i] - minBounds) * invRange;
+    positionsRelativeBuffer[i] = positionRelative;
+    positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
+  }
+
+  vec2 shiftRelative = (cursorPos - minBounds) * invRange
+                      - (cursorPosPrev - minBounds) * invRange;
+  if(!translationFinished) { positionsRelativeBuffer[i] += shiftRelative; }
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
 }

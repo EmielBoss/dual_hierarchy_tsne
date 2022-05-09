@@ -77,7 +77,7 @@ namespace dh::vis {
     } else if (_params.nLowDims == 2) {
       // In 2D, center embedding on screen. We only do selection in 2D for now.
       _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
-      _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 1));
+      _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 5));
     }
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
@@ -224,6 +224,10 @@ namespace dh::vis {
       ImGui::Checkbox("Embedding", &(ptr->enable));
       ImGui::SameLine();
     }
+    if (auto ptr = queue.find("BorderRenderTask"); ptr) {
+      ImGui::Checkbox("Border", &(ptr->enable));
+      ImGui::SameLine();
+    }
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr) {
       ImGui::Checkbox("Embedding hierarchy", &(ptr->enable));
       ImGui::SameLine();
@@ -254,5 +258,6 @@ namespace dh::vis {
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("BorderRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

@@ -52,6 +52,22 @@ namespace dh::sne {
   }
 
   template <uint D>
+  void Minimization<D>::checkBuffer(GLuint handle) {
+    std::vector<uint> fixed(_params.n);
+    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
+    std::vector<float> buffer(2 * _params.n);
+    glGetNamedBufferSubData(handle, 0, _params.n * 2 * sizeof(float), buffer.data());
+    uint count = 0;
+    for(uint i = 0; i < _params.n && count < 5; i++) {
+      if(fixed[i]) {
+        std::cout << buffer[i*2] << "," << buffer[i*2+1] << "|";
+        count++;
+      }
+    }
+    std::cout << "\n";
+  }
+
+  template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
   : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _reinit(false) {
     Logger::newt() << prefix << "Initializing...";
@@ -116,7 +132,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
 
@@ -133,6 +149,7 @@ namespace dh::sne {
     // Setup render task
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
+      _borderRenderTask = queue.emplace(vis::BorderRenderTask<D>(buffers(), _params, 1));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
@@ -243,7 +260,10 @@ namespace dh::sne {
     _cursorPosPrev = boundsCenter + boundsRangeHalf * mousePosPrev; // Else _cursorPosPrev would be relative to the previous embedding bounds
 
     if(_input.mouseLeft  ) { compIterationSelection(); }
+    if(_input.d) { checkBuffer(_buffers(BufferType::eEmbeddingRelative)); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
+    if(_input.d) { checkBuffer(_buffers(BufferType::eEmbeddingRelative)); }
+    if(_input.d) { std::cout << "\n"; }
   }
 
   template <uint D>
@@ -273,7 +293,7 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTranslating));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eFixed));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBoundsReduce));
@@ -427,12 +447,11 @@ namespace dh::sne {
       program.template uniform<float>("minGain", _params.minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
-      program.template uniform<float, 2>("boundsScaling", boundsScaling);
       program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eGradients));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::ePrevGradients));
@@ -576,8 +595,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIterationTranslation() {
-    
-    // 1.
+
     // Compute translation
     {
       auto& program = _programs(ProgramType::eTranslationComp);
@@ -585,14 +603,16 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("shift", _cursorPos - _cursorPosPrev);
+      program.template uniform<float, 2>("cursorPos", _cursorPos);
+      program.template uniform<float, 2>("cursorPosPrev", _cursorPosPrev);
       program.template uniform<bool>("translationStarted", !_mouseRightPrev);
+      program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eEmbeddingBeforeTranslation));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eFixed));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eTranslating));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eBounds));
@@ -603,6 +623,7 @@ namespace dh::sne {
 
       glAssert();
     }
+
   }
 
   // Template instantiations for 2/3 dimensions

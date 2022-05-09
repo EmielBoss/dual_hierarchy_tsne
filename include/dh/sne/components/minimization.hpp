@@ -39,6 +39,7 @@
 #include "dh/vis/components/selection_input_task.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
+#include "dh/vis/components/border_render_task.hpp"
 
 namespace dh::sne {
   template <uint D> // Dimension of produced embedding
@@ -70,7 +71,8 @@ namespace dh::sne {
     void compIterationMinimizationRestart();                // Compute a restart of the minimization
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
-    void compIterationTranslation();           // Compute the translation part of a single iteration
+    void compIterationTranslation();                        // Compute the translation part of a single iteration
+    void checkBuffer(GLuint handle); ////
 
   private:
     enum class BufferType {
@@ -91,7 +93,7 @@ namespace dh::sne {
       eFixed,
       eTranslating,
       eEmbeddingRelative,
-      eEmbeddingBeforeTranslation,
+      eEmbeddingRelativeBeforeTranslation,
 
       Length
     };
@@ -152,6 +154,7 @@ namespace dh::sne {
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
     std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
+    std::shared_ptr<vis::BorderRenderTask<D>> _borderRenderTask;
 
   public:
     // Getters
@@ -181,6 +184,7 @@ namespace dh::sne {
       swap(a._selectionInputTask, b._selectionInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
+      swap(a._borderRenderTask, b._borderRenderTask);
     }
   };
 } // dh::sne
