@@ -33,10 +33,10 @@
 namespace dh::vis {
   // Quad vertex position data
   constexpr std::array<glm::vec2, 4> quadPositions = {
-    glm::vec2(-1, -1),  // 0
-    glm::vec2(1, -1),   // 1
-    glm::vec2(1, 1),    // 2
-    glm::vec2(-1, 1)    // 3
+    glm::vec2(-0.9, -0.9),  // 0
+    glm::vec2(0.9, -0.9),   // 1
+    glm::vec2(0.9, 0.9),    // 2
+    glm::vec2(-0.9, 0.9)    // 3
   };
 
   // Quad element index data

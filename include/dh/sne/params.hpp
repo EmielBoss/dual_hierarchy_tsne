@@ -71,5 +71,10 @@ namespace dh::sne {
     // Program params
     uint resWidth = 1536;
     uint resHeight = 1024;
+
+    // Image dataset params
+    bool datapointsAreImages = true;
+    uint imgWidth = 28;
+    uint imgHeight = 28;
   };
 } // dh::sne

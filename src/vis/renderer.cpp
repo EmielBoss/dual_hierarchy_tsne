@@ -88,6 +88,14 @@ namespace dh::vis {
       glCreateBuffers(1, &_labelsHandle);
       glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(uint), labels.data(), 0);    
     }
+    if(_params.datapointsAreImages) {
+      glCreateTextures(GL_TEXTURE_2D, 1, &_avgSelectionTextureHandle);
+      glTextureParameteri(_avgSelectionTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTextureParameteri(_avgSelectionTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      std::vector<unsigned char> data(3 * _params.imgWidth * _params.imgHeight, static_cast<unsigned char>(200));
+      glTextureStorage2D(_avgSelectionTextureHandle, 1, GL_RGB8, _params.imgWidth, _params.imgHeight);
+      glTextureSubImage2D(_avgSelectionTextureHandle, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_UNSIGNED_BYTE, data.data());
+    }
     glAssert();
     
     _isInit = true;
@@ -109,6 +117,7 @@ namespace dh::vis {
       glDeleteTextures(1, &_fboDepthTextureHandle);
       glDeleteFramebuffers(1, &_fboHandle);
       glDeleteBuffers(1, &_labelsHandle);
+      glDeleteTextures(1, &_avgSelectionTextureHandle);
 
       _isInit = false;
     }
@@ -139,6 +148,10 @@ namespace dh::vis {
       glNamedFramebufferTexture(_fboHandle, GL_DEPTH_ATTACHMENT, _fboDepthTextureHandle, 0);
       glAssert();
     }
+
+    // Update _avgSelectionTextureHandle
+    // const std::vector<vec> ones(_params.n, vec(1));
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
     // Process all tasks in input queue
     for (auto& ptr : InputQueue::instance().queue()) {
@@ -239,14 +252,22 @@ namespace dh::vis {
     ImGui::NewLine();
     ImGui::Spacing();
 
+    // Let components handle their own specific settings
+    drawImGuiComponents();
+
+    if(_params.datapointsAreImages) {
+      if (ImGui::CollapsingHeader("Average selection image")) {
+        ImGui::Spacing();
+        ImGui::Image((void*)(intptr_t)_avgSelectionTextureHandle, ImVec2(_params.imgWidth, _params.imgHeight));
+        ImGui::Spacing();
+      }
+    }
+
     if (ImGui::CollapsingHeader("About")) {
       ImGui::Spacing();
       ImGui::Text("%s", aboutText.c_str());
       ImGui::Spacing();
     }
-
-    // Let components handle their own specific settings
-    drawImGuiComponents();
 
     // End body of main ImGui window
     ImGui::End();
