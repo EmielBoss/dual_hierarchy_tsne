@@ -34,10 +34,12 @@ namespace dh::sne {
     GLuint bounds;
     GLuint selection;
     GLuint neighborhoodPreservation;
+    GLuint averageSelectionTexture;
   };
 
   // Data class provided by dh::sne::Similarities<D>::buffers() for other components
   struct SimilaritiesBuffers {
+    GLuint dataset;
     GLuint similarities;
     GLuint layout;
     GLuint neighbors;

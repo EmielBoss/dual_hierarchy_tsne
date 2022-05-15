@@ -135,6 +135,13 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
+    // Initialize texture for averaging selected images
+    if(_params.datapointsAreImages) {
+      glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
+    }
 
     initializeEmbeddingRandomly();
 
@@ -590,6 +597,16 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       glAssert();
+    }
+
+    // 2.
+    // Average selected images
+    if(_params.datapointsAreImages) {
+      for(uint y = 0; y < _params.imgHeight; ++y) {
+        for(uint x = 0; x < _params.imgWidth; ++x) {
+
+        }
+      }
     }
   }
 

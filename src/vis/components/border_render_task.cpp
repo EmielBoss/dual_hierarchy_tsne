@@ -31,17 +31,12 @@
 #include "dh/vis/components/border_render_task.hpp"
 
 namespace dh::vis {
-  // Quad vertex position data
-  constexpr std::array<glm::vec2, 4> quadPositions = {
-    glm::vec2(-0.9, -0.9),  // 0
-    glm::vec2(0.9, -0.9),   // 1
-    glm::vec2(0.9, 0.9),    // 2
-    glm::vec2(-0.9, 0.9)    // 3
-  };
-
-  // Quad element index data
-  constexpr std::array<uint, 6> quadElements = {
-    0, 1, 2,  2, 3, 0
+  // Rectangle vertex position data
+  constexpr float quadPositions[] = {
+    0.f, 0.f,  // 0
+    1.0f, 0.f,   // 1
+    1.0f, 1.0f,    // 2
+    0.f, 1.0f    // 3
   };
   
   template <uint D>
@@ -72,31 +67,22 @@ namespace dh::vis {
       glAssert();
     }
 
-    // Initialize buffer objects
-    {
-      glCreateBuffers(_buffers.size(), _buffers.data());
-      glNamedBufferStorage(_buffers(BufferType::ePositions), quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eElements), quadElements.size() * sizeof(uint), quadElements.data(), 0);
-      glAssert();
-    }
-
     // Initialize vertex array object
     {
-      glCreateVertexArrays(1, &_vaoHandle);
+      glGenVertexArrays(1, &_vaoHandle);
+      glBindVertexArray(_vaoHandle);
 
-      // Specify vertex buffers and element buffer
-      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));       // Quad positions
-      glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                // Quad elements/indices
+      // Specify vertex buffers/VAO
+      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));
 
-      // Embedding positions advance once for the full set of vertices drawn
-      glVertexArrayBindingDivisor(_vaoHandle, 0, 0);
+      // Create positions buffer/VBO
+      glGenBuffers(1, &_buffers(BufferType::ePositions));
+      glBindBuffer(GL_ARRAY_BUFFER, _buffers(BufferType::ePositions));
+      glBufferData(GL_ARRAY_BUFFER, sizeof(quadPositions), quadPositions, GL_DYNAMIC_DRAW);
       
       // Specify vertex array data organization
-      glVertexArrayAttribFormat(_vaoHandle, 0, 2, GL_FLOAT, GL_FALSE, 0);
-
-      // Other VAO properties
-      glEnableVertexArrayAttrib(_vaoHandle, 0);
-      glVertexArrayAttribBinding(_vaoHandle, 0, 0);
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+      glEnableVertexAttribArray(0);
       
       glAssert();
     }
@@ -137,7 +123,7 @@ namespace dh::vis {
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
-    glDrawArrays(GL_LINES, 0, 2);
+    glDrawArrays(GL_LINE_LOOP, 0, 4);
   }
 
   template <uint D>

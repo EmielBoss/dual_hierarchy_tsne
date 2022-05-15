@@ -120,9 +120,10 @@ namespace dh::sne {
     bool isInit() const { return _isInit; }
     SimilaritiesBuffers buffers() const {
       return {
+        _buffers(BufferType::eDataset),
         _buffers(BufferType::eSimilarities),
         _buffers(BufferType::eLayout),
-        _buffers(BufferType::eNeighbors),
+        _buffers(BufferType::eNeighbors)
       };
     }
 

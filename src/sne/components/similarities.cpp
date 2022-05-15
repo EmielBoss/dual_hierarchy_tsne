@@ -29,9 +29,6 @@
 #include "dh/util/gl/metric.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
-#include <numeric> //
-#include <fstream> //
-#include <filesystem> //
 
 namespace dh::sne {
   // Logging shorthands

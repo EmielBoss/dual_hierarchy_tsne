@@ -88,14 +88,6 @@ namespace dh::vis {
       glCreateBuffers(1, &_labelsHandle);
       glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(uint), labels.data(), 0);    
     }
-    if(_params.datapointsAreImages) {
-      glCreateTextures(GL_TEXTURE_2D, 1, &_avgSelectionTextureHandle);
-      glTextureParameteri(_avgSelectionTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTextureParameteri(_avgSelectionTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      std::vector<unsigned char> data(3 * _params.imgWidth * _params.imgHeight, static_cast<unsigned char>(200));
-      glTextureStorage2D(_avgSelectionTextureHandle, 1, GL_RGB8, _params.imgWidth, _params.imgHeight);
-      glTextureSubImage2D(_avgSelectionTextureHandle, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_UNSIGNED_BYTE, data.data());
-    }
     glAssert();
     
     _isInit = true;
@@ -257,6 +249,8 @@ namespace dh::vis {
 
     if(_params.datapointsAreImages) {
       if (ImGui::CollapsingHeader("Average selection image")) {
+        std::vector<float> data(_params.imgWidth * _params.imgHeight, 0.3);
+        glTextureSubImage2D(_avgSelectionTextureHandle, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data.data());
         ImGui::Spacing();
         ImGui::Image((void*)(intptr_t)_avgSelectionTextureHandle, ImVec2(_params.imgWidth, _params.imgHeight));
         ImGui::Spacing();

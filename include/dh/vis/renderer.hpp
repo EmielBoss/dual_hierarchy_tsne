@@ -89,7 +89,6 @@ namespace dh::vis {
       swap(a._fboHandle, b._fboHandle);
       swap(a._fboColorTextureHandle, b._fboColorTextureHandle);
       swap(a._fboDepthTextureHandle, b._fboDepthTextureHandle);
-      swap(a._avgSelectionTextureHandle, b._avgSelectionTextureHandle);
       swap(a._selectionInputTask, b._selectionInputTask);
     }
   };

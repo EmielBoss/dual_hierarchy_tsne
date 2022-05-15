@@ -58,7 +58,6 @@ namespace dh::vis {
   private:
     enum class BufferType {
       ePositions,
-      eElements,
 
       Length
     };
