@@ -77,7 +77,6 @@ namespace dh::vis {
     } else if (_params.nLowDims == 2) {
       // In 2D, center embedding on screen. We only do selection in 2D for now.
       _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
-      _selectionRenderTask = RenderQueue::instance().emplace(vis::SelectionRenderTask(_params, 5));
     }
 
     // Init OpenGL objects: framebuffer, color and depth textures, label buffer
@@ -109,7 +108,6 @@ namespace dh::vis {
       glDeleteTextures(1, &_fboDepthTextureHandle);
       glDeleteFramebuffers(1, &_fboHandle);
       glDeleteBuffers(1, &_labelsHandle);
-      glDeleteTextures(1, &_avgSelectionTextureHandle);
 
       _isInit = false;
     }
@@ -140,10 +138,6 @@ namespace dh::vis {
       glNamedFramebufferTexture(_fboHandle, GL_DEPTH_ATTACHMENT, _fboDepthTextureHandle, 0);
       glAssert();
     }
-
-    // Update _avgSelectionTextureHandle
-    // const std::vector<vec> ones(_params.n, vec(1));
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
     // Process all tasks in input queue
     for (auto& ptr : InputQueue::instance().queue()) {
@@ -191,8 +185,6 @@ namespace dh::vis {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
-
-    _selectionRenderTask->setMousePosition(_selectionInputTask->getMousePosPixel());
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {
@@ -246,16 +238,6 @@ namespace dh::vis {
 
     // Let components handle their own specific settings
     drawImGuiComponents();
-
-    if(_params.datapointsAreImages) {
-      if (ImGui::CollapsingHeader("Average selection image")) {
-        std::vector<float> data(_params.imgWidth * _params.imgHeight, 0.3);
-        glTextureSubImage2D(_avgSelectionTextureHandle, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data.data());
-        ImGui::Spacing();
-        ImGui::Image((void*)(intptr_t)_avgSelectionTextureHandle, ImVec2(_params.imgWidth, _params.imgHeight));
-        ImGui::Spacing();
-      }
-    }
 
     if (ImGui::CollapsingHeader("About")) {
       ImGui::Spacing();

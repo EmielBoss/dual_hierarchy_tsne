@@ -68,12 +68,10 @@ namespace dh::vis {
     GLuint _fboHandle;
     GLuint _fboColorTextureHandle;
     GLuint _fboDepthTextureHandle;
-    GLuint _avgSelectionTextureHandle;
 
     // Subcomponents
     std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
-    std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
 
   public:
     bool isInit() { return _isInit; }
@@ -89,6 +87,7 @@ namespace dh::vis {
       swap(a._fboHandle, b._fboHandle);
       swap(a._fboColorTextureHandle, b._fboColorTextureHandle);
       swap(a._fboDepthTextureHandle, b._fboDepthTextureHandle);
+      swap(a._trackballInputTask, b._trackballInputTask);
       swap(a._selectionInputTask, b._selectionInputTask);
     }
   };

@@ -39,7 +39,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority);
+    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -65,7 +65,7 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::MinimizationBuffers _minimization;
+    sne::MinimizationBuffers _minimizationBuffers;
     sne::Params _params;
 
     // ImGui state
@@ -93,7 +93,7 @@ namespace dh::vis {
       using std::swap;
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
-      swap(a._minimization, b._minimization);
+      swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);
       swap(a._colorMapping, b._colorMapping);

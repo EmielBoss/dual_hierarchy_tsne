@@ -37,7 +37,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(sne::Params params, int priority);
+    SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -69,8 +69,10 @@ namespace dh::vis {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    sne::MinimizationBuffers _minimizationBuffers;
     util::GLProgram _program;
     GLuint _vaoHandle;
+    GLuint _avgSelectionTextureHandle;
 
   public:
     bool isInit() const { return _isInit; }
@@ -88,6 +90,7 @@ namespace dh::vis {
       swap(a._selectionRadius, b._selectionRadius);
       swap(a._mousePosition, b._mousePosition);
       swap(a._buffers, b._buffers);
+      swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);
     }

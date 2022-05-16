@@ -51,10 +51,10 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority)
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority)
   : RenderTask(priority, "EmbeddingRenderTask"), 
     _isInit(false),
-    _minimization(minimization),
+    _minimizationBuffers(minimizationBuffers),
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
@@ -91,7 +91,7 @@ namespace dh::vis {
       // Specify vertex buffers and element buffer
       constexpr uint embeddingStride = (D == 2) ? 2 : 4;
       glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));       // Quad positions
-      glVertexArrayVertexBuffer(_vaoHandle, 1, _minimization.embedding, 0, embeddingStride * sizeof(float));  // Embedding positions
+      glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embedding, 0, embeddingStride * sizeof(float));  // Embedding positions
       glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                // Quad elements/indices
 
       // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
@@ -154,10 +154,10 @@ namespace dh::vis {
     _program.template uniform<bool>("canDrawLabels", _canDrawLabels);
 
     // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.selection);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimization.neighborhoodPreservation);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.neighborhoodPreservation);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);

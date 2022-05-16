@@ -48,9 +48,10 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(sne::Params params, int priority)
+  SelectionRenderTask::SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
+    _minimizationBuffers(minimizationBuffers),
     _params(params),
     _selectionRadius(30),
     _mousePosition({0.0, 0.0}) {
@@ -104,7 +105,7 @@ namespace dh::vis {
 
   SelectionRenderTask::~SelectionRenderTask() {
     if (_isInit) {
-      // ...
+      glDeleteTextures(1, &_avgSelectionTextureHandle);
     }
   }
 
@@ -138,6 +139,14 @@ namespace dh::vis {
       ImGui::Spacing();
       ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 1000);
       ImGui::Spacing();
+    }
+
+    if(_params.datapointsAreImages) {
+      if (ImGui::CollapsingHeader("Average selection image")) {
+        ImGui::Spacing();
+        ImGui::Image((void*)(intptr_t)_minimizationBuffers.averageSelectionTexture, ImVec2(_params.imgWidth, _params.imgHeight));
+        ImGui::Spacing();
+      }
     }
   }
 

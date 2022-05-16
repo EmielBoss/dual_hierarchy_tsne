@@ -135,8 +135,18 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
-    // Initialize texture for averaging selected images
+    // Initialize textures for averaging selected images
     if(_params.datapointsAreImages) {
+      const float* data = similarities->getDataPtr();
+      _textures = std::vector<GLuint>(_params.n);
+      for(uint i = 0; i < _params.n; ++i) {
+        glCreateTextures(GL_TEXTURE_2D, 1, &_textures[i]);
+        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight);
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data + i * _params.nHighDims);
+      }
+
       glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -153,9 +163,10 @@ namespace dh::sne {
     _field = Field<D>(buffers(), _params);
 
 #ifdef DH_ENABLE_VIS_EMBEDDING
-    // Setup render task
+    // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
+      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5));
       _borderRenderTask = queue.emplace(vis::BorderRenderTask<D>(buffers(), _params, 1));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
@@ -163,7 +174,7 @@ namespace dh::sne {
     // Get selectionInputTask subcomponent for mouse input for selecting
     _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
 
-    _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
+    // _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
 
     _isInit = true;
   }
@@ -252,6 +263,8 @@ namespace dh::sne {
     if(_selectionRadius != selectionRadiusPrev) { _selectionRenderTask->setSelectionRadius(_selectionRadius); }
     _selectionRadius = _selectionRenderTask->getSelectionRadius();
     if (_selectionRadius != selectionRadiusPrev) { _selectionInputTask->setMouseScroll(std::round(_selectionRadius * 2) / 20); }
+
+    _selectionRenderTask->setMousePosition(_input.mousePosPixel);
 
     if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -602,11 +615,9 @@ namespace dh::sne {
     // 2.
     // Average selected images
     if(_params.datapointsAreImages) {
-      for(uint y = 0; y < _params.imgHeight; ++y) {
-        for(uint x = 0; x < _params.imgWidth; ++x) {
-
-        }
-      }
+      glCopyImageSubData(_textures[5], GL_TEXTURE_2D, 0, 0, 0, 0,
+                         _averageSelectionTexture, GL_TEXTURE_2D, 0, 0, 0, 0,
+                         _params.imgWidth, _params.imgHeight, 1);
     }
   }
 

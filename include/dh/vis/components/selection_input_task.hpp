@@ -30,6 +30,7 @@
 namespace dh::vis {
   struct Input {
     glm::vec2 mousePos;
+    glm::vec2 mousePosPixel;
     float mouseScroll;
     bool mouseLeft;
     bool mouseRight;
@@ -57,6 +58,7 @@ namespace dh::vis {
     Input getInput() const {
       return {
         _mousePos,
+        _mousePosPixel,
         _mouseScroll,
         _mouseLeftPressed,
         _mouseRightPressed,

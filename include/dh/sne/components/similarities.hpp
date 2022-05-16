@@ -126,6 +126,7 @@ namespace dh::sne {
         _buffers(BufferType::eNeighbors)
       };
     }
+    const float* getDataPtr() { return _dataPtr; }
 
     // std::swap impl
     friend void swap(Similarities& a, Similarities& b) noexcept {

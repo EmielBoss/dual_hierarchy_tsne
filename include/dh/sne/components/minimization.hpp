@@ -146,6 +146,7 @@ namespace dh::sne {
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
+    std::vector<GLuint> _textures;
     GLuint _averageSelectionTexture;
 
     // Subcomponents
@@ -178,6 +179,7 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
+      swap(a._textures, b._textures);
       swap(a._averageSelectionTexture, b._averageSelectionTexture);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
