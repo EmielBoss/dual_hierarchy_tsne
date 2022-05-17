@@ -27,10 +27,6 @@
 // Input attributes
 layout(location = 0) in vec2 positionIn;
 
-// Uniform locations
-layout(location = 0) uniform vec2 cursorPosition;
-layout(location = 1) uniform int selectionRadius;
-
 void main() {
-  gl_Position = vec4(positionIn, 1.0, 1.0);
+  gl_Position = vec4(positionIn, 0.0, 1.0);
 }

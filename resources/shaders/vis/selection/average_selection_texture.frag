@@ -24,13 +24,13 @@
 
 #version 460 core
 
-// Input attributes
-layout(location = 0) in vec2 positionIn;
+layout(location = 0) out vec4 colorOut;
 
-// Uniform locations
-layout(location = 0) uniform vec2 cursorPosition;
-layout(location = 1) uniform int selectionRadius;
+// Uniforms
+layout(location = 0) uniform uint count;
+
+uniform sampler2D image;
 
 void main() {
-  gl_Position = vec4(positionIn, 1.0, 1.0);
+  colorOut = vec4(texture(image, gl_FragCoord.xy).r, 0.f, 0.f, float(1) / float(count));
 }

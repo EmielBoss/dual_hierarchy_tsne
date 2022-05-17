@@ -69,7 +69,7 @@ namespace dh::sne {
 
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _reinit(false) {
+  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _averagedSelectionCount(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -135,7 +135,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
     }
-    // Initialize textures for averaging selected images
+    // Initialize textures and framebuffer and all other shit for averaging selected images
     if(_params.datapointsAreImages) {
       const float* data = similarities->getDataPtr();
       _textures = std::vector<GLuint>(_params.n);
@@ -151,6 +151,44 @@ namespace dh::sne {
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
+
+      glCreateFramebuffers(1, &_averageSelectionFramebuffer);
+      glCreateRenderbuffers(1, &_averageSelectionRenderbuffer);
+      glNamedRenderbufferStorage(_averageSelectionRenderbuffer, GL_R8, _params.imgWidth, _params.imgWidth);
+      glNamedFramebufferRenderbuffer(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _averageSelectionRenderbuffer);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind default framebuffer again
+      glAssert();
+
+      // Quad vertex position data
+      constexpr std::array<glm::vec2, 4> quadPositions = {
+        glm::vec2(-1, -1),  // 0
+        glm::vec2(1, -1),   // 1
+        glm::vec2(1, 1),    // 2
+        glm::vec2(-1, 1)    // 3
+      };
+
+      // Quad element index data
+      constexpr std::array<uint, 6> quadElements = {
+        0, 1, 2,  2, 3, 0
+      };
+
+      glCreateVertexArrays(1, &_averageSelectionVAO);
+
+      // Specify vertex buffers/VAO
+      glCreateBuffers(1, &_averageSelectionVBO);
+      glNamedBufferStorage(_averageSelectionVBO, quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
+      glVertexArrayVertexBuffer(_averageSelectionVAO, 0, _averageSelectionVBO, 0, sizeof(glm::vec2));
+      glEnableVertexArrayAttrib(_averageSelectionVAO, 0);
+      glVertexArrayAttribBinding(_averageSelectionVAO, 0, 0);
+      glCreateBuffers(1, &_averageSelectionEBO);
+      glNamedBufferStorage(_averageSelectionEBO, quadElements.size() * sizeof(uint), quadElements.data(), 0);
+      glVertexArrayElementBuffer(_averageSelectionVAO, _averageSelectionEBO);
+      glAssert();
+
+      _averageSelectionProgram.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/average_selection_texture.vert"));
+      _averageSelectionProgram.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/average_selection_texture.frag"));
+      _averageSelectionProgram.link();
+      glAssert();
     }
 
     initializeEmbeddingRandomly();
@@ -221,6 +259,10 @@ namespace dh::sne {
   Minimization<D>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
+      glDeleteTextures(_params.n, _textures.data());
+      glDeleteTextures(1, &_averageSelectionTexture);
+      glDeleteFramebuffers(1, &_averageSelectionFramebuffer);
+      glDeleteRenderbuffers(1, &_averageSelectionRenderbuffer);
       _isInit = false;
     }
   }
@@ -291,7 +333,6 @@ namespace dh::sne {
     if(_iteration < 100) { return; }
     _iteration = 1;
     initializeEmbeddingRandomly();
-    _reinit = true;
   }
 
   template <uint D>
@@ -309,7 +350,6 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<float>("padding", 0.0f);
-      // program.template uniform<float>("reinit", _reinit);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -581,8 +621,6 @@ namespace dh::sne {
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
     }
-
-    if(_iteration > 100) { _reinit = false; }
   }
 
   template <uint D>
@@ -615,9 +653,24 @@ namespace dh::sne {
     // 2.
     // Average selected images
     if(_params.datapointsAreImages) {
-      glCopyImageSubData(_textures[5], GL_TEXTURE_2D, 0, 0, 0, 0,
-                         _averageSelectionTexture, GL_TEXTURE_2D, 0, 0, 0, 0,
-                         _params.imgWidth, _params.imgHeight, 1);
+      glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
+      glViewport(0, 0, _params.imgWidth, _params.imgHeight);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+      _averageSelectionProgram.bind();
+
+      for(uint i = 0; i < _params.n; ++i) {
+        _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
+        glBindTexture(GL_TEXTURE_2D, _textures[i]);
+        glBindVertexArray(_averageSelectionVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      }
+
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+      glBindTexture(GL_TEXTURE_2D, _averageSelectionTexture);
+      glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 0, 0, _params.imgWidth, _params.imgHeight, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glAssert();
     }
   }
 

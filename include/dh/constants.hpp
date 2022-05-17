@@ -50,7 +50,9 @@
  * Enable OpenGL debug output and throw an exception on failure. In addition:
  * - Also support warnings
  */
-#define DH_ENABLE_DEBUG
+// Uncomment to enable debug callbacks: more detailed error messages but no error location
+// Comment to enable assertions: reports error location, but barebones error messages (or rather, codes)
+// #define DH_ENABLE_DEBUG
 #define DH_ENABLE_DEBUG_WARNINGS
 
 

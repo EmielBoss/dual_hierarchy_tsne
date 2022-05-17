@@ -140,7 +140,7 @@ namespace dh::sne {
     int _selectionRadius;
     int _selectionRadiusPrev;
     bool _mouseRightPrev;
-    bool _reinit;
+    uint _averagedSelectionCount;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -148,6 +148,12 @@ namespace dh::sne {
     util::EnumArray<TimerType, util::GLTimer> _timers;
     std::vector<GLuint> _textures;
     GLuint _averageSelectionTexture;
+    GLuint _averageSelectionFramebuffer;
+    GLuint _averageSelectionRenderbuffer;
+    GLuint _averageSelectionVAO;
+    GLuint _averageSelectionVBO;
+    GLuint _averageSelectionEBO;
+    util::GLProgram _averageSelectionProgram;
 
     // Subcomponents
     Field<D> _field;
@@ -181,7 +187,14 @@ namespace dh::sne {
       swap(a._buffers, b._buffers);
       swap(a._textures, b._textures);
       swap(a._averageSelectionTexture, b._averageSelectionTexture);
+      swap(a._averageSelectionFramebuffer, b._averageSelectionFramebuffer);
+      swap(a._averageSelectionRenderbuffer, b._averageSelectionRenderbuffer);
+      swap(a._averageSelectionVAO, b._averageSelectionVAO);
+      swap(a._averageSelectionVBO, b._averageSelectionVBO);
+      swap(a._averageSelectionEBO, b._averageSelectionEBO);
+      swap(a._averagedSelectionCount, b._averagedSelectionCount);
       swap(a._programs, b._programs);
+      swap(a._averageSelectionProgram, b._averageSelectionProgram);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
       swap(a._selectionInputTask, b._selectionInputTask);
