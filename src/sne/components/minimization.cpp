@@ -659,6 +659,10 @@ namespace dh::sne {
 
       _averageSelectionProgram.bind();
 
+      // _averageSelectionProgram.template uniform<uint>("count", 1);
+      // glBindTexture(GL_TEXTURE_2D, _textures[0]);
+      // glBindVertexArray(_averageSelectionVAO);
+      // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       for(uint i = 0; i < _params.n; ++i) {
         _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
         glBindTexture(GL_TEXTURE_2D, _textures[i]);
@@ -668,7 +672,9 @@ namespace dh::sne {
 
       glReadBuffer(GL_COLOR_ATTACHMENT0);
       glBindTexture(GL_TEXTURE_2D, _averageSelectionTexture);
-      glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 0, 0, _params.imgWidth, _params.imgHeight, 0);
+      glAssert();
+      glCopyTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, 0, 0, _params.imgWidth, _params.imgHeight);
+      glAssert();
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glAssert();
     }

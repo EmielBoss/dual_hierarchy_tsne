@@ -32,5 +32,5 @@ layout(location = 0) uniform uint count;
 uniform sampler2D image;
 
 void main() {
-  colorOut = vec4(texture(image, gl_FragCoord.xy).r, 0.f, 0.f, float(1) / float(count));
+  colorOut = vec4(texture(image, gl_FragCoord.xy / 28.f).r, 0.f, 0.f, float(1) / float(count));
 }
