@@ -90,6 +90,7 @@ namespace dh::sne {
       eNeighborsEmb,
       eNeighborhoodPreservation,
       eSelected,
+      eSelectedNewly,
       eFixed,
       eTranslating,
       eEmbeddingRelative,

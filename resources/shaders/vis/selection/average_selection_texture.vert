@@ -24,7 +24,6 @@
 
 #version 460 core
 
-// Input attributes
 layout(location = 0) in vec2 positionIn;
 
 void main() {

@@ -129,6 +129,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedNewly), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -141,15 +142,15 @@ namespace dh::sne {
       _textures = std::vector<GLuint>(_params.n);
       for(uint i = 0; i < _params.n; ++i) {
         glCreateTextures(GL_TEXTURE_2D, 1, &_textures[i]);
-        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight);
         glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data + i * _params.nHighDims);
       }
 
       glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
 
       glCreateFramebuffers(1, &_averageSelectionFramebuffer);
@@ -167,6 +168,13 @@ namespace dh::sne {
         glm::vec2(-1, 1)    // 3
       };
 
+      constexpr std::array<glm::vec2, 4> quadTexCoords = {
+        glm::vec2(0, 0),  // 0
+        glm::vec2(1, 0),   // 1
+        glm::vec2(1, 1),    // 2
+        glm::vec2(0, 1)    // 3
+      };
+
       // Quad element index data
       constexpr std::array<uint, 6> quadElements = {
         0, 1, 2,  2, 3, 0
@@ -175,14 +183,16 @@ namespace dh::sne {
       glCreateVertexArrays(1, &_averageSelectionVAO);
 
       // Specify vertex buffers/VAO
-      glCreateBuffers(1, &_averageSelectionVBO);
-      glNamedBufferStorage(_averageSelectionVBO, quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
-      glVertexArrayVertexBuffer(_averageSelectionVAO, 0, _averageSelectionVBO, 0, sizeof(glm::vec2));
+      uint vbo, ebo;
+      glCreateBuffers(1, &vbo);
+      glNamedBufferStorage(vbo, quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
+      glVertexArrayVertexBuffer(_averageSelectionVAO, 0, vbo, 0, sizeof(glm::vec2));
       glEnableVertexArrayAttrib(_averageSelectionVAO, 0);
       glVertexArrayAttribBinding(_averageSelectionVAO, 0, 0);
-      glCreateBuffers(1, &_averageSelectionEBO);
-      glNamedBufferStorage(_averageSelectionEBO, quadElements.size() * sizeof(uint), quadElements.data(), 0);
-      glVertexArrayElementBuffer(_averageSelectionVAO, _averageSelectionEBO);
+
+      glCreateBuffers(1, &ebo);
+      glNamedBufferStorage(ebo, quadElements.size() * sizeof(uint), quadElements.data(), 0);
+      glVertexArrayElementBuffer(_averageSelectionVAO, ebo);
       glAssert();
 
       _averageSelectionProgram.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/average_selection_texture.vert"));
@@ -225,7 +235,6 @@ namespace dh::sne {
     // Copy over embedding and fixed buffers to host
     std::vector<vec> embedding(_params.n);
     glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
-    // _embeddingPrev = embedding; ////
     std::vector<uint> fixed(_params.n); // These are all zeroes on first initialization anyways
     glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
 
@@ -308,7 +317,14 @@ namespace dh::sne {
 
     _selectionRenderTask->setMousePosition(_input.mousePosPixel);
 
-    if(_input.mouseMiddle) { glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(_input.mouseMiddle) {
+      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+      glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
+      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+      glClear(0x00004000);
+      _averagedSelectionCount = 0;
+    }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
 
@@ -322,10 +338,7 @@ namespace dh::sne {
     _cursorPosPrev = boundsCenter + boundsRangeHalf * mousePosPrev; // Else _cursorPosPrev would be relative to the previous embedding bounds
 
     if(_input.mouseLeft  ) { compIterationSelection(); }
-    if(_input.d) { checkBuffer(_buffers(BufferType::eEmbeddingRelative)); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
-    if(_input.d) { checkBuffer(_buffers(BufferType::eEmbeddingRelative)); }
-    if(_input.d) { std::cout << "\n"; }
   }
 
   template <uint D>
@@ -629,6 +642,8 @@ namespace dh::sne {
     // 1.
     // Compute selection
     {
+      glClearNamedBufferData(_buffers(BufferType::eSelectedNewly), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
@@ -642,6 +657,7 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectedNewly));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -658,23 +674,20 @@ namespace dh::sne {
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
       _averageSelectionProgram.bind();
+      glBindVertexArray(_averageSelectionVAO);
 
-      // _averageSelectionProgram.template uniform<uint>("count", 1);
-      // glBindTexture(GL_TEXTURE_2D, _textures[0]);
-      // glBindVertexArray(_averageSelectionVAO);
-      // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      std::vector<uint> selectedNewly(_params.n);
+      glGetNamedBufferSubData(_buffers(BufferType::eSelectedNewly), 0, _params.n * sizeof(uint), selectedNewly.data());
       for(uint i = 0; i < _params.n; ++i) {
+        if(!selectedNewly[i]) { continue; }
         _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
         glBindTexture(GL_TEXTURE_2D, _textures[i]);
-        glBindVertexArray(_averageSelectionVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       }
 
       glReadBuffer(GL_COLOR_ATTACHMENT0);
       glBindTexture(GL_TEXTURE_2D, _averageSelectionTexture);
-      glAssert();
       glCopyTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, 0, 0, _params.imgWidth, _params.imgHeight);
-      glAssert();
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glAssert();
     }

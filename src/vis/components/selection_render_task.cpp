@@ -144,7 +144,7 @@ namespace dh::vis {
     if(_params.datapointsAreImages) {
       if (ImGui::CollapsingHeader("Average selection image")) {
         ImGui::Spacing();
-        ImGui::Image((void*)(intptr_t)_minimizationBuffers.averageSelectionTexture, ImVec2(_params.imgWidth, _params.imgHeight));
+        ImGui::Image((void*)(intptr_t)_minimizationBuffers.averageSelectionTexture, ImVec2(256, 256));
         ImGui::Spacing();
       }
     }
