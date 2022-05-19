@@ -100,8 +100,8 @@ namespace dh::vis {
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
       swap(a._buffers, b._buffers);
-      swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);
+      swap(a._program, b._program);
     }
   };
 } // dh::vis

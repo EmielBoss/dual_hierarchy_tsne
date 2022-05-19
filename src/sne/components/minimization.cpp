@@ -72,8 +72,8 @@ namespace dh::sne {
   }
 
   template <uint D>
-  Minimization<D>::Minimization(Similarities* similarities, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0), _averagedSelectionCount(0) {
+  Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, Params params)
+  : _isInit(false), _similarities(similarities), _dataPtr(dataPtr), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -138,67 +138,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
-      // glNamedBufferStorage(_buffers(BufferType::eTest), _params.n * sizeof(float), nullptr, 0);
-      glAssert();
-    }
-    // Initialize textures and framebuffer and all other shit for averaging selected images
-    if(_params.datapointsAreImages) {
-      const float* dataPtr = similarities->getDataPtr();
-      _textures = std::vector<GLuint>(_params.n);
-      for(uint i = 0; i < _params.n; ++i) {
-        glCreateTextures(GL_TEXTURE_2D, 1, &_textures[i]);
-        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight);
-        std::vector<float> data(_params.imgWidth * _params.imgHeight);
-        for(uint p = 0; p < _params.imgWidth * _params.imgHeight; ++p) { data[p] = *(dataPtr + i * _params.nHighDims + p) / 255.0f; }
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data.data());
-      }
-
-      glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
-
-      glCreateFramebuffers(1, &_averageSelectionFramebuffer);
-      // glCreateRenderbuffers(1, &_averageSelectionRenderbuffer);
-      // glNamedRenderbufferStorage(_averageSelectionRenderbuffer, GL_R8, _params.imgWidth, _params.imgWidth);
-      // glNamedFramebufferRenderbuffer(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _averageSelectionRenderbuffer);
-      glNamedFramebufferTexture(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, _averageSelectionTexture, 0);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind default framebuffer again
-      glAssert();
-
-      // Quad vertex position data
-      constexpr std::array<glm::vec2, 4> quadPositions = {
-        glm::vec2(-1, -1),  // 0
-        glm::vec2(1, -1),   // 1
-        glm::vec2(1, 1),    // 2
-        glm::vec2(-1, 1)    // 3
-      };
-
-      // Quad element index data
-      constexpr std::array<uint, 6> quadElements = {
-        0, 1, 2,  2, 3, 0
-      };
-
-      glCreateVertexArrays(1, &_averageSelectionVAO);
-
-      // Specify vertex buffers/VAO
-      uint vbo, ebo;
-      glCreateBuffers(1, &vbo);
-      glNamedBufferStorage(vbo, quadPositions.size() * sizeof(glm::vec2), quadPositions.data(), 0);
-      glVertexArrayVertexBuffer(_averageSelectionVAO, 0, vbo, 0, sizeof(glm::vec2));
-      glEnableVertexArrayAttrib(_averageSelectionVAO, 0);
-      glVertexArrayAttribBinding(_averageSelectionVAO, 0, 0);
-
-      glCreateBuffers(1, &ebo);
-      glNamedBufferStorage(ebo, quadElements.size() * sizeof(uint), quadElements.data(), 0);
-      glVertexArrayElementBuffer(_averageSelectionVAO, ebo);
-      glAssert();
-
-      _averageSelectionProgram.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/average_selection_texture.vert"));
-      _averageSelectionProgram.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/average_selection_texture.frag"));
-      _averageSelectionProgram.link();
       glAssert();
     }
 
@@ -215,7 +154,7 @@ namespace dh::sne {
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
-      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5));
+      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, _dataPtr));
       _borderRenderTask = queue.emplace(vis::BorderRenderTask<D>(buffers(), _params, 1));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
@@ -269,10 +208,6 @@ namespace dh::sne {
   Minimization<D>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteTextures(_params.n, _textures.data());
-      glDeleteTextures(1, &_averageSelectionTexture);
-      glDeleteFramebuffers(1, &_averageSelectionFramebuffer);
-      glDeleteRenderbuffers(1, &_averageSelectionRenderbuffer);
       _isInit = false;
     }
   }
@@ -319,14 +254,7 @@ namespace dh::sne {
 
     _selectionRenderTask->setMousePosition(_input.mousePosPixel);
 
-    if(_input.mouseMiddle) {
-      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
-      glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
-      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-      glClear(0x00004000); // That's COLOR_BIT_BUFFER, but I can't access that here for some reason
-      _averagedSelectionCount = 0;
-    }
+    if(_input.mouseMiddle) { _selectionRenderTask->clearAverageTexture(); }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
 
@@ -671,47 +599,8 @@ namespace dh::sne {
 
     // 2.
     // Average selected images
-    if(_params.datapointsAreImages && !_mouseLeftPrev) {
-      glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
-      glViewport(0, 0, _params.imgWidth, _params.imgHeight);
-      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-      
-      std::vector<uint> selectedNewly(_params.n);
-
-      // Ideally I want to take the else path, which is much more efficient but for some reason only works for the first ~1000 datapoints
-      bool inefficientButAtLeastItWorks = true;
-      if(inefficientButAtLeastItWorks) {
-        glGetNamedBufferSubData(_buffers(BufferType::eSelected), 0, _params.n * sizeof(uint), selectedNewly.data());
-        glClearTexImage(_averageSelectionTexture, 0, GL_RED, GL_FLOAT, nullptr);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(0x00004000);
-        _averagedSelectionCount = 0;
-      } else {
-        glGetNamedBufferSubData(_buffers(BufferType::eSelectedNewly), 0, _params.n * sizeof(uint), selectedNewly.data());
-      }
-
-      _averageSelectionProgram.bind();
-      glBindVertexArray(_averageSelectionVAO);
-
-      // for(uint i = 0; i < _params.n; ++i) {
-      //   if(!selectedNewly[i]) { continue; }
-      //   _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
-      // //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eTest));
-      //   glBindTexture(GL_TEXTURE_2D, _textures[i]);
-      //   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-      // }
-      glBindTexture(GL_TEXTURE_2D, _textures[0]);
-      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-      // Copy renderbuffer to texture
-      // glReadBuffer(GL_COLOR_ATTACHMENT0);
-      // glCopyTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, 0, 0, _params.imgWidth, _params.imgHeight);
-      
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-      // glCopyImageSubData(_textures[6], GL_TEXTURE_2D, 0, 0, 0, 0,
-      //               _averageSelectionTexture, GL_TEXTURE_2D, 0, 0, 0, 0,
-      //               _params.imgWidth, _params.imgHeight, 1);
-      glAssert();
+    if(_params.datapointsAreImages) {
+      _selectionRenderTask->averageSelectedImages();
     }
   }
 

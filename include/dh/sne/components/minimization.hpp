@@ -52,7 +52,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, Params params);  
+    Minimization(Similarities* similarities, const float* dataPtr, Params params);  
     ~Minimization(); 
 
     // Copy constr/assignment is explicitly deleted
@@ -128,6 +128,7 @@ namespace dh::sne {
 
     // State
     bool _isInit;
+    const float* _dataPtr;
     Params _params;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
@@ -144,20 +145,11 @@ namespace dh::sne {
     int _selectionRadiusPrev;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
-    uint _averagedSelectionCount;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
-    std::vector<GLuint> _textures;
-    GLuint _averageSelectionTexture;
-    GLuint _averageSelectionFramebuffer;
-    GLuint _averageSelectionRenderbuffer;
-    GLuint _averageSelectionVAO;
-    GLuint _averageSelectionVBO;
-    GLuint _averageSelectionEBO;
-    util::GLProgram _averageSelectionProgram;
 
     // Subcomponents
     Field<D> _field;
@@ -174,8 +166,8 @@ namespace dh::sne {
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
         _buffers(BufferType::eSelected),
+        _buffers(BufferType::eSelectedNewly),
         _buffers(BufferType::eNeighborhoodPreservation),
-        _averageSelectionTexture
       };
     }
     bool isInit() const { return _isInit; }
@@ -189,16 +181,7 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
-      swap(a._textures, b._textures);
-      swap(a._averageSelectionTexture, b._averageSelectionTexture);
-      swap(a._averageSelectionFramebuffer, b._averageSelectionFramebuffer);
-      swap(a._averageSelectionRenderbuffer, b._averageSelectionRenderbuffer);
-      swap(a._averageSelectionVAO, b._averageSelectionVAO);
-      swap(a._averageSelectionVBO, b._averageSelectionVBO);
-      swap(a._averageSelectionEBO, b._averageSelectionEBO);
-      swap(a._averagedSelectionCount, b._averagedSelectionCount);
       swap(a._programs, b._programs);
-      swap(a._averageSelectionProgram, b._averageSelectionProgram);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
       swap(a._selectionInputTask, b._selectionInputTask);

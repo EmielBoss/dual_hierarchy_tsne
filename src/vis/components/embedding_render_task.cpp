@@ -156,7 +156,7 @@ namespace dh::vis {
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.selected);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.neighborhoodPreservation);
 
     // Perform draw

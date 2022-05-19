@@ -37,7 +37,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority);
+    SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -48,6 +48,8 @@ namespace dh::vis {
     SelectionRenderTask(SelectionRenderTask&&) noexcept;
     SelectionRenderTask& operator=(SelectionRenderTask&&) noexcept;
 
+    void averageSelectedImages();
+    void clearAverageTexture();
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
 
@@ -62,6 +64,8 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
+    const float* _dataPtr;
+    uint _averagedSelectionCount;
     glm::vec2 _mousePosition;
 
     // ImGui state
@@ -72,7 +76,14 @@ namespace dh::vis {
     sne::MinimizationBuffers _minimizationBuffers;
     util::GLProgram _program;
     GLuint _vaoHandle;
-    GLuint _avgSelectionTextureHandle;
+    std::vector<GLuint> _textures;
+    GLuint _averageSelectionTexture;
+    GLuint _averageSelectionFramebuffer;
+    GLuint _averageSelectionRenderbuffer;
+    GLuint _averageSelectionVAO;
+    GLuint _averageSelectionVBO;
+    GLuint _averageSelectionEBO;
+    util::GLProgram _averageSelectionProgram;
 
   public:
     bool isInit() const { return _isInit; }
@@ -91,8 +102,17 @@ namespace dh::vis {
       swap(a._mousePosition, b._mousePosition);
       swap(a._buffers, b._buffers);
       swap(a._minimizationBuffers, b._minimizationBuffers);
-      swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);
+      swap(a._program, b._program);
+      swap(a._averageSelectionProgram, b._averageSelectionProgram);
+      swap(a._textures, b._textures);
+      swap(a._averageSelectionTexture, b._averageSelectionTexture);
+      swap(a._averageSelectionFramebuffer, b._averageSelectionFramebuffer);
+      swap(a._averageSelectionRenderbuffer, b._averageSelectionRenderbuffer);
+      swap(a._averageSelectionVAO, b._averageSelectionVAO);
+      swap(a._averageSelectionVBO, b._averageSelectionVBO);
+      swap(a._averageSelectionEBO, b._averageSelectionEBO);
+      swap(a._averagedSelectionCount, b._averagedSelectionCount);
     }
   };
 } // dh::vis
