@@ -73,6 +73,7 @@ namespace dh::sne {
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
     void checkBuffer(GLuint handle); ////
+    void writeBuffer(GLuint handle); ////
 
   private:
     enum class BufferType {
@@ -95,6 +96,7 @@ namespace dh::sne {
       eTranslating,
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
+      eTest,
 
       Length
     };
@@ -140,6 +142,7 @@ namespace dh::sne {
     uint _colorMappingPrev;
     int _selectionRadius;
     int _selectionRadiusPrev;
+    bool _mouseLeftPrev;
     bool _mouseRightPrev;
     uint _averagedSelectionCount;
 

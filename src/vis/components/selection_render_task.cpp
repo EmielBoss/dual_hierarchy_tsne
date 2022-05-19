@@ -142,7 +142,7 @@ namespace dh::vis {
     }
 
     if(_params.datapointsAreImages) {
-      if (ImGui::CollapsingHeader("Average selection image")) {
+      if (ImGui::CollapsingHeader("Average selection image", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Spacing();
         ImGui::Image((void*)(intptr_t)_minimizationBuffers.averageSelectionTexture, ImVec2(256, 256));
         ImGui::Spacing();

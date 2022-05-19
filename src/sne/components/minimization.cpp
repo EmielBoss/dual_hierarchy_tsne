@@ -53,18 +53,22 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::checkBuffer(GLuint handle) {
-    std::vector<uint> fixed(_params.n);
-    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
-    std::vector<float> buffer(2 * _params.n);
-    glGetNamedBufferSubData(handle, 0, _params.n * 2 * sizeof(float), buffer.data());
-    uint count = 0;
-    for(uint i = 0; i < _params.n && count < 5; i++) {
-      if(fixed[i]) {
-        std::cout << buffer[i*2] << "," << buffer[i*2+1] << "|";
-        count++;
-      }
+    std::vector<float> buffer(_params.n);
+    glGetNamedBufferSubData(handle, 0, _params.n * sizeof(float), buffer.data());
+    for(uint i = 0; i < _params.n / 6; i++) {
+      std::cout << buffer[i] << "|";
     }
-    std::cout << "\n";
+    std::cout << "\n\n";
+  }
+
+  template <uint D>
+  void Minimization<D>::writeBuffer(GLuint handle) {
+    std::vector<float> buffer(_params.n);
+    glGetNamedBufferSubData(handle, 0, _params.n * sizeof(float), buffer.data());
+    std::ofstream file("../buffer_dumps/buffer.txt");
+    for(uint i = 0; i < _params.n; i++) {
+      file << buffer[i] << "\n";
+    }
   }
 
   template <uint D>
@@ -134,18 +138,21 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
+      // glNamedBufferStorage(_buffers(BufferType::eTest), _params.n * sizeof(float), nullptr, 0);
       glAssert();
     }
     // Initialize textures and framebuffer and all other shit for averaging selected images
     if(_params.datapointsAreImages) {
-      const float* data = similarities->getDataPtr();
+      const float* dataPtr = similarities->getDataPtr();
       _textures = std::vector<GLuint>(_params.n);
       for(uint i = 0; i < _params.n; ++i) {
         glCreateTextures(GL_TEXTURE_2D, 1, &_textures[i]);
         glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight);
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data + i * _params.nHighDims);
+        std::vector<float> data(_params.imgWidth * _params.imgHeight);
+        for(uint p = 0; p < _params.imgWidth * _params.imgHeight; ++p) { data[p] = *(dataPtr + i * _params.nHighDims + p) / 255.0f; }
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data.data());
       }
 
       glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
@@ -154,9 +161,10 @@ namespace dh::sne {
       glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
 
       glCreateFramebuffers(1, &_averageSelectionFramebuffer);
-      glCreateRenderbuffers(1, &_averageSelectionRenderbuffer);
-      glNamedRenderbufferStorage(_averageSelectionRenderbuffer, GL_R8, _params.imgWidth, _params.imgWidth);
-      glNamedFramebufferRenderbuffer(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _averageSelectionRenderbuffer);
+      // glCreateRenderbuffers(1, &_averageSelectionRenderbuffer);
+      // glNamedRenderbufferStorage(_averageSelectionRenderbuffer, GL_R8, _params.imgWidth, _params.imgWidth);
+      // glNamedFramebufferRenderbuffer(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _averageSelectionRenderbuffer);
+      glNamedFramebufferTexture(_averageSelectionFramebuffer, GL_COLOR_ATTACHMENT0, _averageSelectionTexture, 0);
       glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind default framebuffer again
       glAssert();
 
@@ -166,13 +174,6 @@ namespace dh::sne {
         glm::vec2(1, -1),   // 1
         glm::vec2(1, 1),    // 2
         glm::vec2(-1, 1)    // 3
-      };
-
-      constexpr std::array<glm::vec2, 4> quadTexCoords = {
-        glm::vec2(0, 0),  // 0
-        glm::vec2(1, 0),   // 1
-        glm::vec2(1, 1),    // 2
-        glm::vec2(0, 1)    // 3
       };
 
       // Quad element index data
@@ -297,6 +298,7 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::compIteration() {
     glm::vec2 mousePosPrev = _input.mousePos;
+    _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
     _input = _selectionInputTask->getInput();
     bool mouseRight = _input.mouseRight;
@@ -322,7 +324,7 @@ namespace dh::sne {
       glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
       glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-      glClear(0x00004000);
+      glClear(0x00004000); // That's COLOR_BIT_BUFFER, but I can't access that here for some reason
       _averagedSelectionCount = 0;
     }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -339,6 +341,7 @@ namespace dh::sne {
 
     if(_input.mouseLeft  ) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
+    // if(!_input.mouseLeft && _mouseLeftPrev) { writeBuffer(_buffers(BufferType::eTest)); }
   }
 
   template <uint D>
@@ -668,27 +671,46 @@ namespace dh::sne {
 
     // 2.
     // Average selected images
-    if(_params.datapointsAreImages) {
+    if(_params.datapointsAreImages && !_mouseLeftPrev) {
       glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
       glViewport(0, 0, _params.imgWidth, _params.imgHeight);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      
+      std::vector<uint> selectedNewly(_params.n);
+
+      // Ideally I want to take the else path, which is much more efficient but for some reason only works for the first ~1000 datapoints
+      bool inefficientButAtLeastItWorks = true;
+      if(inefficientButAtLeastItWorks) {
+        glGetNamedBufferSubData(_buffers(BufferType::eSelected), 0, _params.n * sizeof(uint), selectedNewly.data());
+        glClearTexImage(_averageSelectionTexture, 0, GL_RED, GL_FLOAT, nullptr);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(0x00004000);
+        _averagedSelectionCount = 0;
+      } else {
+        glGetNamedBufferSubData(_buffers(BufferType::eSelectedNewly), 0, _params.n * sizeof(uint), selectedNewly.data());
+      }
 
       _averageSelectionProgram.bind();
       glBindVertexArray(_averageSelectionVAO);
 
-      std::vector<uint> selectedNewly(_params.n);
-      glGetNamedBufferSubData(_buffers(BufferType::eSelectedNewly), 0, _params.n * sizeof(uint), selectedNewly.data());
-      for(uint i = 0; i < _params.n; ++i) {
-        if(!selectedNewly[i]) { continue; }
-        _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
-        glBindTexture(GL_TEXTURE_2D, _textures[i]);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-      }
+      // for(uint i = 0; i < _params.n; ++i) {
+      //   if(!selectedNewly[i]) { continue; }
+      //   _averageSelectionProgram.template uniform<uint>("count", ++_averagedSelectionCount);
+      // //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eTest));
+      //   glBindTexture(GL_TEXTURE_2D, _textures[i]);
+      //   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      // }
+      glBindTexture(GL_TEXTURE_2D, _textures[0]);
+      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-      glReadBuffer(GL_COLOR_ATTACHMENT0);
-      glBindTexture(GL_TEXTURE_2D, _averageSelectionTexture);
-      glCopyTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, 0, 0, _params.imgWidth, _params.imgHeight);
+      // Copy renderbuffer to texture
+      // glReadBuffer(GL_COLOR_ATTACHMENT0);
+      // glCopyTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, 0, 0, _params.imgWidth, _params.imgHeight);
+      
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      // glCopyImageSubData(_textures[6], GL_TEXTURE_2D, 0, 0, 0, 0,
+      //               _averageSelectionTexture, GL_TEXTURE_2D, 0, 0, 0, 0,
+      //               _params.imgWidth, _params.imgHeight, 1);
       glAssert();
     }
   }

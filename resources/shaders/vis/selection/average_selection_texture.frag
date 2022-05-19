@@ -27,11 +27,14 @@
 layout(location = 0) out vec4 colorOut;
 
 // Uniforms
-layout(location = 0) uniform uint count;
+// layout(location = 0) uniform uint count;
 
-uniform sampler2D image;
+// uniform sampler2D image;
 
 void main() {
-  float intensity = texture(image, gl_FragCoord.xy / 28.f).r;
-  colorOut = vec4(vec3(intensity), float(1) / float(count));
+  // float intensity = texture(image, gl_FragCoord.xy / 28.f).r;
+  float intensity = 1.0f;
+  // float alpha = float(1) / float(count);
+  float alpha = 1.0f;
+  colorOut = vec4(vec3(intensity), alpha);
 }

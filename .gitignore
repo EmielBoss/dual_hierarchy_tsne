@@ -4,6 +4,7 @@ build*/
 .vscode/
 imgui.ini
 vcpkg_installed/
+buffer_dumps/
 
 # Prevent accidental inclusion of huge .bin files during development. Happened once too often
 *.bin

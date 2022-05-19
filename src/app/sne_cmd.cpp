@@ -112,7 +112,7 @@ void cli(int argc, char** argv) {
 }
 
 void sne() {
-   // Set up logger to use standard output stream for demo
+  // Set up logger to use standard output stream for demo
   dh::util::Logger::init(&std::cout);
 
   // Load dataset
