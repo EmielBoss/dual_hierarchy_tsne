@@ -39,7 +39,7 @@ namespace dh::vis {
   public:
     // Constr/destr
     Renderer();
-    Renderer(const util::GLWindow& window, sne::Params params, const std::vector<uint>& labels = {});
+    Renderer(const util::GLWindow& window, sne::Params params, const std::vector<int>& labels = {});
     ~Renderer();
 
     // Copy constr/assignment is explicitly deleted (no copying OpenGL handles)

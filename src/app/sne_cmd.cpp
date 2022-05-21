@@ -117,7 +117,7 @@ void sne() {
 
   // Load dataset
   std::vector<float> data;
-  std::vector<uint> labels;
+  std::vector<int> labels;
   dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels);
 
   // Create OpenGL context (and accompanying invisible window)

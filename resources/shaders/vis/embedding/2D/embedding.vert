@@ -57,7 +57,7 @@ layout(location = 2) out vec4 colorOut;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
-layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { uint labels[]; };
+layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
 layout(binding = 3, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
@@ -82,7 +82,8 @@ void main() {
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
   vec3 color;
   if(colorMapping == 1) { // Labels
-    const uint label = canDrawLabels ? labels[gl_InstanceID] % 10 : 9;
+    int label = labels[gl_InstanceID];
+    label = canDrawLabels && label >= 0 ? label : 9;
     color = colors[label];
   }
   else if(colorMapping == 2) { // Neighborhood preservation

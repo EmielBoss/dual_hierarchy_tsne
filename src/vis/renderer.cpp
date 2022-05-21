@@ -46,7 +46,7 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(const util::GLWindow& window, sne::Params params, const std::vector<uint>& labels)
+  Renderer::Renderer(const util::GLWindow& window, sne::Params params, const std::vector<int>& labels)
   : _isInit(false),
     _params(params),
     _windowHandle(&window),
@@ -85,7 +85,7 @@ namespace dh::vis {
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboDepthTextureHandle);
     if (labels.size() > 0) {
       glCreateBuffers(1, &_labelsHandle);
-      glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(uint), labels.data(), 0);    
+      glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(int), labels.data(), 0);    
     }
     glAssert();
     

@@ -37,7 +37,7 @@ namespace dh::util {
    */
   void readBinFile(const std::string &fileName, 
                    std::vector<float> &data,
-                   std::vector<uint> &labels, 
+                   std::vector<int> &labels, 
                    uint n,
                    uint d,
                    bool withLabels = false);
@@ -50,7 +50,7 @@ namespace dh::util {
    */
   void writeBinFile(const std::string &fileName,
                     const std::vector<float> &data,
-                    const std::vector<uint> &labels,
+                    const std::vector<int> &labels,
                     uint n,
                     uint d,
                     bool withLabels = false);

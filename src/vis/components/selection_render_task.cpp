@@ -241,6 +241,8 @@ namespace dh::vis {
 
   void SelectionRenderTask::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Selection render settings")) {
+      
+
       ImGui::Spacing();
       ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 1000);
       ImGui::Spacing();
