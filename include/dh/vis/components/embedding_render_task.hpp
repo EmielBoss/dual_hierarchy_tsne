@@ -54,6 +54,7 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     uint getColorMapping() { return _colorMapping; }
     void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
+    void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
 
   private:
     enum class BufferType {
@@ -70,6 +71,7 @@ namespace dh::vis {
 
     // ImGui state
     bool _canDrawLabels;
+    bool _selectLabeledOnly;
     uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;

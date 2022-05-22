@@ -40,7 +40,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     SNE();
-    SNE(const float* dataPtr, Params params);
+    SNE(Params params, const std::vector<float>& data, const std::vector<int>& labels = {});
     ~SNE();
 
     // Copy constr/assignment is explicitly deleted (no copying underlying handles)
@@ -73,6 +73,7 @@ namespace dh::sne {
     // State
     bool _isInit;
     const float* _dataPtr;
+    const int* _labelPtr;
     Params _params;
     util::ChronoTimer _similaritiesTimer;
     util::ChronoTimer _minimizationTimer;

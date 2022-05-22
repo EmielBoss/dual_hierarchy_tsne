@@ -53,7 +53,7 @@ namespace dh::vis {
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
     _params(params),
-    _dataPtr(dataPtr),
+    _selectLabeledOnly(false),
     _selectionRadius(30),
     _mousePosition({0.0, 0.0}) {
 
@@ -110,7 +110,7 @@ namespace dh::vis {
         glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight);
         std::vector<float> data(_params.imgWidth * _params.imgHeight);
-        for(uint p = 0; p < _params.imgWidth * _params.imgHeight; ++p) { data[p] = *(_dataPtr + i * _params.nHighDims + p) / 255.0f; }
+        for(uint p = 0; p < _params.imgWidth * _params.imgHeight; ++p) { data[p] = *(dataPtr + i * _params.nHighDims + p) / 255.0f; }
         glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED,  GL_FLOAT, data.data());
       }
 
@@ -173,6 +173,8 @@ namespace dh::vis {
       return;
     }
 
+    _canDrawLabels = (labelsHandle > 0); // Used for showing selection mode options
+
     _program.bind();
 
     // Set uniforms
@@ -216,8 +218,6 @@ namespace dh::vis {
       glBindTexture(GL_TEXTURE_2D, _textures[i]);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
-    glBindTexture(GL_TEXTURE_2D, _textures[0]);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     // Copy renderbuffer to texture
     glReadBuffer(GL_COLOR_ATTACHMENT0);
@@ -230,22 +230,28 @@ namespace dh::vis {
     glAssert();
   }
 
-  void SelectionRenderTask::clearAverageTexture() {
+  void SelectionRenderTask::clearSelection(bool datapointsAreImages) {
       glClearNamedBufferData(_minimizationBuffers.selected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
-      glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
-      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-      glClear(0x00004000); // That's COLOR_BIT_BUFFER, but I can't access that here for some reason
-      _averagedSelectionCount = 0;
+      if(datapointsAreImages) {
+        glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+        glBindFramebuffer(GL_FRAMEBUFFER, _averageSelectionFramebuffer);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(0x00004000); // That's COLOR_BIT_BUFFER, but I can't access that here for some reason
+        _averagedSelectionCount = 0;
+      }
   }
 
   void SelectionRenderTask::drawImGuiComponent() {
-    if (ImGui::CollapsingHeader("Selection render settings")) {
-      
-
+    if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
       ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 1000);
       ImGui::Spacing();
+    }
+
+    if (_canDrawLabels) {
+      ImGui::Text("Selection mode:");
+      if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
+      if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
     }
 
     if(_params.datapointsAreImages) {

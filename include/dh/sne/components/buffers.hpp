@@ -32,6 +32,7 @@ namespace dh::sne {
     GLuint embedding;
     GLuint field;
     GLuint bounds;
+    GLuint labeled;
     GLuint selected;
     GLuint selectedNewly;
     GLuint neighborhoodPreservation;

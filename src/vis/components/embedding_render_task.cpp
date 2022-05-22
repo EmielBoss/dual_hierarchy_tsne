@@ -145,6 +145,9 @@ namespace dh::vis {
 
     _program.bind();
 
+    std::vector<uint> labeled(_params.n);
+    glGetNamedBufferSubData(_minimizationBuffers.labeled, 0, _params.n * sizeof(uint), labeled.data());
+
     // Set uniforms
     _program.template uniform<float, 4, 4>("model_view", model_view);
     _program.template uniform<float, 4, 4>("proj", proj);
@@ -152,12 +155,14 @@ namespace dh::vis {
     _program.template uniform<float>("pointRadius", _pointRadius);
     _program.template uniform<uint>("colorMapping", _colorMapping);
     _program.template uniform<bool>("canDrawLabels", _canDrawLabels);
+    _program.template uniform<bool>("selectLabeledOnly", _selectLabeledOnly);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.selected);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.neighborhoodPreservation);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labeled);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.selected);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.neighborhoodPreservation);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
@@ -166,7 +171,7 @@ namespace dh::vis {
 
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
-    if (ImGui::CollapsingHeader("Embedding render settings")) {
+    if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
       if (_canDrawLabels) {
         ImGui::Text("Color mapping:");

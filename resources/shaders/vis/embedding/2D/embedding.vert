@@ -54,12 +54,14 @@ layout(location = 1) in vec2 embeddingIn;
 layout(location = 0) out vec2 embeddingOut;
 layout(location = 1) out vec2 fragEmbeddingOut;
 layout(location = 2) out vec4 colorOut;
+layout(location = 3) out float multiplier;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
-layout(binding = 2, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
-layout(binding = 3, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
+layout(binding = 3, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
+layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -68,12 +70,16 @@ layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
 layout(location = 4) uniform uint colorMapping;
 layout(location = 5) uniform bool canDrawLabels;
+layout(location = 6) uniform bool selectLabeledOnly;
 
 void main() {
+  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 2.f : 1.f;
+  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
+
   // Calculate embedding position, fragment position
   embeddingOut = (embeddingIn - bounds.min) * bounds.invRange;
   embeddingOut.y = 1.f - embeddingOut.y;
-  fragEmbeddingOut = embeddingOut + positionIn * pointRadius;
+  fragEmbeddingOut = embeddingOut + positionIn * pointRadius * multiplier;
 
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
@@ -81,10 +87,10 @@ void main() {
 
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
   vec3 color;
+  const int label = labels[gl_InstanceID];
   if(colorMapping == 1) { // Labels
-    int label = labels[gl_InstanceID];
-    label = canDrawLabels && label >= 0 ? label : 9;
-    color = colors[label];
+    int colorIndex = canDrawLabels && label >= 0 ? label : 9;
+    color = colors[colorIndex];
   }
   else if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
@@ -96,9 +102,7 @@ void main() {
 
   if(selected[gl_InstanceID] == 1) {
     colorOut = vec4(color / 355.0f, pointOpacity);
-  } else if(selected[gl_InstanceID] == 2) {
-    colorOut = vec4(color / 155.0f, pointOpacity);
   } else {
-    colorOut = vec4(color / 255.0f, pointOpacity);
+    colorOut = vec4(color / 255.0f, pointOpacity / divider);
   }
 }

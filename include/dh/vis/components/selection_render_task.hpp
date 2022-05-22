@@ -49,7 +49,7 @@ namespace dh::vis {
     SelectionRenderTask& operator=(SelectionRenderTask&&) noexcept;
 
     void averageSelectedImages();
-    void clearAverageTexture();
+    void clearSelection(bool datapointsAreImages);
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
 
@@ -64,12 +64,13 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
-    const float* _dataPtr;
     uint _averagedSelectionCount;
     glm::vec2 _mousePosition;
 
     // ImGui state
+    bool _canDrawLabels;
     int _selectionRadius;
+    bool _selectLabeledOnly;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -90,6 +91,8 @@ namespace dh::vis {
 
     int getSelectionRadius() { return _selectionRadius; }
     void setSelectionRadius(int selectionRadius) { _selectionRadius = selectionRadius; }
+    int getSelectionMode() { return _selectLabeledOnly; }
+    void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
     
     // std::swap impl
@@ -99,6 +102,7 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._selectionRadius, b._selectionRadius);
+      swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._mousePosition, b._mousePosition);
       swap(a._buffers, b._buffers);
       swap(a._minimizationBuffers, b._minimizationBuffers);

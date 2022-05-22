@@ -52,7 +52,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, const float* dataPtr, Params params);  
+    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params);  
     ~Minimization(); 
 
     // Copy constr/assignment is explicitly deleted
@@ -94,6 +94,7 @@ namespace dh::sne {
       eSelectedNewly,
       eFixed,
       eTranslating,
+      eLabeled,
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eTest,
@@ -128,7 +129,6 @@ namespace dh::sne {
 
     // State
     bool _isInit;
-    const float* _dataPtr;
     Params _params;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
@@ -141,6 +141,8 @@ namespace dh::sne {
     uint _cursorMode;
     uint _colorMapping;
     uint _colorMappingPrev;
+    bool _selectOnlyLabeled;
+    bool _selectOnlyLabeledPrev;
     int _selectionRadius;
     int _selectionRadiusPrev;
     bool _mouseLeftPrev;
@@ -165,6 +167,7 @@ namespace dh::sne {
         _buffers(BufferType::eEmbedding),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
+        _buffers(BufferType::eLabeled),
         _buffers(BufferType::eSelected),
         _buffers(BufferType::eSelectedNewly),
         _buffers(BufferType::eNeighborhoodPreservation),

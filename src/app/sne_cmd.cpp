@@ -134,8 +134,8 @@ void sne() {
   dh::util::GLWindow window(info);
 
   // Create necessary components
-  dh::vis::Renderer renderer(window, params, labels);
-  dh::sne::SNE sne(data.data(), params);
+  dh::vis::Renderer renderer(params, window, labels);
+  dh::sne::SNE sne(params, data, labels);
 
   // If visualization is requested, minimize and render at the same time
   if (progDoVisDuring) {

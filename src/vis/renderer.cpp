@@ -46,7 +46,7 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(const util::GLWindow& window, sne::Params params, const std::vector<int>& labels)
+  Renderer::Renderer(sne::Params params, const util::GLWindow& window, const std::vector<int>& labels)
   : _isInit(false),
     _params(params),
     _windowHandle(&window),
