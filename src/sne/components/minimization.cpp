@@ -73,7 +73,7 @@ namespace dh::sne {
 
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params)
-  : _isInit(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _params(params), _iteration(0) {
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _selectionCount(0), _params(params), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -87,6 +87,7 @@ namespace dh::sne {
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
         _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
+        _programs(ProgramType::eSelectedCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_count.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
@@ -139,6 +140,8 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedNewly), _params.n * sizeof(uint), falses.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedCount), sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
@@ -279,13 +282,13 @@ namespace dh::sne {
 
     if(_input.mouseLeft  ) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
-    // if(!_input.mouseLeft && _mouseLeftPrev) { writeBuffer(_buffers(BufferType::eTest)); }
+    // if(_iteration < 10) { std::cout << _bounds.range().x << ", " << _bounds.range().y << "\n"; }
   }
 
   template <uint D>
   void Minimization<D>::compIterationMinimizationRestart() {
     if(_iteration < 100) { return; }
-    _iteration = 1;
+    _iteration = 0;
     initializeEmbeddingRandomly();
   }
 
@@ -381,20 +384,22 @@ namespace dh::sne {
 
       auto& program = _programs(ProgramType::eAttractiveComp);
       program.bind();
-
+      
       // Set uniforms
       program.template uniform<uint>("nPos", _params.n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
+      // program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.similarities); // Corresponding similarities
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttractive));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.similarities); // Corresponding similarities
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/subgroup per i
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -554,8 +559,9 @@ namespace dh::sne {
 
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture
-    if (_iteration == 0) {
-      Logger::newl();
+    if (!_loggedNewline) {
+      
+      _loggedNewline = true;
     }
     if ((++_iteration % 100) == 0) {
       // Assemble string to print field's dimensions and memory usage
@@ -614,6 +620,35 @@ namespace dh::sne {
     if(_params.datapointsAreImages) {
       _selectionRenderTask->averageSelectedImages();
     }
+
+    // 3.
+    // Count number of selected datapoints
+    { // if(_selectionRenderTask->getWeightFixed()) {
+      glClearNamedBufferData(_buffers(BufferType::eSelectedCountReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+
+      auto& program = _programs(ProgramType::eSelectedCountComp);
+      program.bind();
+
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectedCountReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectedCount));
+      glAssert();
+
+      program.template uniform<uint>("iter", 0);
+      glDispatchCompute(128, 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      program.template uniform<uint>("iter", 1);
+      glDispatchCompute(1, 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+      glGetNamedBufferSubData(_buffers(BufferType::eSelectedCount), 0, sizeof(uint), &_selectionCount);
+      glAssert();
+    }
+
   }
 
   template <uint D>

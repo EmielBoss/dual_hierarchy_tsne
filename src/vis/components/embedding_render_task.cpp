@@ -58,6 +58,7 @@ namespace dh::vis {
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
+    _weightFixed(true),
     _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
@@ -172,6 +173,8 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::Spacing();
+      ImGui::Checkbox("Fixed datapoint force weighting", &_weightFixed);
       ImGui::Spacing();
       if (_canDrawLabels) {
         ImGui::Text("Color mapping:");

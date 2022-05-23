@@ -36,15 +36,16 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Posi { vec2 positionsBuffer[]; }; // Input buffer containing the n datapoint positions
-layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; }; // Output buffer containing the n (summed) attractive forces
-layout(binding = 5, std430) restrict readonly buffer Sele { uint selectedBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Fixd { uint fixedBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; }; // Output buffer containing the n (summed) attractive forces
 
 // Uniform values
 layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
+// layout(location = 2) uniform bool weightFixed;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -73,6 +74,7 @@ void main () {
 
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff;
+    // if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 1000; }
   }
 
   attrForce = subgroupAdd(attrForce * invPos);

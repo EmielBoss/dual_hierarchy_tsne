@@ -92,6 +92,8 @@ namespace dh::sne {
       eNeighborhoodPreservation,
       eSelected,
       eSelectedNewly,
+      eSelectedCount,
+      eSelectedCountReduce,
       eFixed,
       eTranslating,
       eLabeled,
@@ -111,6 +113,7 @@ namespace dh::sne {
       eCenterEmbeddingComp,
       eNeighborhoodPreservationComp,
       eSelectionComp,
+      eSelectedCountComp,
       eTranslationComp,
 
       Length
@@ -129,6 +132,7 @@ namespace dh::sne {
 
     // State
     bool _isInit;
+    bool _loggedNewline;
     Params _params;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
@@ -143,6 +147,7 @@ namespace dh::sne {
     uint _colorMappingPrev;
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
+    uint _selectionCount;
     int _selectionRadius;
     int _selectionRadiusPrev;
     bool _mouseLeftPrev;
