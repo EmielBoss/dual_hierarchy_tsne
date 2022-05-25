@@ -73,10 +73,11 @@ namespace dh::sne {
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
     void checkBuffer(GLuint handle); ////
-    void writeBuffer(GLuint handle); ////
+    void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
   private:
     enum class BufferType {
+      eDataset,
       eEmbedding,
       eBounds,
       eBoundsReduce,
@@ -94,6 +95,8 @@ namespace dh::sne {
       eSelectedNewly,
       eSelectedCount,
       eSelectedCountReduce,
+      eSelectedAverage,
+      eSelectedAverageReduce,
       eFixed,
       eTranslating,
       eLabeled,
@@ -113,7 +116,8 @@ namespace dh::sne {
       eCenterEmbeddingComp,
       eNeighborhoodPreservationComp,
       eSelectionComp,
-      eSelectedCountComp,
+      eCountSelectedComp,
+      eAverageSelectedComp,
       eTranslationComp,
 
       Length
@@ -157,6 +161,7 @@ namespace dh::sne {
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
+    GLuint _averageSelectionTexture;
 
     // Subcomponents
     Field<D> _field;
@@ -176,6 +181,7 @@ namespace dh::sne {
         _buffers(BufferType::eSelected),
         _buffers(BufferType::eSelectedNewly),
         _buffers(BufferType::eNeighborhoodPreservation),
+        _averageSelectionTexture
       };
     }
     bool isInit() const { return _isInit; }
@@ -196,6 +202,7 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._borderRenderTask, b._borderRenderTask);
+      swap(a._averageSelectionTexture, b._averageSelectionTexture);
     }
   };
 } // dh::sne

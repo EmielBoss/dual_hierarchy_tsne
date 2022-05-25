@@ -62,12 +62,15 @@ namespace dh::sne {
   }
 
   template <uint D>
-  void Minimization<D>::writeBuffer(GLuint handle) {
-    std::vector<float> buffer(_params.n);
-    glGetNamedBufferSubData(handle, 0, _params.n * sizeof(float), buffer.data());
-    std::ofstream file("../buffer_dumps/buffer.txt");
-    for(uint i = 0; i < _params.n; i++) {
-      file << buffer[i] << "\n";
+  void Minimization<D>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
+    std::vector<float> buffer(n * d);
+    glGetNamedBufferSubData(handle, 0, n * d * sizeof(float), buffer.data());
+    std::ofstream file("../buffer_dumps/" + filename + ".txt");
+    for(uint i = 0; i < n; i++) {
+      for(uint j = 0; j < d; ++j) {
+        file << buffer[i * d + j] << "|";
+      }
+      file << "\n";
     }
   }
 
@@ -87,7 +90,8 @@ namespace dh::sne {
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
         _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-        _programs(ProgramType::eSelectedCountComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_count.comp"));
+        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_count.comp"));
+        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_average.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
@@ -119,12 +123,12 @@ namespace dh::sne {
       const std::vector<vec> ones(_params.n, vec(1));
       const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints
       std::vector<uint> labeled(_params.n, 0);
-      for(uint i = 0; i < _params.n; ++i) {
-        int label = *(labelPtr + i);
-        if (label >= 0)  { labeled[i] = 1; }
-      }
+      for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
+      std::vector<float> data(_params.n * _params.nHighDims);
+      for(uint p = 0; p < _params.n * _params.nHighDims; ++p) { data[p] = *(dataPtr + p) / 255.0f; }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), ones.data(), 0);
@@ -142,12 +146,19 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSelectedNewly), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCountReduce), 128 * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedAverage), _params.nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedAverageReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
+
+      glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
     }
 
     initializeEmbeddingRandomly();
@@ -217,6 +228,7 @@ namespace dh::sne {
   Minimization<D>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
+      glDeleteTextures(1, &_averageSelectionTexture);
       _isInit = false;
     }
   }
@@ -267,7 +279,10 @@ namespace dh::sne {
     _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
     _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
 
-    if(_input.mouseMiddle || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) { _selectionRenderTask->clearSelection(_params.datapointsAreImages); }
+    if(_input.mouseMiddle || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
+      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+    }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) { glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
 
@@ -616,17 +631,11 @@ namespace dh::sne {
     }
 
     // 2.
-    // Average selected images
-    if(_params.datapointsAreImages) {
-      _selectionRenderTask->averageSelectedImages();
-    }
-
-    // 3.
     // Count number of selected datapoints
-    { // if(_selectionRenderTask->getWeightFixed()) {
+    {
       glClearNamedBufferData(_buffers(BufferType::eSelectedCountReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
-      auto& program = _programs(ProgramType::eSelectedCountComp);
+      auto& program = _programs(ProgramType::eCountSelectedComp);
       program.bind();
 
       // Set uniforms
@@ -649,6 +658,39 @@ namespace dh::sne {
       glAssert();
     }
 
+    // 3.
+    // Average selected images
+    if(_params.datapointsAreImages) {
+      glClearNamedBufferData(_buffers(BufferType::eSelectedAverageReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+
+      auto& program = _programs(ProgramType::eAverageSelectedComp);
+      program.bind();
+
+      // Set uniforms
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nSelected", _selectionCount);
+      program.template uniform<uint>("imgSize", _params.nHighDims);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectedAverageReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelectedAverage));
+      glAssert();
+
+      program.template uniform<uint>("iter", 0);
+      glDispatchCompute(128, _params.nHighDims, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      program.template uniform<uint>("iter", 1);
+      glDispatchCompute(1,_params.nHighDims, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
+      glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+      glAssert();
+    }
+
+    writeBuffer(_buffers(BufferType::eSelectedAverage), 1, _params.nHighDims, "selectedAverage");
   }
 
   template <uint D>

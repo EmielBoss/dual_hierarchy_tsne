@@ -64,7 +64,6 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
-    uint _averagedSelectionCount;
     glm::vec2 _mousePosition;
 
     // ImGui state
@@ -77,14 +76,6 @@ namespace dh::vis {
     sne::MinimizationBuffers _minimizationBuffers;
     util::GLProgram _program;
     GLuint _vaoHandle;
-    std::vector<GLuint> _textures;
-    GLuint _averageSelectionTexture;
-    GLuint _averageSelectionFramebuffer;
-    GLuint _averageSelectionRenderbuffer;
-    GLuint _averageSelectionVAO;
-    GLuint _averageSelectionVBO;
-    GLuint _averageSelectionEBO;
-    util::GLProgram _averageSelectionProgram;
 
   public:
     bool isInit() const { return _isInit; }
@@ -108,15 +99,6 @@ namespace dh::vis {
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
-      swap(a._averageSelectionProgram, b._averageSelectionProgram);
-      swap(a._textures, b._textures);
-      swap(a._averageSelectionTexture, b._averageSelectionTexture);
-      swap(a._averageSelectionFramebuffer, b._averageSelectionFramebuffer);
-      swap(a._averageSelectionRenderbuffer, b._averageSelectionRenderbuffer);
-      swap(a._averageSelectionVAO, b._averageSelectionVAO);
-      swap(a._averageSelectionVBO, b._averageSelectionVBO);
-      swap(a._averageSelectionEBO, b._averageSelectionEBO);
-      swap(a._averagedSelectionCount, b._averagedSelectionCount);
     }
   };
 } // dh::vis
