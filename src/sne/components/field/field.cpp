@@ -55,7 +55,7 @@ namespace dh::sne {
   }
 
   template <uint D>
-  void Field<D>::comp(uvec size, uint iteration) {
+  void Field<D>::comp(uvec size, uint iteration, bool weightFixed) {
     // Resize field if necessary
     resizeField(size);
 
@@ -90,7 +90,7 @@ namespace dh::sne {
     } else if (_useEmbeddingHierarchy) {
       compSingleHierarchyField();
     } else {
-      compFullField();
+      compFullField(weightFixed);
     }
 
     // Update field buffer in sne::Minimization by querying the field texture at N positions
@@ -143,14 +143,14 @@ namespace dh::sne {
   template Field<2>::Field(Field<2>&& other) noexcept;
   template Field<2>::~Field();
   template Field<2>& Field<2>::operator=(Field<2>&& other) noexcept;
-  template void Field<2>::comp(util::AlignedVec<2, uint> size, uint iteration);
+  template void Field<2>::comp(util::AlignedVec<2, uint> size, uint iteration, bool weightFixed);
   template void Field<2>::queryField();
   template size_t Field<2>::memSize() const;
   template Field<3>::Field();
   template Field<3>::Field(Field<3>&& other) noexcept;
   template Field<3>::~Field();
   template Field<3>& Field<3>::operator=(Field<3>&& other) noexcept;
-  template void Field<3>::comp(util::AlignedVec<3, uint> size, uint iteration);
+  template void Field<3>::comp(util::AlignedVec<3, uint> size, uint iteration, bool weightFixed);
   template void Field<3>::queryField();
   template size_t Field<3>::memSize() const;
 } // dh::sne

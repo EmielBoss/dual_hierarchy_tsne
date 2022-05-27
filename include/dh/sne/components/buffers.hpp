@@ -35,6 +35,7 @@ namespace dh::sne {
     GLuint labeled;
     GLuint selected;
     GLuint selectedNewly;
+    GLuint fixed;
     GLuint neighborhoodPreservation;
     GLuint averageSelectionTexture;
   };

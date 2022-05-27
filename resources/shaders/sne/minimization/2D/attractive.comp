@@ -45,7 +45,7 @@ layout(binding = 5, std430) restrict writeonly buffer Att { vec2 attrForcesBuffe
 // Uniform values
 layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
-// layout(location = 2) uniform bool weightFixed;
+layout(location = 2) uniform bool weightFixed;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -74,7 +74,8 @@ void main () {
 
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff;
-    // if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 1000; }
+    if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 1000; }
+    else if(weightFixed) { attrForce *= 1 - (1000 / nPos); }
   }
 
   attrForce = subgroupAdd(attrForce * invPos);

@@ -57,29 +57,6 @@ namespace dh::util {
     }
   }
 
-  // void writeBinFile(const std::string &fileName,
-  //                   const std::vector<float> &data,
-  //                   const std::vector<int> &labels,
-  //                   uint n,
-  //                   uint d,
-  //                   bool withLabels)
-  // {
-  //   std::ofstream ofs(fileName, std::ios::out | std::ios::binary);
-  //   if (!ofs) {
-  //     throw std::runtime_error("Output file cannot be accessed: " + fileName);
-  //   }
-
-  //   if (withLabels) {
-  //     for (uint i = 0; i < n; ++i) {
-  //       ofs.write((char *) &labels[i], sizeof(int));
-  //       ofs.write((char *) &data[d * i], d * sizeof(float));
-  //     }
-  //   } else {
-  //     ofs.write((char *) data.data(), data.size() * sizeof(float));
-  //   }
-  // }
-
-  //// TO BE REMOVED
   void writeBinFile(const std::string &fileName,
                     const std::vector<float> &data,
                     const std::vector<int> &labels,
@@ -87,31 +64,14 @@ namespace dh::util {
                     uint d,
                     bool withLabels)
   {
-    std::string filename = fileName + "_partial";
-    std::ofstream ofs(filename, std::ios::out | std::ios::binary);
+    std::ofstream ofs(fileName, std::ios::out | std::ios::binary);
     if (!ofs) {
-      throw std::runtime_error("Output file cannot be accessed: " + filename);
+      throw std::runtime_error("Output file cannot be accessed: " + fileName);
     }
 
     if (withLabels) {
-      int noLabel = -1;
       for (uint i = 0; i < n; ++i) {
-        if(
-          i == 0 || // 5
-          i == 1 || // 0
-          i == 2 || // 4
-          i == 3 || // 1
-          i == 4 || // 9
-          i == 5 || // 2
-          i == 7 || // 3
-          i == 13 || // 6
-          i == 15 || // 7
-          i == 17 // 8
-         ) {
-          ofs.write((char *) &labels[i], sizeof(int));
-        } else {
-          ofs.write((char *) &noLabel, sizeof(int));
-        }
+        ofs.write((char *) &labels[i], sizeof(int));
         ofs.write((char *) &data[d * i], d * sizeof(float));
       }
     } else {

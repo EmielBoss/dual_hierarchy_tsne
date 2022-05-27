@@ -52,16 +52,6 @@ namespace dh::sne {
   }
 
   template <uint D>
-  void Minimization<D>::checkBuffer(GLuint handle) {
-    std::vector<float> buffer(_params.n);
-    glGetNamedBufferSubData(handle, 0, _params.n * sizeof(float), buffer.data());
-    for(uint i = 0; i < _params.n / 6; i++) {
-      std::cout << buffer[i] << "|";
-    }
-    std::cout << "\n\n";
-  }
-
-  template <uint D>
   void Minimization<D>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<float> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(float), buffer.data());
@@ -110,15 +100,6 @@ namespace dh::sne {
 
     // Initialize buffer objects
     {
-      std::vector<uint> selection(_params.n);
-      std::ifstream fin("../selection.txt", std::ios::in);
-      char byte = 0;
-      for (uint i = 0; fin.get(byte); ++i) {
-        selection[i] = byte - '0';
-      }
-      fin.close();
-      glAssert();
-
       const std::vector<vec> zeroes(_params.n, vec(0));
       const std::vector<vec> ones(_params.n, vec(1));
       const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints
@@ -181,8 +162,6 @@ namespace dh::sne {
 
     // Get selectionInputTask subcomponent for mouse input for selecting
     _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
-
-    // _selectionRenderTask = std::dynamic_pointer_cast<vis::SelectionRenderTask>(vis::RenderQueue::instance().find("SelectionRenderTask"));
 
     _isInit = true;
   }
@@ -359,7 +338,7 @@ namespace dh::sne {
       size = uvec(glm::pow(2, glm::ceil(glm::log(static_cast<float>(size.x)) / glm::log(2.f))));
 
       // Delegate to subclass
-      _field.comp(size, _iteration);
+      _field.comp(size, _iteration, _embeddingRenderTask->getWeightFixed());
     }
 
     // 3.
@@ -403,7 +382,7 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPos", _params.n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
-      // program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
+      program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -689,8 +668,6 @@ namespace dh::sne {
       glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
       glAssert();
     }
-
-    writeBuffer(_buffers(BufferType::eSelectedAverage), 1, _params.nHighDims, "selectedAverage");
   }
 
   template <uint D>

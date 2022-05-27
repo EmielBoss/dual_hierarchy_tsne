@@ -36,20 +36,22 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer object bindings
 layout(binding = 0, std430) restrict readonly buffer Posit { vec2 posBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Bound { Bounds bounds; };
-layout(binding = 2, std430) restrict readonly buffer Queue { uvec2 queueBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Fixed { vec2 fixedBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Bound { Bounds bounds; };
+layout(binding = 3, std430) restrict readonly buffer Queue { uvec2 queueBuffer[]; };
 layout(binding = 0, rgba32f) restrict writeonly uniform image2D fieldImage;
 
 // Uniform locations
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uvec2 textureSize;
+layout(location = 2) uniform bool weightFixed;
 
 // Reduction components
 const uint groupSize = gl_WorkGroupSize.x;
 const uint halfGroupSize = groupSize / 2;
 shared vec3 reductionArray[halfGroupSize];
 
-// Shared memory for pixel positiovn
+// Shared memory for pixel position
 shared uvec2 px;
 
 void main() {
@@ -66,13 +68,16 @@ void main() {
   vec2 pos = (vec2(px) + 0.5) / vec2(textureSize);
   pos = pos * bounds.range + bounds.min;
 
-    // Iterate over points to obtain density/gradient field values
+  // Iterate over points to obtain density/gradient field values
   vec3 field = vec3(0);
   for (uint j = li; j < nPoints; j += groupSize) {
     // Field layout is: S, V.x, V.y,
     vec2 t = pos - posBuffer[j];
     float tStud = 1.f / (1.f + dot(t, t));
-    field += vec3(tStud, t * (tStud * tStud));
+    vec3 values = vec3(tStud, t * (tStud * tStud));
+    if(weightFixed && fixedBuffer[j] == 1) { values *= 1000; }
+    else if(weightFixed) { values *= 1 - (1000 / nPoints); }
+    field += values;
   }
   
   // Perform reduce add over all computed points for this pixel

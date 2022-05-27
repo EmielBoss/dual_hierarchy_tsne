@@ -116,7 +116,7 @@ namespace dh::sne {
   }
 
   template <uint D>
-  void Field<D>::compFullField() {
+  void Field<D>::compFullField(bool weightFixed) {
     auto& timer = _timers(TimerType::eField);
     timer.tick();
 
@@ -126,11 +126,13 @@ namespace dh::sne {
     // Set uniforms
     program.template uniform<uint, D>("textureSize", _size);
     program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("weightFixed", weightFixed);
 
     // Bind buffers
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimization.bounds);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::ePixelQueue));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimization.fixed);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.bounds);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::ePixelQueue));
 
     // Bind output texture
     glBindImageTexture(0, _textures(TextureType::eField), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
@@ -147,7 +149,7 @@ namespace dh::sne {
   
   // Template instantiations for 2/3 dimensions
   template void Field<2>::compFullCompact();
-  template void Field<2>::compFullField();
+  template void Field<2>::compFullField(bool weightFixed);
   template void Field<3>::compFullCompact();
-  template void Field<3>::compFullField();
+  template void Field<3>::compFullField(bool weightFixed);
 } // dh::sne

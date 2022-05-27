@@ -57,13 +57,14 @@ namespace dh::sne {
     Field& operator=(Field&&) noexcept;
 
     // Compute the field for a size (resolution) and iteration (determines technique)
-    void comp(uvec size, uint iteration);
+    void comp(uvec size, uint iteration, bool weightFixed);
+    // GLuint getTex() { return _textures(TextureType::eField); }
 
   private:
     // Functions called by Field::comp(size, uint);
     // 1. Functions used by full computation
     void compFullCompact();
-    void compFullField();
+    void compFullField(bool weightFixed);
     // 2. Functions used by at least single hierarchy computation
     void compSingleHierarchyCompact();
     void compSingleHierarchyField();

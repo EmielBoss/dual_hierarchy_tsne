@@ -53,7 +53,7 @@ namespace dh::sne {
     // Constr/destr
     Minimization();
     Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params);  
-    ~Minimization(); 
+    ~Minimization();
 
     // Copy constr/assignment is explicitly deleted
     Minimization(const Minimization&) = delete;
@@ -180,6 +180,7 @@ namespace dh::sne {
         _buffers(BufferType::eLabeled),
         _buffers(BufferType::eSelected),
         _buffers(BufferType::eSelectedNewly),
+        _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
         _averageSelectionTexture
       };
