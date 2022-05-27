@@ -74,8 +74,8 @@ void main () {
 
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff;
-    if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 1000; }
-    else if(weightFixed) { attrForce *= 1 - (1000 / nPos); }
+    // if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 100; } else
+    // if(weightFixed && fixedBuffer[j] == 0) { attrForce *= 1 - (100 / nPos); }
   }
 
   attrForce = subgroupAdd(attrForce * invPos);

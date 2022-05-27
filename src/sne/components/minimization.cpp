@@ -100,11 +100,13 @@ namespace dh::sne {
 
     // Initialize buffer objects
     {
+      std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       const std::vector<vec> zeroes(_params.n, vec(0));
       const std::vector<vec> ones(_params.n, vec(1));
       const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints
       std::vector<uint> labeled(_params.n, 0);
-      for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
+      // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
+      for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; }
       std::vector<float> data(_params.n * _params.nHighDims);
       for(uint p = 0; p < _params.n * _params.nHighDims; ++p) { data[p] = *(dataPtr + p) / 255.0f; }
 
@@ -382,7 +384,7 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPos", _params.n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
-      program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
+      // program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));

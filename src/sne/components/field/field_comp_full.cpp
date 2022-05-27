@@ -126,7 +126,7 @@ namespace dh::sne {
     // Set uniforms
     program.template uniform<uint, D>("textureSize", _size);
     program.template uniform<uint>("nPoints", _params.n);
-    program.template uniform<uint>("weightFixed", weightFixed);
+    // program.template uniform<uint>("weightFixed", weightFixed);
 
     // Bind buffers
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);

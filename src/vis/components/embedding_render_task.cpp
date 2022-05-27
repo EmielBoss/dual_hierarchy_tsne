@@ -58,7 +58,7 @@ namespace dh::vis {
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
-    _weightFixed(true),
+    _weightFixed(false),
     _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
