@@ -75,8 +75,7 @@ void main() {
     vec2 t = pos - posBuffer[j];
     float tStud = 1.f / (1.f + dot(t, t));
     vec3 values = vec3(tStud, t * (tStud * tStud));
-    // if(weightFixed && fixedBuffer[j] == 1) { values *= 100; } else
-    // if(weightFixed  && fixedBuffer[j] == 1) { values *= 1 - (100 / nPoints); }
+    if(weightFixed && fixedBuffer[j] == 1) { values *= 100; } else
     field += values;
   }
   

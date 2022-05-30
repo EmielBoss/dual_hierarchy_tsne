@@ -54,7 +54,9 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     uint getColorMapping() { return _colorMapping; }
     void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
-    bool getWeightFixed() { return _weightFixed; }
+    bool getWeighForces() { return _weighForces; }
+    float getWeightFixed() { return _weightFixed; }
+    float getWeightFalloff() { return _weightFalloff; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
 
   private:
@@ -72,7 +74,9 @@ namespace dh::vis {
 
     // ImGui state
     bool _canDrawLabels;
-    bool _weightFixed;
+    bool _weighForces;
+    float _weightFixed;
+    float _weightFalloff;
     bool _selectLabeledOnly;
     uint _colorMapping;
     float _pointRadius;
@@ -100,7 +104,9 @@ namespace dh::vis {
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);
+      swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
+      swap(a._weightFalloff, b._weightFalloff);
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);

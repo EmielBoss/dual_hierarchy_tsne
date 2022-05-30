@@ -98,6 +98,7 @@ namespace dh::sne {
       eSelectedAverageReduce,
       eFixed,
       eTranslating,
+      eWeights,
       eLabeled,
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,

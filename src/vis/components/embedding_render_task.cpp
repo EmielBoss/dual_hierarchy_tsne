@@ -58,7 +58,9 @@ namespace dh::vis {
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
-    _weightFixed(false),
+    _weighForces(true),
+    _weightFixed(100.f),
+    _weightFalloff(0.2f),
     _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
@@ -174,8 +176,6 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      ImGui::Checkbox("Fixed datapoint force weighting", &_weightFixed);
-      ImGui::Spacing();
       if (_canDrawLabels) {
         ImGui::Text("Color mapping:");
         if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
@@ -184,6 +184,10 @@ namespace dh::vis {
       }
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
+      ImGui::Spacing();
+      ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
+      ImGui::SliderFloat("Weight for fixed datapoints", &_weightFixed, 1.0f, 1000.0f);
+      ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
       ImGui::Spacing();
     }
   }

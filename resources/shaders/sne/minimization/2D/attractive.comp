@@ -37,15 +37,17 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Posi { vec2 positionsBuffer[]; }; // Input buffer containing the n datapoint positions
 layout(binding = 1, std430) restrict readonly buffer Fixd { uint fixedBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 5, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; }; // Output buffer containing the n (summed) attractive forces
+layout(binding = 2, std430) restrict buffer Wght { float weightsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 5, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; }; // Output buffer containing the n (summed) attractive forces
 
 // Uniform values
 layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
-layout(location = 2) uniform bool weightFixed;
+layout(location = 2) uniform bool weighForces;
+layout(location = 3) uniform float weightFalloff;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -72,11 +74,15 @@ void main () {
     const float p_ij = similaritiesBuffer[ij];
     const float q_ij = 1.f / (1.f + dot(diff, diff));
 
+    // Calculate weight
+    float weight = 1.0f;
+    if(weighForces) {
+      weight = weightsBuffer[j];
+      weightsBuffer[i] = max(1.0f, max(weight * weightFalloff, weightsBuffer[i]));
+    }
+
     // Calculate the attractive force
-    vec2 force = p_ij * q_ij * diff;
-    if(weightFixed && fixedBuffer[j] == 1) { force *= 100; } else
-    if(weightFixed && fixedBuffer[j] == 0) { force *= 1 - (100 / nPos); }
-    attrForce += force;
+    attrForce += p_ij * q_ij * diff * weight;
   }
 
   attrForce = subgroupAdd(attrForce * invPos);
