@@ -126,7 +126,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedNewly), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedAverage), _params.nHighDims * sizeof(float), nullptr, 0);
@@ -384,7 +383,7 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPos", _params.n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
-      // program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
+      program.template uniform<bool>("weightFixed", _embeddingRenderTask->getWeightFixed());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -585,8 +584,6 @@ namespace dh::sne {
     // 1.
     // Compute selection
     {
-      glClearNamedBufferData(_buffers(BufferType::eSelectedNewly), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
@@ -602,7 +599,6 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelected));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelectedNewly));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);

@@ -73,9 +73,10 @@ void main () {
     const float q_ij = 1.f / (1.f + dot(diff, diff));
 
     // Calculate the attractive force
-    attrForce += p_ij * q_ij * diff;
-    // if(weightFixed && fixedBuffer[j] == 1) { attrForce *= 100; } else
-    // if(weightFixed && fixedBuffer[j] == 0) { attrForce *= 1 - (100 / nPos); }
+    vec2 force = p_ij * q_ij * diff;
+    if(weightFixed && fixedBuffer[j] == 1) { force *= 100; } else
+    if(weightFixed && fixedBuffer[j] == 0) { force *= 1 - (100 / nPos); }
+    attrForce += force;
   }
 
   attrForce = subgroupAdd(attrForce * invPos);

@@ -174,36 +174,23 @@ namespace dh::sne {
 
     // (re-)create field texture
     glDeleteTextures(1, &_textures(TextureType::eField));
-    glAssert();
     glCreateTextures(GL_TEXTURE_2D, 1, &_textures(TextureType::eField));
-    glAssert();
     glTextureParameteri(_textures(TextureType::eField), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glAssert();
     glTextureParameteri(_textures(TextureType::eField), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glAssert();
     glTextureParameteri(_textures(TextureType::eField), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glAssert();
     glTextureParameteri(_textures(TextureType::eField), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glAssert();
     glTextureStorage2D(_textures(TextureType::eField), 1, GL_RGBA32F, _size.x, _size.y);
     glAssert();
 
     // Full computation used, (re-)create stencil texture
     if (!_useEmbeddingHierarchy) {
       glDeleteTextures(1, &_textures(TextureType::eStencil));
-      glAssert();
       glCreateTextures(GL_TEXTURE_2D, 1, &_textures(TextureType::eStencil));
-      glAssert();
       glTextureParameteri(_textures(TextureType::eStencil), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glAssert();
       glTextureParameteri(_textures(TextureType::eStencil), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glAssert();
       glTextureParameteri(_textures(TextureType::eStencil), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-      glAssert();
       glTextureParameteri(_textures(TextureType::eStencil), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-      glAssert();
       glTextureStorage2D(_textures(TextureType::eStencil), 1, GL_R8UI, _size.x, _size.y);
-      glAssert();
       glNamedFramebufferTexture(_stencilFBOHandle, GL_COLOR_ATTACHMENT0, _textures(TextureType::eStencil), 0);
       glAssert();
     }

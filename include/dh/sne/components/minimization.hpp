@@ -92,7 +92,6 @@ namespace dh::sne {
       eNeighborsEmb,
       eNeighborhoodPreservation,
       eSelected,
-      eSelectedNewly,
       eSelectedCount,
       eSelectedCountReduce,
       eSelectedAverage,
@@ -179,7 +178,6 @@ namespace dh::sne {
         _buffers(BufferType::eBounds),
         _buffers(BufferType::eLabeled),
         _buffers(BufferType::eSelected),
-        _buffers(BufferType::eSelectedNewly),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
         _averageSelectionTexture

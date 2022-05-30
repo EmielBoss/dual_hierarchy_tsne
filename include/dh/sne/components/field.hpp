@@ -58,7 +58,6 @@ namespace dh::sne {
 
     // Compute the field for a size (resolution) and iteration (determines technique)
     void comp(uvec size, uint iteration, bool weightFixed);
-    // GLuint getTex() { return _textures(TextureType::eField); }
 
   private:
     // Functions called by Field::comp(size, uint);
