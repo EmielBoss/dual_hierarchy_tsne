@@ -639,8 +639,12 @@ namespace dh::sne {
       glDispatchCompute(1, 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
+      uint selectionCountPrev = _selectionCount;
       glGetNamedBufferSubData(_buffers(BufferType::eSelectedCount), 0, sizeof(uint), &_selectionCount);
       glAssert();
+
+      // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
+      if(_selectionCount - selectionCountPrev > _params.n / 1000) { _embeddingRenderTask->setWeighForces(false); }
     }
 
     // 3.

@@ -23,6 +23,7 @@
  */
 
 #include <array>
+#include <cmath>
 #include <random>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
@@ -43,6 +44,10 @@ namespace dh::vis {
   constexpr std::array<uint, 6> quadElements = {
     0, 1, 2,  2, 3, 0
   };
+
+  float calculateFalloff(uint n, uint k, int nClusters) {
+    return 1.25 * std::pow(1.f / k, 1/(std::log2((float) n / nClusters) / std::log2(k)));
+  }
   
   template <uint D>
   EmbeddingRenderTask<D>::EmbeddingRenderTask()
@@ -59,8 +64,10 @@ namespace dh::vis {
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
-    _weightFixed(100.f),
-    _weightFalloff(0.2f),
+    _weightFixed(params.k),
+    _weightFalloff(calculateFalloff(params.n, params.k, params.nClusters)),
+    _numClusters(params.nClusters),
+    _numClustersPrev(params.nClusters),
     _pointRadius(0.003f),
     _pointOpacity(1.0f) {
     // Enable/disable render task by default
@@ -170,6 +177,12 @@ namespace dh::vis {
     // Perform draw
     glBindVertexArray(_vaoHandle);
     glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params.n);
+
+    // Check if user changed numClusters and update weightFalloff if so
+    if(_numClusters != _numClustersPrev) {
+      _weightFalloff = calculateFalloff(_params.n, _params.k, _numClusters);
+      _numClustersPrev = _numClusters;
+    }
   }
 
   template <uint D>
@@ -186,8 +199,10 @@ namespace dh::vis {
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
       ImGui::Spacing();
       ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
-      ImGui::SliderFloat("Weight for fixed datapoints", &_weightFixed, 1.0f, 1000.0f);
+      ImGui::SliderFloat("Weight for fixed datapoints", &_weightFixed, 1.0f, _params.k * 5.0f);
       ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
+      ImGui::Text("or set the number of clusters you see:");
+      ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
     }
   }

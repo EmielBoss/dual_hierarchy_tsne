@@ -55,6 +55,7 @@ namespace dh::vis {
     uint getColorMapping() { return _colorMapping; }
     void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
     bool getWeighForces() { return _weighForces; }
+    void setWeighForces(bool weighForces) { _weighForces = weighForces; }
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
@@ -77,6 +78,8 @@ namespace dh::vis {
     bool _weighForces;
     float _weightFixed;
     float _weightFalloff;
+    int _numClusters;
+    int _numClustersPrev;
     bool _selectLabeledOnly;
     uint _colorMapping;
     float _pointRadius;
@@ -107,6 +110,8 @@ namespace dh::vis {
       swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
       swap(a._weightFalloff, b._weightFalloff);
+      swap(a._numClusters, b._numClusters);
+      swap(a._numClustersPrev, b._numClustersPrev);
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);

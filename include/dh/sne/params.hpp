@@ -32,6 +32,7 @@ namespace dh::sne {
     uint n = 0;
     uint nHighDims = 0;
     uint nLowDims = 2; // 2 or 3 only
+    int nClusters = 10; // If unsure, leave this at the default 10
 
     // Basic tSNE parameters
     uint iterations = 1000;
