@@ -63,7 +63,7 @@ namespace dh::sne {
     Minimization(Minimization&&) noexcept;
     Minimization& operator=(Minimization&&) noexcept;
 
-    void initializeEmbeddingRandomly();
+    void initializeEmbeddingRandomly(int seed);
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)

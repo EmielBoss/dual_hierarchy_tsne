@@ -145,7 +145,7 @@ namespace dh::sne {
       glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
     }
 
-    initializeEmbeddingRandomly();
+    initializeEmbeddingRandomly(_params.seed);
 
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
@@ -172,7 +172,7 @@ namespace dh::sne {
   // Generate randomized embedding data
   // TODO: look at CUDA-tSNE's approach, they have several options available for initialization
   template <uint D>
-  void Minimization<D>::initializeEmbeddingRandomly() {
+  void Minimization<D>::initializeEmbeddingRandomly(int seed) {
     
     // Copy over embedding and fixed buffers to host
     std::vector<vec> embedding(_params.n);
@@ -181,7 +181,7 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
 
     // Seed the (bad) rng
-    std::srand(_params.seed);
+    std::srand(seed);
     
     // Generate n random D-dimensional vectors
     for (uint i = 0; i < _params.n; ++i) {
@@ -273,8 +273,10 @@ namespace dh::sne {
     _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
 
     if(_input.mouseMiddle || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
+      _selectionCount = 0;
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+      _embeddingRenderTask->setWeighForces(true);
     }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) {
@@ -292,8 +294,10 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::compIterationMinimizationRestart() {
     if(_iteration < 100) { return; }
+    initializeEmbeddingRandomly(_iteration);
     _iteration = 0;
-    initializeEmbeddingRandomly();
+    const std::vector<vec> zerovecs(_params.n, vec(0));
+    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
   }
 
   template <uint D>
@@ -621,8 +625,6 @@ namespace dh::sne {
     // 2.
     // Count number of selected datapoints
     {
-      glClearNamedBufferData(_buffers(BufferType::eSelectedCountReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-
       auto& program = _programs(ProgramType::eCountSelectedComp);
       program.bind();
 
@@ -653,8 +655,6 @@ namespace dh::sne {
     // 3.
     // Average selected images
     if(_params.datapointsAreImages) {
-      glClearNamedBufferData(_buffers(BufferType::eSelectedAverageReduce), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-
       auto& program = _programs(ProgramType::eAverageSelectedComp);
       program.bind();
 
