@@ -697,6 +697,7 @@ namespace dh::sne {
       program.template uniform<float, 2>("cursorPosPrev", _mousePosEmbeddingPrev);
       program.template uniform<bool>("translationStarted", !_mouseRightPrev);
       program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
+      program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
       program.template uniform<float>("weightFixed", _embeddingRenderTask->getWeightFixed());
 
       // Set buffer bindings
