@@ -43,7 +43,6 @@ namespace dh::vis {
     _mouseRightPressed(false),
     _mouseMiddlePressed(false),
     _mouseScroll(3.0f), 
-    _mousePos(-1.0f),
     _mouseScrollMult(0.5f),
     _mousePosMult(1.0f) {
     // ...
@@ -54,7 +53,7 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::mousePosInput(double xPos, double yPos) {
-    _mousePosPixel = glm::vec2(xPos, yPos);
+    _mousePosScreen = glm::vec2(xPos, yPos);
     
     // Obtain current window handle for window size
     util::GLWindow* window = util::GLWindow::currentWindow();
@@ -63,8 +62,8 @@ namespace dh::vis {
     }
 
     // Record current position in [-1, 1]
-    _mousePos = _mousePosPixel / glm::vec2(window->size());
-    _mousePos = 2.0f * _mousePos - 1.0f;
+    _mousePosClip = _mousePosScreen / glm::vec2(window->size());
+    _mousePosClip = 2.0f * _mousePosClip - 1.0f;
   }
 
   void SelectionInputTask::mouseButtonInput(int button, int action) {

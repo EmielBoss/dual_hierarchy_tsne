@@ -29,8 +29,8 @@
 
 namespace dh::vis {
   struct Input {
-    glm::vec2 mousePos;
-    glm::vec2 mousePosPixel;
+    glm::vec2 mousePosClip; // Clip space (NDC coordinates)
+    glm::vec2 mousePosScreen; // Screen space
     float mouseScroll;
     bool mouseLeft;
     bool mouseRight;
@@ -57,8 +57,8 @@ namespace dh::vis {
     // Getters
     Input getInput() const {
       return {
-        _mousePos,
-        _mousePosPixel,
+        _mousePosClip,
+        _mousePosScreen,
         _mouseScroll,
         _mouseLeftPressed,
         _mouseRightPressed,
@@ -72,12 +72,6 @@ namespace dh::vis {
       };
     }
 
-    glm::vec2 getMousePos() const { return _mousePos; }
-    glm::vec2 getMousePosPixel() const { return _mousePosPixel; }
-    bool getSpacePressed() const { return _spacePressed; }
-    bool getDPressed() const { return _dPressed; }
-    bool getMousePressed() const { return _mouseLeftPressed; }
-    int getNumPressed() const { return _numPressed; }
     void setNumPressed(int num) { _numPressed = num; }
     void setMouseScroll(float mouseScroll) { _mouseScroll = mouseScroll; }
 
@@ -93,8 +87,8 @@ namespace dh::vis {
     bool _mouseMiddlePressed;
     int _numPressed;
     float _mouseScroll;
-    glm::vec2 _mousePosPixel; // Integer window-absolute pixel coordinates
-    glm::vec2 _mousePos;
+    glm::vec2 _mousePosScreen; // Integer window-absolute pixel coordinates
+    glm::vec2 _mousePosClip; // NDC pixel coordinates
 
     // Mouse speed multipliers
     float _mouseScrollMult;

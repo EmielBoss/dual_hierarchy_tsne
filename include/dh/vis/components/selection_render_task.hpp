@@ -65,10 +65,11 @@ namespace dh::vis {
     bool _isInit;
     sne::Params _params;
     glm::vec2 _mousePosition;
+    float _aspectRatio;
 
     // ImGui state
     bool _canDrawLabels;
-    int _selectionRadius;
+    float _selectionRadiusRel;
     bool _selectLabeledOnly;
 
     // Objects
@@ -80,11 +81,12 @@ namespace dh::vis {
   public:
     bool isInit() const { return _isInit; }
 
-    int getSelectionRadius() { return _selectionRadius; }
-    void setSelectionRadius(int selectionRadius) { _selectionRadius = selectionRadius; }
+    float getSelectionRadiusRel() { return _selectionRadiusRel; }
+    void setSelectionRadiusRel(float selectionRadiusRel) { _selectionRadiusRel = selectionRadiusRel; }
     int getSelectionMode() { return _selectLabeledOnly; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
+    float getAspectRatio() { return _aspectRatio; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -92,7 +94,7 @@ namespace dh::vis {
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._selectionRadius, b._selectionRadius);
+      swap(a._selectionRadiusRel, b._selectionRadiusRel);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._mousePosition, b._mousePosition);
       swap(a._buffers, b._buffers);

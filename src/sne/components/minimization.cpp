@@ -235,7 +235,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIteration() {
-    glm::vec2 mousePosPrev = _input.mousePos;
+    glm::vec2 mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
     _input = _selectionInputTask->getInput();
@@ -249,17 +249,28 @@ namespace dh::sne {
     if (_colorMapping != _colorMappingPrev) { _selectionInputTask->setNumPressed(_colorMapping); }
 
     // Synchronizing selection radius between GUI and input
-    int selectionRadiusPrev = _selectionRadius;
-    _selectionRadius = _input.mouseScroll * 10 + 0.5f;
-    if(_selectionRadius != selectionRadiusPrev) { _selectionRenderTask->setSelectionRadius(_selectionRadius); }
-    _selectionRadius = _selectionRenderTask->getSelectionRadius();
-    if (_selectionRadius != selectionRadiusPrev) { _selectionInputTask->setMouseScroll(std::round(_selectionRadius * 2) / 20); }
+    float selectionRadiusRelPrev = _selectionRadiusRel;
+    _selectionRadiusRel = _selectionRenderTask->getSelectionRadiusRel();
+    if (_selectionRadiusRel != selectionRadiusRelPrev) { _selectionInputTask->setMouseScroll(_selectionRadiusRel * 100); }
+    _selectionRadiusRel = _input.mouseScroll / 100.f;
+    if(_selectionRadiusRel != selectionRadiusRelPrev) { _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel); }
 
-    _selectionRenderTask->setMousePosition(_input.mousePosPixel);
+    _selectionRenderTask->setMousePosition(_input.mousePosScreen);
     // Synchronize selection mode
     _selectOnlyLabeledPrev = _selectOnlyLabeled;
     _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
     _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
+
+    // Get everything related with the cursor and selection brush
+    const glm::vec2 boundsRange = {_bounds.range().x, _bounds.range().y};
+    const glm::vec2 boundsMin = {_bounds.min.x, _bounds.min.y};
+
+    glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f));
+    glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f);
+    glm::vec4 mousePosClipInverted = glm::inverse(proj * model_view) * glm::vec4(_input.mousePosClip.x, _input.mousePosClip.y, 0.9998, 1);
+    _mousePosEmbedding = glm::vec2(mousePosClipInverted.x, mousePosClipInverted.y) * boundsRange + boundsMin;
+    glm::vec4 mousePosClipPrevInverted = glm::inverse(proj * model_view) * glm::vec4(mousePosClipPrev.x, mousePosClipPrev.y, 0.9998, 1);
+    _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
 
     if(_input.mouseMiddle || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
@@ -274,16 +285,8 @@ namespace dh::sne {
 
     if(_input.r) { compIterationMinimizationRestart(); }
     if(!_input.space) { compIterationMinimization(); }
-
-    // Get everything related with the cursor and selection brush
-    const glm::vec2 boundsCenter = {_bounds.center().x, _bounds.center().y};
-    const glm::vec2 boundsRangeHalf = {_bounds.range().x, _bounds.range().y / 1.8f}; // No clue why, but this works. Plz don't hurt me.
-    _cursorPos = boundsCenter + boundsRangeHalf * _input.mousePos;
-    _cursorPosPrev = boundsCenter + boundsRangeHalf * mousePosPrev; // Else _cursorPosPrev would be relative to the previous embedding bounds
-
     if(_input.mouseLeft  ) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
-    // if(_iteration < 10) { std::cout << _bounds.range().x << ", " << _bounds.range().y << "\n"; }
   }
 
   template <uint D>
@@ -595,12 +598,12 @@ namespace dh::sne {
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
-      float selectionRadius = _bounds.range().y * _selectionRadius / _params.resHeight;
+      float selectionRadiusEmbedding = _bounds.range().y * _selectionRadiusRel;
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("cursorPos", _cursorPos);
-      program.template uniform<float>("selectionRadius", selectionRadius);
+      program.template uniform<float, 2>("cursorPos", _mousePosEmbedding);
+      program.template uniform<float>("selectionRadius", selectionRadiusEmbedding);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
 
       // Set buffer bindings
@@ -690,8 +693,8 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("cursorPos", _cursorPos);
-      program.template uniform<float, 2>("cursorPosPrev", _cursorPosPrev);
+      program.template uniform<float, 2>("cursorPos", _mousePosEmbedding);
+      program.template uniform<float, 2>("cursorPosPrev", _mousePosEmbeddingPrev);
       program.template uniform<bool>("translationStarted", !_mouseRightPrev);
       program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
       program.template uniform<float>("weightFixed", _embeddingRenderTask->getWeightFixed());

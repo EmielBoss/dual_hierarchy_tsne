@@ -144,16 +144,16 @@ namespace dh::sne {
     Bounds _bounds;
     Bounds _boundsPrev;
     vis::Input _input;
-    glm::vec2 _cursorPos; // Position of the mouse in embedding space, i.e. relative to _bounds
-    glm::vec2 _cursorPosPrev;
+    glm::vec2 _mousePosEmbedding; // Position of the mouse in embedding space, i.e. relative to _bounds
+    glm::vec2 _mousePosEmbeddingPrev;
     uint _cursorMode;
     uint _colorMapping;
     uint _colorMappingPrev;
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
     uint _selectionCount;
-    int _selectionRadius;
-    int _selectionRadiusPrev;
+    int _selectionRadiusScreen;
+    float _selectionRadiusRel;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
 

@@ -54,7 +54,7 @@ namespace dh::vis {
     _minimizationBuffers(minimizationBuffers),
     _params(params),
     _selectLabeledOnly(false),
-    _selectionRadius(30),
+    _selectionRadiusRel(0.03),
     _mousePosition({0.0, 0.0}) {
 
     // Initialize shader program
@@ -126,9 +126,14 @@ namespace dh::vis {
 
     _program.bind();
 
+    int resolution[4]; // First two ints are offsets, and (likely) 0
+    glGetIntegerv(GL_VIEWPORT, resolution); // Ask OpenGL for the viewport dimensions, since we don't have easy acces to a _windowHandle here
+    int selectionRadiusScreen = _selectionRadiusRel * (float) resolution[3] * 0.915244; // The embedding box covers 91.5244% of the screen vertically
+    _aspectRatio = (float) resolution[2] / (float) resolution[3];
+
     // Set uniforms
     _program.template uniform<float, 2>("cursorPosition", _mousePosition);
-    _program.template uniform<int>("selectionRadius", _selectionRadius);
+    _program.template uniform<int>("selectionRadius", selectionRadiusScreen);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
@@ -138,7 +143,7 @@ namespace dh::vis {
   void SelectionRenderTask::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      ImGui::SliderInt("Selection radius", &_selectionRadius, 1, 1000);
+      ImGui::SliderFloat("Selection radius", &_selectionRadiusRel, 0.0f, 0.5f);
       ImGui::Spacing();
     }
 
