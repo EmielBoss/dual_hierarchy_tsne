@@ -65,7 +65,7 @@ namespace dh::vis {
     bool _isInit;
     sne::Params _params;
     glm::vec2 _mousePosition;
-    float _aspectRatio;
+    int _resolution[4]; // First two ints are offsets, and (likely) 0
 
     // ImGui state
     bool _canDrawLabels;
@@ -86,7 +86,9 @@ namespace dh::vis {
     int getSelectionMode() { return _selectLabeledOnly; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
-    float getAspectRatio() { return _aspectRatio; }
+    int getWindowWidth() { return _resolution[2]; }
+    int getWindowHeight() { return _resolution[3]; }
+    float getAspectRatio() { return (float) _resolution[2] / (float) _resolution[3]; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {

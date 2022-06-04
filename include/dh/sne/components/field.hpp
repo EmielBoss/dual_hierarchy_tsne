@@ -57,13 +57,13 @@ namespace dh::sne {
     Field& operator=(Field&&) noexcept;
 
     // Compute the field for a size (resolution) and iteration (determines technique)
-    void comp(uvec size, uint iteration, bool weightFixed);
+    void comp(uvec size, uint iteration);
 
   private:
     // Functions called by Field::comp(size, uint);
     // 1. Functions used by full computation
     void compFullCompact();
-    void compFullField(bool weightFixed);
+    void compFullField();
     // 2. Functions used by at least single hierarchy computation
     void compSingleHierarchyCompact();
     void compSingleHierarchyField();

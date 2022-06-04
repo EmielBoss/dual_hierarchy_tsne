@@ -28,6 +28,7 @@
 layout(location = 0) in vec3 embeddingIn;
 layout(location = 1) in vec3 fragEmbeddingIn;
 layout(location = 2) in vec4 colorIn;
+layout(location = 3) in float multiplier;
 
 // Output attributes
 layout(location = 0) out vec4 colorOut;
@@ -37,12 +38,14 @@ layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
 layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
-layout(location = 4) uniform bool drawLabels;
+layout(location = 4) uniform uint colorMapping;
+layout(location = 5) uniform bool canDrawLabels;
+layout(location = 6) uniform bool selectLabeledOnly;
 
 void main() {
   // Discard fragments outside of circular point's radius
   const float t = distance(embeddingIn, fragEmbeddingIn);
-  if (t > pointRadius) {
+  if (t > pointRadius * multiplier) {
     discard;
   }
 

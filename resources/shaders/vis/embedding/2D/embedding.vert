@@ -84,7 +84,6 @@ void main() {
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
 
-
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
   vec3 color;
   const int label = labels[gl_InstanceID];

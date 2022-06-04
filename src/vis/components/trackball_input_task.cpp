@@ -32,7 +32,7 @@
 
 namespace dh::vis {
   TrackballInputTask::TrackballInputTask()
-  : InputTask(1),
+  : InputTask(2, "TrackballInputTask"),
     _mouseTrackState(false), 
     _mouseScrollState(3.0f), 
     _mousePosState(0.0f), 
@@ -73,19 +73,27 @@ namespace dh::vis {
 
     // Recorcd current position in [-1, 1]
     _mousePosState = glm::vec2(xPos, yPos)
-                   / glm::vec2(window->size());    
+                   / glm::vec2(window->size());
     _mousePosState = 2.0f * _mousePosState - 1.0f;
   }
 
   void TrackballInputTask::mouseButtonInput(int button, int action) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
       _mouseTrackState = true;
-    } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+    } else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) {
       _mouseTrackState = false;
     }
   }
 
   void TrackballInputTask::mouseScrollInput(double xScroll, double yScroll) {
+    if(_zPressed) {
     _mouseScrollState = std::max(0.001f, _mouseScrollState - _mouseScrollMult * static_cast<float>(yScroll));
+    }
   }
+
+  void TrackballInputTask::keyboardInput(int button, int action) {
+    if (button == GLFW_KEY_Z && action == GLFW_PRESS) { _zPressed = true; }
+    else if (button == GLFW_KEY_Z && action == GLFW_RELEASE) { _zPressed = false; }
+  }
+
 } // dh::vis

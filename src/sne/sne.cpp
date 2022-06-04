@@ -75,7 +75,7 @@ namespace dh::sne {
     if (_params.nLowDims == 2) {
       _minimization = sne::Minimization<2>(&_similarities, _dataPtr, _labelPtr, _params);
     } else if (_params.nLowDims == 3) {
-      // _minimization = sne::Minimization<3>(&_similarities, _params);
+      _minimization = sne::Minimization<3>(&_similarities, _dataPtr, _labelPtr, _params);
     }
 
     // After similarities are available, initialize KL-divergence subcomponent

@@ -126,10 +126,8 @@ namespace dh::vis {
 
     _program.bind();
 
-    int resolution[4]; // First two ints are offsets, and (likely) 0
-    glGetIntegerv(GL_VIEWPORT, resolution); // Ask OpenGL for the viewport dimensions, since we don't have easy acces to a _windowHandle here
-    int selectionRadiusScreen = _selectionRadiusRel * (float) resolution[3] * 0.915244; // The embedding box covers 91.5244% of the screen vertically
-    _aspectRatio = (float) resolution[2] / (float) resolution[3];
+    glGetIntegerv(GL_VIEWPORT, _resolution); // Ask OpenGL for the viewport dimensions, since we don't have easy acces to a _windowHandle here
+    int selectionRadiusScreen = _selectionRadiusRel * (float) _resolution[3] * 0.915244; // The embedding box covers 91.5244% of the screen vertically
 
     // Set uniforms
     _program.template uniform<float, 2>("cursorPosition", _mousePosition);

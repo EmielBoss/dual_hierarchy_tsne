@@ -25,6 +25,7 @@
 #version 460 core
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
 layout(binding = 0, std430) restrict buffer Pos { vec2 Positions[]; };
 layout(binding = 1, std430) restrict buffer PosB4 { vec2 PositionsBeforeTranslation[]; };
 layout(binding = 2, std430) restrict readonly buffer PosRel { vec2 PositionsRelative[]; };

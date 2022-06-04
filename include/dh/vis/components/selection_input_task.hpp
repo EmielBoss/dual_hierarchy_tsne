@@ -38,6 +38,7 @@ namespace dh::vis {
     bool r;
     bool f;
     bool e;
+    bool s;
     bool d;
     bool space;
     int num;
@@ -66,6 +67,7 @@ namespace dh::vis {
         _rPressed,
         _fPressed,
         _ePressed,
+        _sPressed,
         _dPressed,
         _spacePressed,
         _numPressed
@@ -77,12 +79,14 @@ namespace dh::vis {
 
   private:
     // State
-    bool _spacePressed; // Whether spacebar is pressed
+    bool _spacePressed;
     bool _rPressed;
     bool _fPressed;
     bool _ePressed;
-    bool _dPressed; // Whether d is pressed
-    bool _mouseLeftPressed; // Whether the left mouse is clicked
+    bool _sPressed;
+    bool _dPressed;
+    bool _zPressed;
+    bool _mouseLeftPressed;
     bool _mouseRightPressed;
     bool _mouseMiddlePressed;
     int _numPressed;

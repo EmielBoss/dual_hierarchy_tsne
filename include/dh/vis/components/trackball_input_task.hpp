@@ -36,6 +36,7 @@ namespace dh::vis {
     void mousePosInput(double xPos, double yPos) override;
     void mouseButtonInput(int button, int action) override;
     void mouseScrollInput(double xScroll, double yScroll) override;
+    void keyboardInput(int button, int action) override;
 
     glm::mat4 matrix() const { return _matrix; }
 
@@ -47,6 +48,7 @@ namespace dh::vis {
     glm::vec2 _mousePosStatePrev;
     glm::mat4 _lookatState;
     glm::mat4 _matrix;
+    bool _zPressed;
 
     // Mouse speed multipliers
     float _mouseScrollMult;

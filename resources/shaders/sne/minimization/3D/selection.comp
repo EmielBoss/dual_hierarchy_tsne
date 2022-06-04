@@ -26,20 +26,22 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
+layout(binding = 0, std430) restrict readonly buffer Pos { vec3 positions[]; };
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
 layout(binding = 2, std430) restrict buffer Sel { uint selected[]; };
 layout(binding = 3, std430) restrict readonly buffer Bounds {
-  vec2 minBounds;
-  vec2 maxBounds;
-  vec2 range;
-  vec2 invRange;
+  vec3 minBounds;
+  vec3 maxBounds;
+  vec3 range;
+  vec3 invRange;
 };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec2 cursorPos;
 layout(location = 2) uniform float selectionRadiusRel;
 layout(location = 3) uniform bool selectOnlyLabeled;
+layout(location = 4) uniform mat4 model_view;
+layout(location = 5) uniform mat4 proj;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
@@ -47,7 +49,7 @@ void main() {
 
   float selectionRadiusEmbedding = range.y * selectionRadiusRel;
 
-  vec2 difference = abs(cursorPos - positions[i]);
+  vec2 difference = abs(cursorPos - (vec4(positions[i], 1.f) * model_view * proj).xy);
   float dist = length(difference);
 
   if(dist < selectionRadiusEmbedding && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius

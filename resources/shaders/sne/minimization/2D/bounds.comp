@@ -45,7 +45,6 @@ layout(binding = 5, std430) restrict buffer Bounds {
 // Uniform bindings
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform float padding;
-// layout(location = 2) uniform bool reinit;
 layout(location = 2) uniform uint iter;
 
 // Constants, shared memory
@@ -54,7 +53,7 @@ shared vec2 min_reduction[halfGroupSize];
 shared vec2 max_reduction[halfGroupSize];
 
 void main() {
-  const uint lid = gl_LocalInvocationIndex.x; // Mistake?
+  const uint lid = gl_LocalInvocationIndex.x;
   vec2 min_local = vec2(1e38);
   vec2 max_local = vec2(-1e38);
 

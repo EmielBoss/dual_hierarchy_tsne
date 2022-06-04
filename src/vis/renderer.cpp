@@ -72,10 +72,11 @@ namespace dh::vis {
     // third for brush selecting datapoints
     InputQueue::instance().emplace(vis::EscInputTask());
     if (_params.nLowDims == 3) {
-      // In 3D, center embedding on screen, and allow trackball to provide view matrix
+      // In 3D, center embedding on screen, and allow trackball to provide view matrix and selection
+      _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
       _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
     } else if (_params.nLowDims == 2) {
-      // In 2D, center embedding on screen. We only do selection in 2D for now.
+      // In 2D, center embedding on screen and allow selection
       _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
     }
 

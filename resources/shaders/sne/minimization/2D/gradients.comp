@@ -25,23 +25,26 @@
 #version 460 core
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 PositiveForces[]; };
-layout(binding = 1, std430) restrict readonly buffer Field { vec3 Fields[]; };
+
+layout(binding = 0, std430) restrict readonly buffer Attr { vec2 attrForcesBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Fiel { vec3 fieldBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer SumQ { 
   float sumQ;
   float invSumQ;
 };
-layout(binding = 3, std430) restrict writeonly buffer Grad { vec2 Gradients[]; };
+layout(binding = 3, std430) restrict writeonly buffer Grad { vec2 gradientsBuffer[]; };
+
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform float exaggeration;
 
 void main() {
-  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+  const uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) {
     return;
   }
 
-  vec2 positive = PositiveForces[i];
-  vec2 negative = Fields[i].yz * invSumQ;
-  Gradients[i] = 4.f * (exaggeration * positive - negative);
+  vec2 attrForce = attrForcesBuffer[i];
+  vec2 repForce = fieldBuffer[i].yz * invSumQ;
+
+  gradientsBuffer[i] = 4.f * (exaggeration * attrForce - repForce);
 }

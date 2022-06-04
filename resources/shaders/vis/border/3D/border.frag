@@ -24,35 +24,11 @@
 
 #version 460 core
 
-layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+layout(location = 0) in vec4 colorIn;
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
-layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
-layout(binding = 2, std430) restrict buffer Sel { uint selected[]; };
-layout(binding = 3, std430) restrict readonly buffer Bounds {
-  vec2 minBounds;
-  vec2 maxBounds;
-  vec2 range;
-  vec2 invRange;
-};
-
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
-layout(location = 2) uniform float selectionRadiusRel;
-layout(location = 3) uniform bool selectOnlyLabeled;
+out vec4 colorOut;
 
 void main() {
-  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) { return; }
-
-  float selectionRadiusEmbedding = range.y * selectionRadiusRel;
-
-  vec2 difference = abs(cursorPos - positions[i]);
-  float dist = length(difference);
-
-  if(dist < selectionRadiusEmbedding && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
-    selected[i] = int(true);
-  } else {
-    return;
-  }
+  // colorOut = vec4(0.f, 0.f, 0.f, 1.f);
+  colorOut = colorIn;
 }

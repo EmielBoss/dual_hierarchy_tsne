@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict buffer Pos { vec3 Positions[]; };
-layout(binding = 1, std430) restrict readonly buffer Bounds { 
+layout(binding = 1, std430) restrict readonly buffer Bounds {
   vec3 minBounds;
   vec3 maxBounds;
   vec3 range;
@@ -37,9 +37,7 @@ layout(location = 1) uniform vec3 center;
 layout(location = 2) uniform float scaling;
 
 void main() {
-  uint i = gl_WorkGroupID.x 
-          * gl_WorkGroupSize.x
-          + gl_LocalInvocationIndex.x;
+  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex.x;
   if (i >= nPoints) {
     return;
   }

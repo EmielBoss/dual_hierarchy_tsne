@@ -37,6 +37,7 @@
 #include "dh/vis/render_queue.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/vis/components/selection_input_task.hpp"
+#include "dh/vis/components/trackball_input_task.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
 #include "dh/vis/components/border_render_task.hpp"
@@ -166,6 +167,7 @@ namespace dh::sne {
     // Subcomponents
     Field<D> _field;
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
+    std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
     std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
     std::shared_ptr<vis::BorderRenderTask<D>> _borderRenderTask;
@@ -199,6 +201,7 @@ namespace dh::sne {
       swap(a._timers, b._timers);
       swap(a._field, b._field);
       swap(a._selectionInputTask, b._selectionInputTask);
+      swap(a._trackballInputTask, b._trackballInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._borderRenderTask, b._borderRenderTask);

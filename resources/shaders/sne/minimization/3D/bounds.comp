@@ -25,21 +25,29 @@
 #version 460 core
 
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+// Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Pos { vec3 positions[]; };
-layout(binding = 1, std430) restrict buffer BoundsReduce {
+layout(binding = 1, std430) restrict readonly buffer PosB4 { vec3 positionsRelativeBeforeTranslation[]; };
+layout(binding = 2, std430) restrict readonly buffer Mov { uint moving[]; };
+layout(binding = 3, std430) restrict readonly buffer Fix { uint fixxed[]; };
+layout(binding = 4, std430) restrict buffer BoundsReduce {
   vec3 minBoundsReduceAdd[128];
   vec3 maxBoundsReduceAdd[128];
 };
-layout(binding = 2, std430) restrict writeonly buffer Bounds { 
+layout(binding = 5, std430) restrict buffer Bounds { 
   vec3 minBounds;
   vec3 maxBounds;
   vec3 range;
   vec3 invRange;
 };
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint iter;
-layout(location = 2) uniform float padding;
 
+// Uniform bindings
+layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform float padding;
+layout(location = 2) uniform uint iter;
+
+// Constants, shared memory
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared vec3 min_reduction[halfGroupSize];
 shared vec3 max_reduction[halfGroupSize];
@@ -53,8 +61,9 @@ void main() {
     // First iteration adds all values
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
-        i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
+        i += gl_NumWorkGroups.x * gl_WorkGroupSize.x) {
       vec3 pos = positions[i];
+      if(moving[i] == 1) { pos = positionsRelativeBeforeTranslation[i] * range + minBounds; }
       min_local = min(pos, min_local);
       max_local = max(pos, max_local);
     }
@@ -82,6 +91,7 @@ void main() {
     }
   }
   barrier();
+  
   // perform store in starting unit
   if (lid < 1) {
     min_local = min(min_reduction[0], min_reduction[1]);

@@ -40,7 +40,7 @@ void main() {
   }
 
   // Push pixel on queue if not to be skipped in stencil texture
-  if (texelFetch(stencilSampler, ivec2(i), 0).x != 0u) {
+  if (texelFetch(stencilSampler, ivec2(i), 0).x  != 0u) {
     queueBuffer[atomicAdd(queueHead, 1)] = i;
   }
 }

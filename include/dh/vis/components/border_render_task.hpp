@@ -56,12 +56,6 @@ namespace dh::vis {
     void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
 
   private:
-    enum class BufferType {
-      ePositions,
-
-      Length
-    };
-
     // State
     bool _isInit;
     sne::MinimizationBuffers _minimization;
@@ -74,7 +68,8 @@ namespace dh::vis {
     float _pointOpacity;
 
     // Objects
-    util::EnumArray<BufferType, GLuint> _buffers;
+    GLuint _vboHandlePositions;
+    GLuint _vboHandleColors;
     util::GLProgram _program;
     GLuint _vaoHandle;
 
@@ -98,7 +93,8 @@ namespace dh::vis {
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
-      swap(a._buffers, b._buffers);
+      swap(a._vboHandlePositions, b._vboHandlePositions);
+      swap(a._vboHandleColors, b._vboHandleColors);
       swap(a._program, b._program);
       swap(a._vaoHandle, b._vaoHandle);
     }

@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <vector>
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -113,4 +114,17 @@ namespace dh::util {
   genType dot(AlignedVec<D, genType> x, AlignedVec<D, genType> y) {
     return glm::dot(static_cast<glm::vec<D, genType>>(x), static_cast<glm::vec<D, genType>>(y));
   }
+
+  template <unsigned D, typename genType>
+  std::vector<genType> to_unaligned_vector(std::vector<AlignedVec<D, genType>> alignedVec, uint n) {
+    uint Dvec = detail::std430_align(D) / 4;
+    std::vector<genType> unalignedVec(D * n);
+    for(uint i = 0; i < n; i++) {
+      for(uint j = 0; j < D; ++j) {
+        unalignedVec[i * D + j] = alignedVec[i][j];
+      }
+    }
+    return unalignedVec;
+  }
+
 } // dh::util

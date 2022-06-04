@@ -54,28 +54,54 @@ layout(location = 1) in vec3 embeddingIn;
 layout(location = 0) out vec3 embeddingOut;
 layout(location = 1) out vec3 fragEmbeddingOut;
 layout(location = 2) out vec4 colorOut;
+layout(location = 3) out float multiplier;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
-layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { uint labels[]; };
+layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
+layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
+layout(binding = 3, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
+layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniforms
 layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
 layout(location = 2) uniform float pointOpacity;
 layout(location = 3) uniform float pointRadius;
-layout(location = 4) uniform bool drawLabels;
+layout(location = 4) uniform uint colorMapping;
+layout(location = 5) uniform bool canDrawLabels;
+layout(location = 6) uniform bool selectLabeledOnly;
 
 void main() {
+  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 2.f : 1.f;
+  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
+
   // Calculate embedding position, fragment position
   embeddingOut = (embeddingIn - bounds.min) * bounds.invRange;
-  fragEmbeddingOut = embeddingOut + vec3(positionIn, 0) * pointRadius;
+  fragEmbeddingOut = embeddingOut + vec3(positionIn, 0) * pointRadius * multiplier;
 
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(embeddingOut, 1) 
               + proj * vec4(positionIn, 0, 1) * pointRadius;
 
-  // Calculate output color depending on label
-  const uint label = drawLabels ? labels[gl_InstanceID] % 10 : 9;
-  colorOut = vec4(colors[label] / 255.0f, pointOpacity);
+  // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
+  vec3 color;
+  const int label = labels[gl_InstanceID];
+  if(colorMapping == 1) { // Labels
+    int colorIndex = canDrawLabels && label >= 0 ? label : 9;
+    color = colors[colorIndex];
+  }
+  else if(colorMapping == 2) { // Neighborhood preservation
+    float value = neighborhoodPreservation[gl_InstanceID];
+    color = vec3(255, (1-value) * 255, (1-value) * 200);
+  }
+  else {
+    color = colors[9];
+  }
+
+  if(selected[gl_InstanceID] == 1) {
+    colorOut = vec4(color / 355.0f, pointOpacity);
+  } else {
+    colorOut = vec4(color / 255.0f, pointOpacity / divider);
+  }
 }

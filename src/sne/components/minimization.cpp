@@ -58,7 +58,8 @@ namespace dh::sne {
     std::ofstream file("../buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
-        file << buffer[i * d + j] << "|";
+        float val = buffer[i * d + j];
+        file << val << "|";
       }
       file << "\n";
     }
@@ -78,10 +79,10 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
-        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/neighborhood_preservation.comp"));
+        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_count.comp"));
-        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selected_average.comp"));
+        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
+        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
@@ -90,6 +91,11 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
+        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
+        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/selection.comp"));
+        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
+        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
+        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/translation.comp"));
       }
       
       for (auto& program : _programs) {
@@ -146,7 +152,6 @@ namespace dh::sne {
     }
 
     initializeEmbeddingRandomly(_params.seed);
-
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -155,6 +160,12 @@ namespace dh::sne {
     _field = Field<D>(buffers(), _params);
 
 #ifdef DH_ENABLE_VIS_EMBEDDING
+    // Setup input tasks
+    if (auto& queue = vis::InputQueue::instance(); queue.isInit()) {
+      _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
+      if(D == 3) { _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask")); }
+    }
+
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
@@ -162,9 +173,6 @@ namespace dh::sne {
       _borderRenderTask = queue.emplace(vis::BorderRenderTask<D>(buffers(), _params, 1));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
-
-    // Get selectionInputTask subcomponent for mouse input for selecting
-    _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
 
     _isInit = true;
   }
@@ -177,7 +185,7 @@ namespace dh::sne {
     // Copy over embedding and fixed buffers to host
     std::vector<vec> embedding(_params.n);
     glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
-    std::vector<uint> fixed(_params.n); // These are all zeroes on first initialization anyways
+    std::vector<uint> fixed(_params.n);
     glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
 
     // Seed the (bad) rng
@@ -261,18 +269,27 @@ namespace dh::sne {
     _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
     _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
 
+    // // Get everything related with the cursor and selection brush
+    // const glm::vec2 boundsRange = {_bounds.range().x, _bounds.range().y};
+    // const glm::vec2 boundsMin = {_bounds.min.x, _bounds.min.y};
+    // glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f));
+    // glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f);
+    // glm::vec4 mousePosClipInverted = glm::inverse(proj * model_view) * glm::vec4(_input.mousePosClip.x, _input.mousePosClip.y, 0.9998, 1);
+    // _mousePosEmbedding = glm::vec2(mousePosClipInverted.x, mousePosClipInverted.y) * boundsRange + boundsMin;
+    // glm::vec4 mousePosClipPrevInverted = glm::inverse(proj * model_view) * glm::vec4(mousePosClipPrev.x, mousePosClipPrev.y, 0.9998, 1);
+    // _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
+
     // Get everything related with the cursor and selection brush
     const glm::vec2 boundsRange = {_bounds.range().x, _bounds.range().y};
     const glm::vec2 boundsMin = {_bounds.min.x, _bounds.min.y};
-
-    glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f));
-    glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f);
+    glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
+    glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f); // TODO: get this directly from renderer
     glm::vec4 mousePosClipInverted = glm::inverse(proj * model_view) * glm::vec4(_input.mousePosClip.x, _input.mousePosClip.y, 0.9998, 1);
     _mousePosEmbedding = glm::vec2(mousePosClipInverted.x, mousePosClipInverted.y) * boundsRange + boundsMin;
     glm::vec4 mousePosClipPrevInverted = glm::inverse(proj * model_view) * glm::vec4(mousePosClipPrev.x, mousePosClipPrev.y, 0.9998, 1);
     _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
 
-    if(_input.mouseMiddle || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
+    if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
@@ -287,7 +304,7 @@ namespace dh::sne {
 
     if(_input.r) { compIterationMinimizationRestart(); }
     if(!_input.space) { compIterationMinimization(); }
-    if(_input.mouseLeft  ) { compIterationSelection(); }
+    if(_input.mouseLeft || _input.s) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
   }
 
@@ -335,7 +352,7 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
-
+    
     // Copy bounds back to host (hey look: an expensive thing I shouldn't be doing)
     _boundsPrev = _bounds;
     glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &_bounds);
@@ -352,7 +369,7 @@ namespace dh::sne {
       size = uvec(glm::pow(2, glm::ceil(glm::log(static_cast<float>(size.x)) / glm::log(2.f))));
 
       // Delegate to subclass
-      _field.comp(size, _iteration, _embeddingRenderTask->getWeightFixed());
+      _field.comp(size, _iteration);
     }
 
     // 3.
@@ -461,9 +478,6 @@ namespace dh::sne {
     // 6.
     // Update embedding
     {
-      glm::vec2 boundsScaling = _bounds.range() / _boundsPrev.range();
-      glm::vec2 boundsTranslation = _bounds.center() - _boundsPrev.center();
-
       auto& timer = _timers(TimerType::eUpdateEmbeddingComp);
       timer.tick();
 
@@ -534,11 +548,12 @@ namespace dh::sne {
 
     if(_colorMapping == 2 && _colorMappingPrev != 2) {
       // Compute approximate KNN of each point in embedding, delegated to FAISS
-      std::vector<float> embedding(2 * _params.n);
-      glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, 2 * _params.n * sizeof(float), embedding.data());
+      std::vector<vec> embedding(_params.n);
+      glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
+      std::vector<float> embeddingFiltered = dh::util::to_unaligned_vector<D, float>(embedding, _params.n);
       {
         util::KNN knn(
-          embedding.data(),
+          embeddingFiltered.data(),
           _buffers(BufferType::eDistancesEmb),
           _buffers(BufferType::eNeighborsEmb),
           _params.n, _params.k, D);
@@ -565,12 +580,13 @@ namespace dh::sne {
         
         glAssert();
       }
+      writeBuffer(_buffers(BufferType::eNeighborhoodPreservation), _params.n, 1, "eNeighborhoodPreservation");
+      glAssert();
     }
 
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture
     if (!_loggedNewline) {
-      
       _loggedNewline = true;
     }
     if ((++_iteration % 100) == 0) {
@@ -602,18 +618,23 @@ namespace dh::sne {
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
-      float selectionRadiusEmbedding = _bounds.range().y * _selectionRadiusRel;
-
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<float, 2>("cursorPos", _mousePosEmbedding);
-      program.template uniform<float>("selectionRadius", selectionRadiusEmbedding);
+      program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
+      if(D == 3) {
+        glm::mat4 model_view = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
+        glm::mat4 proj = glm::perspectiveFov(0.5f, (float) _selectionRenderTask->getWindowWidth(), (float) _selectionRenderTask->getWindowHeight(), 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
+        program.template uniform<float, 4, 4>("model_view", model_view);
+        program.template uniform<float, 4, 4>("proj", proj);
+      }
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelected));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
