@@ -47,14 +47,10 @@ void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  // vec2 mousePosRel = (inverse(proj * model_view) * vec4(mousePosClip.xy, 0.9998, 1)).xy;
   vec3 posRel = (positions[i] - minBounds) * invRange;
-  posRel.y = 1.f - posRel.y;
-  // posRel.z = 1.f - posRel.z;
   vec4 posClip = proj * model_view * vec4(posRel, 1);
   vec3 posNDC = posClip.xyz / posClip.w;
-  vec4 selectionRadiusClip = proj * model_view * vec4(vec3(selectionRadiusRel), 1);
-  vec3 selectionRadiusNDC = selectionRadiusClip.xyz / selectionRadiusClip.w;
+  posNDC.y = -posNDC.y;
 
   vec2 difference = abs(mousePosClip - posNDC.xy);
   difference.y /= 2;

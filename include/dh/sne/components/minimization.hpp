@@ -151,7 +151,6 @@ namespace dh::sne {
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
     uint _selectionCount;
-    int _selectionRadiusScreen;
     float _selectionRadiusRel;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
