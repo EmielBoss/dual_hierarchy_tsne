@@ -150,6 +150,11 @@ namespace dh::vis {
       return;
     }
 
+    std::vector<vec> embedding(_params.n);
+    glGetNamedBufferSubData(_minimizationBuffers.embedding, 0, _params.n * sizeof(vec), embedding.data());
+    std::vector<vec> bounds(4);
+    glGetNamedBufferSubData(_minimizationBuffers.bounds, 0, 4 * sizeof(vec), bounds.data());
+
     // Only allow drawing labels if a buffer is provided with said labels
     _canDrawLabels = (labelsHandle > 0);
 

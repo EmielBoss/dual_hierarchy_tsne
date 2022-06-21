@@ -81,7 +81,7 @@ void main() {
   fragEmbeddingOut = embeddingOut + vec3(positionIn, 0) * pointRadius * multiplier;
 
   // Calculate vertex position
-  gl_Position = proj * model_view * vec4(embeddingOut, 1) 
+  gl_Position = proj * model_view * vec4(embeddingOut, 1)
               + proj * vec4(positionIn, 0, 1) * pointRadius;
 
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels

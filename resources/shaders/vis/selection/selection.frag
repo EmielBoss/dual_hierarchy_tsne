@@ -24,27 +24,22 @@
 
 #version 460 core
 
-// Input attributes
-layout(location = 0) in vec3 embeddingIn;
-layout(location = 1) in vec3 fragEmbeddingIn;
-layout(location = 2) in vec4 colorIn;
+layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 
 // Output attributes
 layout(location = 0) out vec4 colorOut;
 
-// Uniforms
-layout(location = 0) uniform mat4 model_view;
-layout(location = 1) uniform mat4 proj;
-layout(location = 2) uniform float pointOpacity;
-layout(location = 3) uniform float pointRadius;
-layout(location = 4) uniform bool drawLabels;
+// Uniform locations
+layout(location = 0) uniform vec2 mousePosScreen;
+layout(location = 1) uniform int selectionRadiusScreen;
 
 void main() {
-  // Discard fragments outside of circular point's radius
-  const float t = distance(embeddingIn, fragEmbeddingIn);
-  if (t > pointRadius) {
+  float dist = distance(gl_FragCoord.xy, mousePosScreen);
+
+  if(dist > selectionRadiusScreen + 1 || dist < selectionRadiusScreen - 1) { // Fragment lies outside the circle radius
     discard;
+  } else {
+    colorOut = vec4(0.0, 0.0, 0.0, 1.0);
   }
 
-  colorOut = colorIn;
 }

@@ -37,20 +37,23 @@ layout(binding = 3, std430) restrict readonly buffer Bounds {
 };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
+layout(location = 1) uniform vec2 mousePosClip;
 layout(location = 2) uniform float selectionRadiusRel;
 layout(location = 3) uniform bool selectOnlyLabeled;
+layout(location = 4) uniform mat4 model_view;
+layout(location = 5) uniform mat4 proj;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  float selectionRadiusEmbedding = range.y * selectionRadiusRel;
+  vec2 mousePosRel = (inverse(proj * model_view) * vec4(mousePosClip.xy, 0.9998, 1)).xy;
+  vec2 posRel = (positions[i] - minBounds) * invRange;
 
-  vec2 difference = abs(cursorPos - positions[i]);
+  vec2 difference = abs(mousePosRel - posRel);
   float dist = length(difference);
 
-  if(dist < selectionRadiusEmbedding && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
+  if(dist < selectionRadiusRel && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
     selected[i] = int(true);
   } else {
     return;

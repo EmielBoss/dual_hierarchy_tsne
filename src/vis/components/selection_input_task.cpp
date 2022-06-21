@@ -39,6 +39,10 @@ namespace dh::vis {
     _ePressed(false),
     _sPressed(false),
     _dPressed(false),
+    _xPressed(false),
+    _yPressed(false),
+    _zPressed(false),
+    _shiftPressed(false),
     _numPressed(1),
     _mouseLeftPressed(false),
     _mouseRightPressed(false),
@@ -79,7 +83,7 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::mouseScrollInput(double xScroll, double yScroll) {
-    if(!_zPressed) {
+    if(!_shiftPressed) {
       _mouseScroll = std::max(0.001f, _mouseScroll + _mouseScrollMult * static_cast<float>(yScroll));
     }
   }
@@ -103,8 +107,17 @@ namespace dh::vis {
     if (button == GLFW_KEY_D && action == GLFW_PRESS) { _dPressed = true; }
     else if (button == GLFW_KEY_D && action == GLFW_RELEASE) { _dPressed = false; }
 
+    if (button == GLFW_KEY_X && action == GLFW_PRESS) { _xPressed = true; }
+    else if (button == GLFW_KEY_X && action == GLFW_RELEASE) { _xPressed = false; }
+
+    if (button == GLFW_KEY_Y && action == GLFW_PRESS) { _yPressed = true; }
+    else if (button == GLFW_KEY_Y && action == GLFW_RELEASE) { _yPressed = false; }
+
     if (button == GLFW_KEY_Z && action == GLFW_PRESS) { _zPressed = true; }
     else if (button == GLFW_KEY_Z && action == GLFW_RELEASE) { _zPressed = false; }
+
+    if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS) { _shiftPressed = true; }
+    else if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE) { _shiftPressed = false; }
 
     if (button == GLFW_KEY_0 && action == GLFW_PRESS) { _numPressed = 0; }
     else if (button == GLFW_KEY_1 && action == GLFW_PRESS) { _numPressed = 1; }

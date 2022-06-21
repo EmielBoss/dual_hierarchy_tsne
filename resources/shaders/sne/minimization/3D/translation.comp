@@ -41,12 +41,11 @@ layout(binding = 7, std430) restrict readonly buffer Bounds {
 };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
-layout(location = 2) uniform vec2 cursorPosPrev;
-layout(location = 3) uniform bool translationStarted;
-layout(location = 4) uniform bool translationFinished;
-layout(location = 5) uniform bool weighForces;
-layout(location = 6) uniform float weightFixed;
+layout(location = 1) uniform vec3 shiftRel;
+layout(location = 2) uniform bool translationStarted;
+layout(location = 3) uniform bool translationFinished;
+layout(location = 4) uniform bool weighForces;
+layout(location = 5) uniform float weightFixed;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
@@ -58,9 +57,7 @@ void main() {
     positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
   }
 
-  vec2 shiftRelative = (cursorPos - minBounds.xy) * invRange.xy
-                      - (cursorPosPrev - minBounds.xy) * invRange.xy;
-  if(!translationFinished) { positionsRelativeBuffer[i].xy += shiftRelative; }
+  if(!translationFinished) { positionsRelativeBuffer[i] += shiftRel; }
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
   if(weighForces) { weightsBuffer[i] = weightFixed; }

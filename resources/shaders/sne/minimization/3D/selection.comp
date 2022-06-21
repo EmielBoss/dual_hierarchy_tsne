@@ -37,7 +37,7 @@ layout(binding = 3, std430) restrict readonly buffer Bounds {
 };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform vec2 cursorPos;
+layout(location = 1) uniform vec2 mousePosClip;
 layout(location = 2) uniform float selectionRadiusRel;
 layout(location = 3) uniform bool selectOnlyLabeled;
 layout(location = 4) uniform mat4 model_view;
@@ -47,12 +47,20 @@ void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  float selectionRadiusEmbedding = range.y * selectionRadiusRel;
+  // vec2 mousePosRel = (inverse(proj * model_view) * vec4(mousePosClip.xy, 0.9998, 1)).xy;
+  vec3 posRel = (positions[i] - minBounds) * invRange;
+  posRel.y = 1.f - posRel.y;
+  // posRel.z = 1.f - posRel.z;
+  vec4 posClip = proj * model_view * vec4(posRel, 1);
+  vec3 posNDC = posClip.xyz / posClip.w;
+  vec4 selectionRadiusClip = proj * model_view * vec4(vec3(selectionRadiusRel), 1);
+  vec3 selectionRadiusNDC = selectionRadiusClip.xyz / selectionRadiusClip.w;
 
-  vec2 difference = abs(cursorPos - (vec4(positions[i], 1.f) * model_view * proj).xy);
+  vec2 difference = abs(mousePosClip - posNDC.xy);
+  difference.y /= 2;
   float dist = length(difference);
 
-  if(dist < selectionRadiusEmbedding && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
+  if(dist < selectionRadiusRel && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
     selected[i] = int(true);
   } else {
     return;

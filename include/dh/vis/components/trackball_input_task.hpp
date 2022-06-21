@@ -32,6 +32,7 @@ namespace dh::vis {
   public:
     TrackballInputTask();
 
+    glm::mat4 rotateLookat(glm::vec2 v);
     void process() override;
     void mousePosInput(double xPos, double yPos) override;
     void mouseButtonInput(int button, int action) override;
@@ -39,6 +40,7 @@ namespace dh::vis {
     void keyboardInput(int button, int action) override;
 
     glm::mat4 matrix() const { return _matrix; }
+    glm::mat3 changeOfBaseToCam() const { return _changeOfBaseToCam; }
 
   private:
     // State
@@ -48,7 +50,11 @@ namespace dh::vis {
     glm::vec2 _mousePosStatePrev;
     glm::mat4 _lookatState;
     glm::mat4 _matrix;
-    bool _zPressed;
+    bool _shiftPressed;
+    float _timePrev; // Time of last frame
+    glm::vec4 _cameraPos;
+    glm::vec4 _up;
+    glm::mat3 _changeOfBaseToCam;
 
     // Mouse speed multipliers
     float _mouseScrollMult;

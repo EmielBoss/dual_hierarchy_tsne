@@ -85,7 +85,10 @@ namespace dh::vis {
     bool _ePressed;
     bool _sPressed;
     bool _dPressed;
+    bool _xPressed;
+    bool _yPressed;
     bool _zPressed;
+    bool _shiftPressed;
     bool _mouseLeftPressed;
     bool _mouseRightPressed;
     bool _mouseMiddlePressed;

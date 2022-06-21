@@ -145,8 +145,6 @@ namespace dh::sne {
     Bounds _bounds;
     Bounds _boundsPrev;
     vis::Input _input;
-    glm::vec2 _mousePosEmbedding; // Position of the mouse in embedding space, i.e. relative to _bounds
-    glm::vec2 _mousePosEmbeddingPrev;
     uint _cursorMode;
     uint _colorMapping;
     uint _colorMappingPrev;
@@ -157,6 +155,11 @@ namespace dh::sne {
     float _selectionRadiusRel;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
+    glm::vec2 _mousePosClipPrev;
+    glm::mat4 _model_view_2D;
+    glm::mat4 _proj_2D;
+    glm::mat4 _model_view_3D;
+    glm::mat4 _proj_3D;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

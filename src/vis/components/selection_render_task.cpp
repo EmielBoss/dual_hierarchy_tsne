@@ -55,19 +55,12 @@ namespace dh::vis {
     _params(params),
     _selectLabeledOnly(false),
     _selectionRadiusRel(0.03),
-    _mousePosition({0.0, 0.0}) {
+    _mousePosScreen({0.0, 0.0}) {
 
     // Initialize shader program
     {
-      // if constexpr (D == 2) {
-      //   _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/2D/selection.vert"));
-      //   _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/2D/selection.frag"));
-      // } else if constexpr (D == 3) {
-      //   _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/3D/embedding.vert"));
-      //   _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/3D/embedding.frag"));
-      // }
-      _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/2D/selection.vert"));
-      _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/2D/selection.frag"));
+      _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/selection/selection.vert"));
+      _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/selection/selection.frag"));
       _program.link();
       glAssert();
     }
@@ -126,12 +119,13 @@ namespace dh::vis {
 
     _program.bind();
 
-    glGetIntegerv(GL_VIEWPORT, _resolution); // Ask OpenGL for the viewport dimensions, since we don't have easy acces to a _windowHandle here
-    int selectionRadiusScreen = _selectionRadiusRel * (float) _resolution[3] * 0.915244; // The embedding box covers 91.5244% of the screen vertically
+    int resolution[4]; // First two are offsets (and likely 0)
+    glGetIntegerv(GL_VIEWPORT, resolution); // Ask OpenGL for the viewport dimensions, since we don't have easy acces to a _windowHandle here
+    int selectionRadiusScreen = _selectionRadiusRel * (float) resolution[3] * 0.915244; // The embedding box covers 91.5244% of the screen vertically
 
     // Set uniforms
-    _program.template uniform<float, 2>("cursorPosition", _mousePosition);
-    _program.template uniform<int>("selectionRadius", selectionRadiusScreen);
+    _program.template uniform<float, 2>("mousePosScreen", _mousePosScreen);
+    _program.template uniform<int>("selectionRadiusScreen", selectionRadiusScreen);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);

@@ -64,8 +64,7 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
-    glm::vec2 _mousePosition;
-    int _resolution[4]; // First two ints are offsets, and (likely) 0
+    glm::vec2 _mousePosScreen;
 
     // ImGui state
     bool _canDrawLabels;
@@ -85,10 +84,7 @@ namespace dh::vis {
     void setSelectionRadiusRel(float selectionRadiusRel) { _selectionRadiusRel = selectionRadiusRel; }
     int getSelectionMode() { return _selectLabeledOnly; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
-    void setMousePosition(const glm::vec2& position) { _mousePosition = position; }
-    int getWindowWidth() { return _resolution[2]; }
-    int getWindowHeight() { return _resolution[3]; }
-    float getAspectRatio() { return (float) _resolution[2] / (float) _resolution[3]; }
+    void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -98,7 +94,7 @@ namespace dh::vis {
       swap(a._params, b._params);
       swap(a._selectionRadiusRel, b._selectionRadiusRel);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
-      swap(a._mousePosition, b._mousePosition);
+      swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._buffers, b._buffers);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._vaoHandle, b._vaoHandle);

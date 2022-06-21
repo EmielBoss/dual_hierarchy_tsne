@@ -243,7 +243,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::compIteration() {
-    glm::vec2 mousePosClipPrev = _input.mousePosClip;
+    _mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
     _input = _selectionInputTask->getInput();
@@ -263,31 +263,19 @@ namespace dh::sne {
     _selectionRadiusRel = _input.mouseScroll / 100.f;
     if(_selectionRadiusRel != selectionRadiusRelPrev) { _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel); }
 
-    _selectionRenderTask->setMousePosition(_input.mousePosScreen);
+    _selectionRenderTask->setMousePosScreen(_input.mousePosScreen);
     // Synchronize selection mode
     _selectOnlyLabeledPrev = _selectOnlyLabeled;
     _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
     _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
 
-    // // Get everything related with the cursor and selection brush
-    // const glm::vec2 boundsRange = {_bounds.range().x, _bounds.range().y};
-    // const glm::vec2 boundsMin = {_bounds.min.x, _bounds.min.y};
-    // glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f));
-    // glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f);
-    // glm::vec4 mousePosClipInverted = glm::inverse(proj * model_view) * glm::vec4(_input.mousePosClip.x, _input.mousePosClip.y, 0.9998, 1);
-    // _mousePosEmbedding = glm::vec2(mousePosClipInverted.x, mousePosClipInverted.y) * boundsRange + boundsMin;
-    // glm::vec4 mousePosClipPrevInverted = glm::inverse(proj * model_view) * glm::vec4(mousePosClipPrev.x, mousePosClipPrev.y, 0.9998, 1);
-    // _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
-
     // Get everything related with the cursor and selection brush
-    const glm::vec2 boundsRange = {_bounds.range().x, _bounds.range().y};
-    const glm::vec2 boundsMin = {_bounds.min.x, _bounds.min.y};
-    glm::mat4 model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
-    glm::mat4 proj = glm::infinitePerspective(1.0f, _selectionRenderTask->getAspectRatio(), 0.0001f); // TODO: get this directly from renderer
-    glm::vec4 mousePosClipInverted = glm::inverse(proj * model_view) * glm::vec4(_input.mousePosClip.x, _input.mousePosClip.y, 0.9998, 1);
-    _mousePosEmbedding = glm::vec2(mousePosClipInverted.x, mousePosClipInverted.y) * boundsRange + boundsMin;
-    glm::vec4 mousePosClipPrevInverted = glm::inverse(proj * model_view) * glm::vec4(mousePosClipPrev.x, mousePosClipPrev.y, 0.9998, 1);
-    _mousePosEmbeddingPrev = glm::vec2(mousePosClipPrevInverted.x, mousePosClipPrevInverted.y) * boundsRange + boundsMin;
+    util::GLWindow* window = util::GLWindow::currentWindow();
+    glm::vec2 resolution = glm::vec2(window->size());
+    _model_view_2D = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
+    _proj_2D = glm::infinitePerspective(1.0f, resolution.x / resolution.y, 0.0001f); // TODO: get this directly from renderer
+    _model_view_3D = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
+    _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
 
     if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
@@ -620,15 +608,11 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("cursorPos", _mousePosEmbedding);
+      program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
-      if(D == 3) {
-        glm::mat4 model_view = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
-        glm::mat4 proj = glm::perspectiveFov(0.5f, (float) _selectionRenderTask->getWindowWidth(), (float) _selectionRenderTask->getWindowHeight(), 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
-        program.template uniform<float, 4, 4>("model_view", model_view);
-        program.template uniform<float, 4, 4>("proj", proj);
-      }
+      program.template uniform<float, 4, 4>("model_view", D == 2 ? _model_view_2D : _model_view_3D);
+      program.template uniform<float, 4, 4>("proj", D == 2 ? _proj_2D : _proj_3D);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -709,13 +693,20 @@ namespace dh::sne {
 
     // Compute translation
     {
+      glm::vec4 mousePosRel = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_input.mousePosClip, 0.9998, 1);
+      glm::vec4 mousePosRelPrev = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_mousePosClipPrev, 0.9998, 1);
+      vec shiftRel = mousePosRel - mousePosRelPrev;
+      if constexpr (D == 3) {
+        shiftRel = _trackballInputTask->changeOfBaseToCam() * shiftRel;
+        shiftRel.y = -shiftRel.y;
+      }
+
       auto& program = _programs(ProgramType::eTranslationComp);
       program.bind();
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, 2>("cursorPos", _mousePosEmbedding);
-      program.template uniform<float, 2>("cursorPosPrev", _mousePosEmbeddingPrev);
+      program.template uniform<float, D>("shiftRel", shiftRel);
       program.template uniform<bool>("translationStarted", !_mouseRightPrev);
       program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
       program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
