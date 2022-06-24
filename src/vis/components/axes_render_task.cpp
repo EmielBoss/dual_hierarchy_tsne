@@ -28,7 +28,7 @@
 #include <glad/glad.h>
 #include <imgui.h>
 #include "dh/util/gl/error.hpp"
-#include "dh/vis/components/border_render_task.hpp"
+#include "dh/vis/components/axes_render_task.hpp"
 
 namespace dh::vis {
   // Rectangle vertex position data
@@ -58,14 +58,14 @@ namespace dh::vis {
   };
   
   template <uint D>
-  BorderRenderTask<D>::BorderRenderTask()
+  AxesRenderTask<D>::AxesRenderTask()
   : RenderTask(), _isInit(false) {
     // ...
   }
 
   template <uint D>
-  BorderRenderTask<D>::BorderRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority)
-  : RenderTask(priority, "BorderRenderTask"), 
+  AxesRenderTask<D>::AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority)
+  : RenderTask(priority, "AxesRenderTask"), 
     _isInit(false),
     _minimization(minimization),
     _params(params) {
@@ -75,11 +75,11 @@ namespace dh::vis {
     // Initialize shader program
     {
       if constexpr (D == 2) {
-        _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/border/2D/border.vert"));
-        _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/border/2D/border.frag"));
+        _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/axes/2D/axes.vert"));
+        _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/axes/2D/axes.frag"));
       } else if constexpr (D == 3) {
-        _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/border/3D/border.vert"));
-        _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/border/3D/border.frag"));
+        _program.addShader(util::GLShaderType::eVertex, rsrc::get("vis/axes/3D/axes.vert"));
+        _program.addShader(util::GLShaderType::eFragment, rsrc::get("vis/axes/3D/axes.frag"));
       }
       _program.link();
       glAssert();
@@ -129,7 +129,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  BorderRenderTask<D>::~BorderRenderTask() {
+  AxesRenderTask<D>::~AxesRenderTask() {
     if (_isInit) {
       glDeleteVertexArrays(1, &_vaoHandle);
       glDeleteBuffers(1, &_vboHandlePositions);
@@ -138,18 +138,18 @@ namespace dh::vis {
   }
 
   template <uint D>
-  BorderRenderTask<D>::BorderRenderTask(BorderRenderTask&& other) noexcept {
+  AxesRenderTask<D>::AxesRenderTask(AxesRenderTask&& other) noexcept {
     swap(*this, other);
   }
 
   template <uint D>
-  BorderRenderTask<D>& BorderRenderTask<D>::operator=(BorderRenderTask<D>&& other) noexcept {
+  AxesRenderTask<D>& AxesRenderTask<D>::operator=(AxesRenderTask<D>&& other) noexcept {
     swap(*this, other);
     return *this;
   }
 
   template <uint D>
-  void BorderRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+  void AxesRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
     if (!enable) {
       return;
     }
@@ -167,8 +167,8 @@ namespace dh::vis {
   }
 
   template <uint D>
-  void BorderRenderTask<D>::drawImGuiComponent() {
-    if (ImGui::CollapsingHeader("Border render settings")) {
+  void AxesRenderTask<D>::drawImGuiComponent() {
+    if (ImGui::CollapsingHeader("Axes settings")) {
       ImGui::Spacing();
       // ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::Spacing();
@@ -176,6 +176,6 @@ namespace dh::vis {
   }
 
   // Template instantiations for 2/3 dimensions
-  template class BorderRenderTask<2>;
-  template class BorderRenderTask<3>;
+  template class AxesRenderTask<2>;
+  template class AxesRenderTask<3>;
 } // dh::vis

@@ -45,14 +45,14 @@ namespace dh::sne {
   // Params for field size
   constexpr uint fieldMinSize = 5;
 
-  template <uint D>
-  Minimization<D>::Minimization()
+  template <uint D, uint DD>
+  Minimization<D, DD>::Minimization()
   : _isInit(false) {
     // ...
   }
 
-  template <uint D>
-  void Minimization<D>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<float> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(float), buffer.data());
     std::ofstream file("../buffer_dumps/" + filename + ".txt");
@@ -65,13 +65,16 @@ namespace dh::sne {
     }
   }
 
-  template <uint D>
-  Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params)
-  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _selectionCount(0), _params(params), _iteration(0) {
+  template <uint D, uint DD>
+  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, char* axisMapping)
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _selectionCount(0), _params(params), _axisMapping(axisMapping), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
-    {      
+    {
+      _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
+      _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
+      _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -79,10 +82,7 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
-        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
-        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
@@ -91,10 +91,7 @@ namespace dh::sne {
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
-        _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/selection.comp"));
-        _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
-        _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/translation.comp"));
       }
       
@@ -163,14 +160,14 @@ namespace dh::sne {
     // Setup input tasks
     if (auto& queue = vis::InputQueue::instance(); queue.isInit()) {
       _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
-      if(D == 3) { _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask")); }
+      if(DD == 3) { _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask")); }
     }
 
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(buffers(), _params, 0));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
+      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, 1));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, dataPtr));
-      _borderRenderTask = queue.emplace(vis::BorderRenderTask<D>(buffers(), _params, 1));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
@@ -179,8 +176,8 @@ namespace dh::sne {
 
   // Generate randomized embedding data
   // TODO: look at CUDA-tSNE's approach, they have several options available for initialization
-  template <uint D>
-  void Minimization<D>::initializeEmbeddingRandomly(int seed) {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::initializeEmbeddingRandomly(int seed) {
     
     // Copy over embedding and fixed buffers to host
     std::vector<vec> embedding(_params.n);
@@ -214,8 +211,8 @@ namespace dh::sne {
     glAssert();
   }
 
-  template <uint D>
-  Minimization<D>::~Minimization() {
+  template <uint D, uint DD>
+  Minimization<D, DD>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
       glDeleteTextures(1, &_averageSelectionTexture);
@@ -223,26 +220,26 @@ namespace dh::sne {
     }
   }
 
-  template <uint D>
-  Minimization<D>::Minimization(Minimization<D>&& other) noexcept {
+  template <uint D, uint DD>
+  Minimization<D, DD>::Minimization(Minimization<D, DD>&& other) noexcept {
     swap(*this, other);
   }
 
-  template <uint D>
-  Minimization<D>& Minimization<D>::operator=(Minimization<D>&& other) noexcept {
+  template <uint D, uint DD>
+  Minimization<D, DD>& Minimization<D, DD>::operator=(Minimization<D, DD>&& other) noexcept {
     swap(*this, other);
     return *this;
   }
 
-  template <uint D>
-  void Minimization<D>::comp() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::comp() {
     while (_iteration < _params.iterations) {
       compIteration();
     }
   }
 
-  template <uint D>
-  void Minimization<D>::compIteration() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIteration() {
     _mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
@@ -274,8 +271,10 @@ namespace dh::sne {
     glm::vec2 resolution = glm::vec2(window->size());
     _model_view_2D = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
     _proj_2D = glm::infinitePerspective(1.0f, resolution.x / resolution.y, 0.0001f); // TODO: get this directly from renderer
-    _model_view_3D = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
-    _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
+    if(D == 3) {
+      _model_view_3D = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
+      _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
+    }
 
     if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
@@ -294,10 +293,11 @@ namespace dh::sne {
     if(!_input.space) { compIterationMinimization(); }
     if(_input.mouseLeft || _input.s) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
+    glAssert();
   }
 
-  template <uint D>
-  void Minimization<D>::compIterationMinimizationRestart() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIterationMinimizationRestart() {
     if(_iteration < 100) { return; }
     initializeEmbeddingRandomly(_iteration);
     _iteration = 0;
@@ -305,8 +305,8 @@ namespace dh::sne {
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
   }
 
-  template <uint D>
-  void Minimization<D>::compIterationMinimization() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIterationMinimization() {
 
     // 1.
     // Compute embedding bounds
@@ -521,7 +521,6 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -597,8 +596,8 @@ namespace dh::sne {
     }
   }
 
-  template <uint D>
-  void Minimization<D>::compIterationSelection() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIterationSelection() {
 
     // 1.
     // Compute selection
@@ -688,8 +687,8 @@ namespace dh::sne {
     }
   }
 
-  template <uint D>
-  void Minimization<D>::compIterationTranslation() {
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIterationTranslation() {
 
     // Compute translation
     {
@@ -732,6 +731,7 @@ namespace dh::sne {
   }
 
   // Template instantiations for 2/3 dimensions
-  template class Minimization<2>;
-  template class Minimization<3>;
+  template class Minimization<2, 2>;
+  template class Minimization<2, 3>;
+  template class Minimization<3, 3>;
 } // dh::sne

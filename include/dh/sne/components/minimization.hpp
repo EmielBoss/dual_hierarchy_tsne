@@ -40,10 +40,10 @@
 #include "dh/vis/components/trackball_input_task.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
-#include "dh/vis/components/border_render_task.hpp"
+#include "dh/vis/components/axes_render_task.hpp"
 
 namespace dh::sne {
-  template <uint D> // Dimension of produced embedding
+  template <uint D, uint DD> // Number of t-SNE axes and total number of axes
   class Minimization {
     // aligned types
     using Bounds = util::AlignedBounds<D>;
@@ -53,7 +53,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params);  
+    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, char* axisMapping);  
     ~Minimization();
 
     // Copy constr/assignment is explicitly deleted
@@ -139,6 +139,7 @@ namespace dh::sne {
     bool _isInit;
     bool _loggedNewline;
     Params _params;
+    char* _axisMapping;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     uint _iteration;
@@ -171,8 +172,8 @@ namespace dh::sne {
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
-    std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
-    std::shared_ptr<vis::BorderRenderTask<D>> _borderRenderTask;
+    std::shared_ptr<vis::EmbeddingRenderTask<DD>> _embeddingRenderTask;
+    std::shared_ptr<vis::AxesRenderTask<DD>> _axesRenderTask;
 
   public:
     // Getters
@@ -191,7 +192,7 @@ namespace dh::sne {
     bool isInit() const { return _isInit; }
 
     // std::swap impl
-    friend void swap(Minimization<D>& a, Minimization<D>& b) noexcept {
+    friend void swap(Minimization<D, DD>& a, Minimization<D, DD>& b) noexcept {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
@@ -206,7 +207,7 @@ namespace dh::sne {
       swap(a._trackballInputTask, b._trackballInputTask);
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
-      swap(a._borderRenderTask, b._borderRenderTask);
+      swap(a._axesRenderTask, b._axesRenderTask);
       swap(a._averageSelectionTexture, b._averageSelectionTexture);
     }
   };

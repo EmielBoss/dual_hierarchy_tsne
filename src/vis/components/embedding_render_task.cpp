@@ -146,18 +146,22 @@ namespace dh::vis {
 
   template <uint D>
   void EmbeddingRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+
     if (!enable) {
       return;
     }
 
+    glAssert();
     std::vector<vec> embedding(_params.n);
     glGetNamedBufferSubData(_minimizationBuffers.embedding, 0, _params.n * sizeof(vec), embedding.data());
+    glAssert();
     std::vector<vec> bounds(4);
     glGetNamedBufferSubData(_minimizationBuffers.bounds, 0, 4 * sizeof(vec), bounds.data());
+    glAssert();
 
     // Only allow drawing labels if a buffer is provided with said labels
     _canDrawLabels = (labelsHandle > 0);
-
+    
     _program.bind();
 
     std::vector<uint> labeled(_params.n);

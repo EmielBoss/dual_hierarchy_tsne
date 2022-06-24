@@ -34,21 +34,21 @@
 
 namespace dh::vis {
   template <uint D>
-  class BorderRenderTask : public RenderTask {
+  class AxesRenderTask : public RenderTask {
     using vec = util::AlignedVec<D, float>;
 
   public:
-    BorderRenderTask();
-    BorderRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority);
-    ~BorderRenderTask();
+    AxesRenderTask();
+    AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority);
+    ~AxesRenderTask();
 
     // Copy constr/assignment is explicitly deleted
-    BorderRenderTask(const BorderRenderTask&) = delete;
-    BorderRenderTask& operator=(const BorderRenderTask&) = delete;
+    AxesRenderTask(const AxesRenderTask&) = delete;
+    AxesRenderTask& operator=(const AxesRenderTask&) = delete;
 
     // Move constr/operator moves handles
-    BorderRenderTask(BorderRenderTask&&) noexcept;
-    BorderRenderTask& operator=(BorderRenderTask&&) noexcept;
+    AxesRenderTask(AxesRenderTask&&) noexcept;
+    AxesRenderTask& operator=(AxesRenderTask&&) noexcept;
 
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
@@ -83,7 +83,7 @@ namespace dh::vis {
     };
     
     // std::swap impl
-    friend void swap(BorderRenderTask& a, BorderRenderTask& b) noexcept {
+    friend void swap(AxesRenderTask& a, AxesRenderTask& b) noexcept {
       using std::swap;
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);

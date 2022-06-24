@@ -33,10 +33,11 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(Params params, const std::vector<float>& data, const std::vector<int>& labels)
+  SNE::SNE(Params params, char* axisMapping, const std::vector<float>& data, const std::vector<int>& labels)
   : _dataPtr(data.data()),
     _labelPtr(labels.data()),
     _params(params),
+    _axisMapping(axisMapping),
     _similarities(_dataPtr, params),
     _isInit(true) {
     // ...
@@ -72,10 +73,11 @@ namespace dh::sne {
     _similaritiesTimer.poll();
 
     // After similarities are available, initialize minimization subcomponent
-    if (_params.nLowDims == 2) {
-      _minimization = sne::Minimization<2>(&_similarities, _dataPtr, _labelPtr, _params);
-    } else if (_params.nLowDims == 3) {
-      _minimization = sne::Minimization<3>(&_similarities, _dataPtr, _labelPtr, _params);
+    uint numSNEdims = uint(_axisMapping[0] == 't') + uint(_axisMapping[1] == 't') + uint(_axisMapping[2] == 't');
+    if (_params.nLowDims == 2) {  _minimization = sne::Minimization<2, 2>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
+    if (_params.nLowDims == 3) {
+      if(numSNEdims == 2) {       _minimization = sne::Minimization<2, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
+      if(numSNEdims == 3) {       _minimization = sne::Minimization<3, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); }
     }
 
     // After similarities are available, initialize KL-divergence subcomponent

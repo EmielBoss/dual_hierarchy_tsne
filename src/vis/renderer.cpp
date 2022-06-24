@@ -46,9 +46,10 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(sne::Params params, const util::GLWindow& window, const std::vector<int>& labels)
+  Renderer::Renderer(sne::Params params, char* axisMapping, const util::GLWindow& window, const std::vector<int>& labels)
   : _isInit(false),
     _params(params),
+    _axisMapping(axisMapping),
     _windowHandle(&window),
     _labelsHandle(0),
     _fboSize(0) {
@@ -222,8 +223,8 @@ namespace dh::vis {
       ImGui::Checkbox("Embedding", &(ptr->enable));
       ImGui::SameLine();
     }
-    if (auto ptr = queue.find("BorderRenderTask"); ptr) {
-      ImGui::Checkbox("Border", &(ptr->enable));
+    if (auto ptr = queue.find("AxesRenderTask"); ptr) {
+      ImGui::Checkbox("Axes", &(ptr->enable));
       ImGui::SameLine();
     }
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr) {
@@ -256,6 +257,6 @@ namespace dh::vis {
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("BorderRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

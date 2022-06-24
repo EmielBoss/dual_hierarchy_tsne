@@ -43,6 +43,7 @@ const std::string windowTitle = "Dual-Hierarchy t-SNE Demo";
 std::string iptFilename;
 std::string optFilename;
 dh::sne::Params params;
+char axisMapping[3] = {'t', 't', 't'};
 
 // Program parameters, set by cli(...)
 bool progDoKlDivergence = false;
@@ -73,7 +74,12 @@ void cli(int argc, char** argv) {
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
-    ("h,help", "Print this help message and exit");
+    ("h,help", "Print this help message and exit")
+
+    // Optional axis specifiers
+    // ("x,xAxis", "What to map to the x-axis, t=t-SNE, p=PCA, a=Attribute, -=None (default: t)", cxxopts::value<char>());
+    // ("y,yAxis", "What to map to the y-axis, t=t-SNE, p=PCA, a=Attribute, -=None (default: t)", cxxopts::value<char>());
+    ("z,zAxis", "What to map to the z-axis, t=t-SNE, p=PCA, a=Attribute, -=None (default: t)", cxxopts::value<char>());
 
   options.parse_positional({"iptFilename", "nPoints", "nHighDims", "nLowDims"});
   options.positional_help("<iptFilename> <n> <nHighDims> <nLowDims>");
@@ -97,6 +103,7 @@ void cli(int argc, char** argv) {
   params.n = result["nPoints"].as<uint>();
   params.nHighDims = result["nHighDims"].as<uint>();
   params.nLowDims = result["nLowDims"].as<uint>();
+  if(params.nLowDims == 2) { axisMapping[2] = '-'; }
 
   // Check for and parse optional arguments
   if (result.count("optFilename")) { optFilename = result["optFilename"].as<std::string>(); }
@@ -105,6 +112,9 @@ void cli(int argc, char** argv) {
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }
+  // if (result.count("xAxis")) { axisMapping[0] = result["xAxis"].as<char>(); }
+  // if (result.count("yAxis")) { axisMapping[1] = result["yAxis"].as<char>(); }
+  if (result.count("zAxis")) { axisMapping[2] = result["zAxis"].as<char>(); }
   if (result.count("kld")) { progDoKlDivergence = true; }
   if (result.count("lbl")) { progDoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
@@ -134,8 +144,8 @@ void sne() {
   dh::util::GLWindow window(info);
 
   // Create necessary components
-  dh::vis::Renderer renderer(params, window, labels);
-  dh::sne::SNE sne(params, data, labels);
+  dh::vis::Renderer renderer(params, axisMapping, window, labels);
+  dh::sne::SNE sne(params, axisMapping, data, labels);
 
   // If visualization is requested, minimize and render at the same time
   if (progDoVisDuring) {

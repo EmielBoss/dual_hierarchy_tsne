@@ -39,7 +39,7 @@ namespace dh::vis {
   public:
     // Constr/destr
     Renderer();
-    Renderer(sne::Params params, const util::GLWindow& window, const std::vector<int>& labels = {});
+    Renderer(sne::Params params, char* axisMapping, const util::GLWindow& window, const std::vector<int>& labels = {});
     ~Renderer();
 
     // Copy constr/assignment is explicitly deleted (no copying OpenGL handles)
@@ -60,6 +60,7 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::Params _params;
+    char* _axisMapping;
     const util::GLWindow * _windowHandle;
     glm::ivec2 _fboSize;
 
@@ -81,6 +82,7 @@ namespace dh::vis {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
+      swap(a._axisMapping, b._axisMapping);
       swap(a._windowHandle, b._windowHandle);
       swap(a._fboSize, b._fboSize);
       swap(a._labelsHandle, b._labelsHandle);
