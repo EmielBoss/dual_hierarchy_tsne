@@ -48,10 +48,10 @@ const vec3 colors[10] = vec3[10](
 
 // Input attributes
 layout(location = 0) in vec2 positionIn;
-layout(location = 1) in vec3 embeddingIn;
+layout(location = 1) in vec3 embeddingRelIn;
 
 // Output attributes
-layout(location = 0) out vec3 embeddingOut;
+layout(location = 0) out vec3 embeddingRelOut;
 layout(location = 1) out vec3 fragEmbeddingOut;
 layout(location = 2) out vec4 colorOut;
 layout(location = 3) out float multiplier;
@@ -77,11 +77,11 @@ void main() {
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
 
   // Calculate embedding position, fragment position
-  embeddingOut = (embeddingIn - bounds.min) * bounds.invRange;
-  fragEmbeddingOut = embeddingOut + vec3(positionIn, 0) * pointRadius * multiplier;
+  embeddingRelOut = embeddingRelIn;
+  fragEmbeddingOut = embeddingRelOut + vec3(positionIn, 0) * pointRadius * multiplier;
 
   // Calculate vertex position
-  gl_Position = proj * model_view * vec4(embeddingOut, 1)
+  gl_Position = proj * model_view * vec4(embeddingRelOut, 1)
               + proj * vec4(positionIn, 0, 1) * pointRadius;
 
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels

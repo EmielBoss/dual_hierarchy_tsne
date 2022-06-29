@@ -180,6 +180,7 @@ namespace dh::sne {
     MinimizationBuffers buffers() const {
       return {
         _buffers(BufferType::eEmbedding),
+        _buffers(BufferType::eEmbeddingRelative),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
         _buffers(BufferType::eLabeled),

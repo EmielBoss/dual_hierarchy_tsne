@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec3 positions[]; };
+layout(binding = 0, std430) restrict readonly buffer Pos { vec3 positionsRel[]; };
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
 layout(binding = 2, std430) restrict buffer Sel { uint selected[]; };
 layout(binding = 3, std430) restrict readonly buffer Bounds {
@@ -47,8 +47,7 @@ void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  vec3 posRel = (positions[i] - minBounds) * invRange;
-  vec4 posClip = proj * model_view * vec4(posRel, 1);
+  vec4 posClip = proj * model_view * vec4(positionsRel[i], 1);
   vec3 posNDC = posClip.xyz / posClip.w;
   posNDC.y = -posNDC.y;
 

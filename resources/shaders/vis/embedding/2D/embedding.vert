@@ -48,10 +48,10 @@ const vec3 colors[10] = vec3[10](
 
 // Input attributes
 layout(location = 0) in vec2 positionIn;
-layout(location = 1) in vec2 embeddingIn;
+layout(location = 1) in vec2 embeddingRelIn;
 
 // Output attributes
-layout(location = 0) out vec2 embeddingOut;
+layout(location = 0) out vec2 embeddingRelOut;
 layout(location = 1) out vec2 fragEmbeddingOut;
 layout(location = 2) out vec4 colorOut;
 layout(location = 3) out float multiplier;
@@ -77,9 +77,9 @@ void main() {
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
 
   // Calculate embedding position, fragment position
-  embeddingOut = (embeddingIn - bounds.min) * bounds.invRange;
-  embeddingOut.y = 1.f - embeddingOut.y;
-  fragEmbeddingOut = embeddingOut + positionIn * pointRadius * multiplier;
+  embeddingRelOut = embeddingRelIn;
+  embeddingRelOut.y = 1.f - embeddingRelOut.y;
+  fragEmbeddingOut = embeddingRelOut + positionIn * pointRadius * multiplier;
 
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);

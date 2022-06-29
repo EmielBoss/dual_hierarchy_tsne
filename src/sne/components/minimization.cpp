@@ -614,7 +614,7 @@ namespace dh::sne {
       program.template uniform<float, 4, 4>("proj", D == 2 ? _proj_2D : _proj_3D);
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbeddingRelative));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelected));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBounds));

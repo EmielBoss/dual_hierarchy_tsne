@@ -100,9 +100,9 @@ namespace dh::vis {
 
       // Specify vertex buffers and element buffer
       constexpr uint embeddingStride = (D == 2) ? 2 : 4;
-      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));               // Quad positions
-      glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embedding, 0, embeddingStride * sizeof(float));   // Embedding positions
-      glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                        // Quad elements/indices
+      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));                   // Quad positions
+      glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embeddingRel, 0, embeddingStride * sizeof(float));    // Embedding positions
+      glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                            // Quad elements/indices
 
       // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
       glVertexArrayBindingDivisor(_vaoHandle, 0, 0);

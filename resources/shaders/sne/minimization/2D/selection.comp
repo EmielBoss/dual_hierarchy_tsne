@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positions[]; };
+layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positionsRel[]; };
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
 layout(binding = 2, std430) restrict buffer Sel { uint selected[]; };
 layout(binding = 3, std430) restrict readonly buffer Bounds {
@@ -48,9 +48,8 @@ void main() {
   if (i >= nPoints) { return; }
 
   vec2 mousePosRel = (inverse(proj * model_view) * vec4(mousePosClip.xy, 0.9998, 1)).xy;
-  vec2 posRel = (positions[i] - minBounds) * invRange;
 
-  vec2 difference = abs(mousePosRel - posRel);
+  vec2 difference = abs(mousePosRel - positionsRel[i]);
   float dist = length(difference);
 
   if(dist < selectionRadiusRel && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius

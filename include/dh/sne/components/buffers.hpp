@@ -30,6 +30,7 @@ namespace dh::sne {
   // Data class provided by dh::sne::Minimization<D>::buffers() for other components
   struct MinimizationBuffers {
     GLuint embedding;
+    GLuint embeddingRel;
     GLuint field;
     GLuint bounds;
     GLuint labeled;
