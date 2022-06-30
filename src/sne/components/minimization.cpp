@@ -33,6 +33,7 @@
 #include "dh/util/gl/metric.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/util/cu/knn.cuh"
+#include <faiss/VectorTransform.h>
 #include <numeric> //
 #include <fstream> //
 #include <filesystem> //
@@ -67,7 +68,7 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, char* axisMapping)
-  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _selectionCount(0), _params(params), _axisMapping(axisMapping), _iteration(0) {
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -138,7 +139,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
 
@@ -149,6 +150,7 @@ namespace dh::sne {
     }
 
     initializeEmbeddingRandomly(_params.seed);
+    getPrincipalComponents();
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -209,6 +211,24 @@ namespace dh::sne {
     // Copy to buffer
     glNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
     glAssert();
+  }
+
+  // PCA
+  template <uint D, uint DD>
+  void Minimization<D, DD>::getPrincipalComponents() {
+    faiss::PCAMatrix matrixPCA(_params.nHighDims, 1);
+    matrixPCA.train(_params.n, _dataPtr);
+    float* pcValues = matrixPCA.apply(_params.n, _dataPtr);
+    auto [minIt, maxIt] = std::minmax_element(pcValues, pcValues + _params.n);
+    float min = *minIt; float range = *maxIt - *minIt; float rangeInv = 1 / range;
+    void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eEmbeddingRelative), GL_WRITE_ONLY);
+    glAssert();
+    for(uint i = 0; i < _params.n; ++i) {
+      float pcRel = (pcValues[i] - min) * rangeInv;
+      memcpy((float*) bfrptr + i*4 + 2, &pcRel, sizeof(float));
+    }
+    glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
+    // writeBuffer(_buffers(BufferType::eEmbeddingRelative), _params.n, 4, "piesiejee");
   }
 
   template <uint D, uint DD>

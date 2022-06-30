@@ -65,6 +65,7 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
+    void getPrincipalComponents();
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
@@ -142,6 +143,7 @@ namespace dh::sne {
     char* _axisMapping;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
+    const float* _dataPtr;
     uint _iteration;
     Bounds _bounds;
     Bounds _boundsPrev;
