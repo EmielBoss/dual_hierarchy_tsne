@@ -48,6 +48,7 @@ namespace dh::sne {
     // aligned types
     using Bounds = util::AlignedBounds<D>;
     using vec = util::AlignedVec<D, float>;
+    using vecc = util::AlignedVec<DD, float>;
     using uvec = util::AlignedVec<D, uint>;
 
   public:

@@ -81,18 +81,27 @@ namespace dh::sne {
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
         _programs(ProgramType::eAttractiveComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/attractive.comp"));
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
-        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
-        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/Z.comp"));
         _programs(ProgramType::eAttractiveComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/attractive.comp"));
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
-        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
+      }
+      if constexpr (DD == 2) {
+        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
+      } else if constexpr (DD == 3) {
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/selection.comp"));
+      }
+      if constexpr (D == 2 && DD == 3) {
+        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D_3DD/updateEmbedding.comp"));
+        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D_3DD/translation.comp"));
+      } else if constexpr (D == 2) {
+        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
+        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
+      } else if constexpr (D == 3) {
+        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/translation.comp"));
       }
       
@@ -139,7 +148,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vec), nullptr, GL_MAP_WRITE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
 
@@ -150,7 +159,7 @@ namespace dh::sne {
     }
 
     initializeEmbeddingRandomly(_params.seed);
-    getPrincipalComponents();
+    if(D < DD) { getPrincipalComponents(); }
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -225,7 +234,8 @@ namespace dh::sne {
     glAssert();
     for(uint i = 0; i < _params.n; ++i) {
       float pcRel = (pcValues[i] - min) * rangeInv;
-      memcpy((float*) bfrptr + i*4 + 2, &pcRel, sizeof(float));
+      uint stride = (DD == 2) ? 2 : 4;
+      memcpy((float*) bfrptr + i*stride + D, &pcRel, sizeof(float));
     }
     glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
     // writeBuffer(_buffers(BufferType::eEmbeddingRelative), _params.n, 4, "piesiejee");
@@ -291,7 +301,7 @@ namespace dh::sne {
     glm::vec2 resolution = glm::vec2(window->size());
     _model_view_2D = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
     _proj_2D = glm::infinitePerspective(1.0f, resolution.x / resolution.y, 0.0001f); // TODO: get this directly from renderer
-    if(D == 3) {
+    if(DD == 3) {
       _model_view_3D = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
       _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
     }
@@ -587,8 +597,6 @@ namespace dh::sne {
         
         glAssert();
       }
-      writeBuffer(_buffers(BufferType::eNeighborhoodPreservation), _params.n, 1, "eNeighborhoodPreservation");
-      glAssert();
     }
 
     // Log progress; spawn progressbar on the current (new on first iter) line
@@ -630,14 +638,13 @@ namespace dh::sne {
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
-      program.template uniform<float, 4, 4>("model_view", D == 2 ? _model_view_2D : _model_view_3D);
-      program.template uniform<float, 4, 4>("proj", D == 2 ? _proj_2D : _proj_3D);
+      program.template uniform<float, 4, 4>("model_view", DD == 2 ? _model_view_2D : _model_view_3D);
+      program.template uniform<float, 4, 4>("proj", DD == 2 ? _proj_2D : _proj_3D);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbeddingRelative));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelected));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
