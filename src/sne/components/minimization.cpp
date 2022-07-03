@@ -67,8 +67,9 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, char* axisMapping)
-  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()), _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _iteration(0) {
+  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
+    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _selectedIndex(-1), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -159,7 +160,6 @@ namespace dh::sne {
     }
 
     initializeEmbeddingRandomly(_params.seed);
-    if(D < DD) { getPrincipalComponents(); }
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -177,7 +177,7 @@ namespace dh::sne {
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
-      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, 1));
+      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, axisMapping, 1));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
@@ -224,21 +224,22 @@ namespace dh::sne {
 
   // PCA
   template <uint D, uint DD>
-  void Minimization<D, DD>::getPrincipalComponents() {
-    faiss::PCAMatrix matrixPCA(_params.nHighDims, 1);
+  void Minimization<D, DD>::compIterationReaxis(int index) {
+    faiss::PCAMatrix matrixPCA(_params.nHighDims, 5);
     matrixPCA.train(_params.n, _dataPtr);
-    float* pcValues = matrixPCA.apply(_params.n, _dataPtr);
-    auto [minIt, maxIt] = std::minmax_element(pcValues, pcValues + _params.n);
+    float* pcs = matrixPCA.apply(_params.n, _dataPtr);
+    std::vector<float> pc(_params.n);
+    for(uint i = 0; i < _params.n; ++i) { pc[i] = pcs[i*5 + index]; }
+    auto [minIt, maxIt] = std::minmax_element(pc.begin(), pc.end());
     float min = *minIt; float range = *maxIt - *minIt; float rangeInv = 1 / range;
     void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eEmbeddingRelative), GL_WRITE_ONLY);
-    glAssert();
+    uint stride = (DD == 2) ? 2 : 4;
     for(uint i = 0; i < _params.n; ++i) {
-      float pcRel = (pcValues[i] - min) * rangeInv;
-      uint stride = (DD == 2) ? 2 : 4;
-      memcpy((float*) bfrptr + i*stride + D, &pcRel, sizeof(float));
+      float pciRel = (pc[i] - min) * rangeInv;
+      memcpy((float*) bfrptr + i*stride + D, &pciRel, sizeof(float));
     }
     glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
-    // writeBuffer(_buffers(BufferType::eEmbeddingRelative), _params.n, 4, "piesiejee");
+    glAssert();
   }
 
   template <uint D, uint DD>
@@ -317,6 +318,11 @@ namespace dh::sne {
       const std::vector<float> ones(_params.n, 1.0f);
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+    }
+    int selectedIndex = _axesRenderTask->getSelectedIndex();
+    if(D < DD && selectedIndex != _selectedIndex) {
+      compIterationReaxis(selectedIndex);
+      _selectedIndex = selectedIndex;
     }
 
     if(_input.r) { compIterationMinimizationRestart(); }

@@ -43,7 +43,7 @@ const std::string windowTitle = "Dual-Hierarchy t-SNE Demo";
 std::string iptFilename;
 std::string optFilename;
 dh::sne::Params params;
-char axisMapping[3] = {'t', 't', 't'};
+std::vector<char> axisMapping(3, 't');
 
 // Program parameters, set by cli(...)
 bool progDoKlDivergence = false;
@@ -144,7 +144,7 @@ void sne() {
   dh::util::GLWindow window(info);
 
   // Create necessary components
-  dh::vis::Renderer renderer(params, axisMapping, window, labels);
+  dh::vis::Renderer renderer(params, axisMapping.data(), window, labels);
   dh::sne::SNE sne(params, axisMapping, data, labels);
 
   // If visualization is requested, minimize and render at the same time

@@ -33,7 +33,7 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(Params params, char* axisMapping, const std::vector<float>& data, const std::vector<int>& labels)
+  SNE::SNE(Params params, std::vector<char> axisMapping, const std::vector<float>& data, const std::vector<int>& labels)
   : _dataPtr(data.data()),
     _labelPtr(labels.data()),
     _params(params),

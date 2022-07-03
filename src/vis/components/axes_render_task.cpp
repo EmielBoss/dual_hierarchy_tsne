@@ -64,11 +64,13 @@ namespace dh::vis {
   }
 
   template <uint D>
-  AxesRenderTask<D>::AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params params, int priority)
+  AxesRenderTask<D>::AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params params, std::vector<char> axisMapping, int priority)
   : RenderTask(priority, "AxesRenderTask"), 
     _isInit(false),
     _minimization(minimization),
-    _params(params) {
+    _params(params),
+    _axisMapping(axisMapping),
+    _selectedIndex(0) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
 
@@ -168,9 +170,9 @@ namespace dh::vis {
 
   template <uint D>
   void AxesRenderTask<D>::drawImGuiComponent() {
-    if (ImGui::CollapsingHeader("Axes settings")) {
+    if (ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      // ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
+      ImGui::Combo("Z", &_selectedIndex, "PC1\0PC2\0PC3\0PC4\0PC5\0\0");
       ImGui::Spacing();
     }
   }
