@@ -70,7 +70,7 @@ namespace dh::sne {
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
     void compIteration();                                   // Compute a single iteration: minimization + selection + translation
-    void compIterationReaxis(int index);                   // Compute a reconfiguring of the axes
+    void compIterationReaxis();                   // Compute a reconfiguring of the axes
     void compIterationMinimizationRestart();                // Compute a restart of the minimization
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
@@ -145,6 +145,7 @@ namespace dh::sne {
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     const float* _dataPtr;
+    float* _pcs;
     uint _iteration;
     Bounds _bounds;
     Bounds _boundsPrev;
@@ -205,6 +206,7 @@ namespace dh::sne {
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
+      swap(a._pcs, b._pcs);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
       swap(a._programs, b._programs);

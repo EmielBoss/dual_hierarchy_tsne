@@ -160,6 +160,9 @@ namespace dh::sne {
     }
 
     initializeEmbeddingRandomly(_params.seed);
+    faiss::PCAMatrix matrixPCA(_params.nHighDims, _params.nPCs);
+    matrixPCA.train(_params.n, _dataPtr);
+    _pcs = matrixPCA.apply(_params.n, _dataPtr);
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -222,23 +225,28 @@ namespace dh::sne {
     glAssert();
   }
 
-  // PCA
+  // Configures the axes on request of change
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationReaxis(int index) {
-    faiss::PCAMatrix matrixPCA(_params.nHighDims, 5);
-    matrixPCA.train(_params.n, _dataPtr);
-    float* pcs = matrixPCA.apply(_params.n, _dataPtr);
-    std::vector<float> pc(_params.n);
-    for(uint i = 0; i < _params.n; ++i) { pc[i] = pcs[i*5 + index]; }
-    auto [minIt, maxIt] = std::minmax_element(pc.begin(), pc.end());
-    float min = *minIt; float range = *maxIt - *minIt; float rangeInv = 1 / range;
+  void Minimization<D, DD>::compIterationReaxis() {
+    std::vector<float> axisVals(_params.n);
+    if(_axisMapping[2] == 'p') {
+      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _pcs[i*_params.nPCs + _selectedIndex]; }
+    } else
+    if(_axisMapping[2] == 'a') {
+      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _dataPtr[i*_params.nHighDims + _selectedIndex]; }
+    }
+    auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
+    float min = *minIt;
+    float range = *maxIt - *minIt;
+    float rangeInv = range > 0 ? 1 / range : 1;
     void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eEmbeddingRelative), GL_WRITE_ONLY);
     uint stride = (DD == 2) ? 2 : 4;
     for(uint i = 0; i < _params.n; ++i) {
-      float pciRel = (pc[i] - min) * rangeInv;
-      memcpy((float*) bfrptr + i*stride + D, &pciRel, sizeof(float));
+      float valRel = (axisVals[i] - min) * rangeInv;
+      memcpy((float*) bfrptr + i*stride + D, &valRel, sizeof(float));
     }
     glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
+    writeBuffer(_buffers(BufferType::eEmbeddingRelative), _params.n, 4, "rel");
     glAssert();
   }
 
@@ -319,10 +327,12 @@ namespace dh::sne {
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
+    std::vector<char> axisMapping = _axesRenderTask->getAxisMapping();
     int selectedIndex = _axesRenderTask->getSelectedIndex();
-    if(D < DD && selectedIndex != _selectedIndex) {
-      compIterationReaxis(selectedIndex);
+    if(D < DD && (selectedIndex != _selectedIndex || axisMapping != _axisMapping)) {
+      _axisMapping = axisMapping;
       _selectedIndex = selectedIndex;
+      compIterationReaxis();
     }
 
     if(_input.r) { compIterationMinimizationRestart(); }

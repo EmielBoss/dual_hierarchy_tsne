@@ -70,6 +70,8 @@ namespace dh::vis {
     _minimization(minimization),
     _params(params),
     _axisMapping(axisMapping),
+    _axisMappingPrev(axisMapping),
+    _selectedAxistype(0),
     _selectedIndex(0) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
@@ -170,9 +172,23 @@ namespace dh::vis {
 
   template <uint D>
   void AxesRenderTask<D>::drawImGuiComponent() {
+    const char* axistypes[] = { "PCA", "Attribute" };
+    const char axistypesAbbr[2] = {'p', 'a'};
     if (ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      ImGui::Combo("Z", &_selectedIndex, "PC1\0PC2\0PC3\0PC4\0PC5\0\0");
+      ImGui::Text("Z");
+      ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes));
+      _axisMapping[2] = axistypesAbbr[_selectedAxistype];
+      if(_axisMapping != _axisMappingPrev) {
+        _selectedIndex = 0;
+        _axisMappingPrev = _axisMapping;
+      }
+      if(_axisMapping[2] == 'p') {
+        ImGui::SliderInt("Principal component", &_selectedIndex, 0, _params.nPCs-1);
+      } else
+      if (_axisMapping[2] == 'a') {
+        ImGui::SliderInt("Attribute", &_selectedIndex, 0, _params.nHighDims-1);
+      }
       ImGui::Spacing();
     }
   }

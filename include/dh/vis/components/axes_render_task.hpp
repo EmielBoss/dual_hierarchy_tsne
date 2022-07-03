@@ -52,6 +52,7 @@ namespace dh::vis {
 
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    std::vector<char> getAxisMapping() { return _axisMapping; }
     int getSelectedIndex() { return _selectedIndex; }
 
   private:
@@ -60,8 +61,10 @@ namespace dh::vis {
     sne::MinimizationBuffers _minimization;
     sne::Params _params;
     std::vector<char> _axisMapping;
+    std::vector<char> _axisMappingPrev;
 
     // ImGui state
+    int _selectedAxistype;
     int _selectedIndex;
 
     // Objects
@@ -86,6 +89,8 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._minimization, b._minimization);
       swap(a._params, b._params);
+      swap(a._axisMapping, b._axisMapping);
+      swap(a._selectedAxistype, b._selectedAxistype);
       swap(a._selectedIndex, b._selectedIndex);
       swap(a._vboHandlePositions, b._vboHandlePositions);
       swap(a._vboHandleColors, b._vboHandleColors);
