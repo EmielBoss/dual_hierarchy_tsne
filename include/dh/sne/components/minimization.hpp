@@ -66,6 +66,7 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
+    void invertTexel(int index, bool revert = false);
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
@@ -142,6 +143,7 @@ namespace dh::sne {
     bool _loggedNewline;
     Params _params;
     std::vector<char> _axisMapping;
+    int _axisIndex;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     const float* _dataPtr;
@@ -164,7 +166,7 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    int _selectedIndex;
+    bool _texelInverted;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -203,10 +205,12 @@ namespace dh::sne {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._axisMapping, b._axisMapping);
+      swap(a._axisIndex, b._axisIndex);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
+      swap(a._texelInverted, b._texelInverted);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
       swap(a._programs, b._programs);

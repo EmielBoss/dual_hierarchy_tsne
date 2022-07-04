@@ -69,7 +69,7 @@ namespace dh::sne {
   template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
-    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _selectedIndex(-1), _iteration(0) {
+    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisIndex(-1), _texelInverted(false), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -117,8 +117,9 @@ namespace dh::sne {
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       const std::vector<vec> zerovecs(_params.n, vec(0));
       const std::vector<vec> unitvecs(_params.n, vec(1));
-      const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints
+      const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params.n, 1.0f);
+      const std::vector<float> zeros(_params.n, 0.0f);
       std::vector<uint> labeled(_params.n, 0);
       // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; }
@@ -143,7 +144,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectedCountReduce), 128 * sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedAverage), _params.nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectedAverage), _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectedAverageReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
@@ -152,7 +153,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
-
+      
       glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -230,10 +231,10 @@ namespace dh::sne {
   void Minimization<D, DD>::compIterationReaxis() {
     std::vector<float> axisVals(_params.n);
     if(_axisMapping[2] == 'p') {
-      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _pcs[i*_params.nPCs + _selectedIndex]; }
+      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _pcs[i*_params.nPCs + _axisIndex]; }
     } else
     if(_axisMapping[2] == 'a') {
-      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _dataPtr[i*_params.nHighDims + _selectedIndex]; }
+      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _dataPtr[i*_params.nHighDims + _axisIndex]; }
     }
     auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
     float min = *minIt;
@@ -246,7 +247,6 @@ namespace dh::sne {
       memcpy((float*) bfrptr + i*stride + D, &valRel, sizeof(float));
     }
     glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
-    writeBuffer(_buffers(BufferType::eEmbeddingRelative), _params.n, 4, "rel");
     glAssert();
   }
 
@@ -318,7 +318,9 @@ namespace dh::sne {
     if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eSelectedAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+      _texelInverted = false;
       _embeddingRenderTask->setWeighForces(true);
     }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -328,10 +330,11 @@ namespace dh::sne {
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
     std::vector<char> axisMapping = _axesRenderTask->getAxisMapping();
-    int selectedIndex = _axesRenderTask->getSelectedIndex();
-    if(D < DD && (selectedIndex != _selectedIndex || axisMapping != _axisMapping)) {
+    int axisIndex = _axesRenderTask->getSelectedIndex();
+    if(D < DD && (axisIndex != _axisIndex || axisMapping != _axisMapping)) {
+      invertTexel(_axisIndex, true);
       _axisMapping = axisMapping;
-      _selectedIndex = selectedIndex;
+      _axisIndex = axisIndex;
       compIterationReaxis();
     }
 
@@ -339,7 +342,24 @@ namespace dh::sne {
     if(!_input.space) { compIterationMinimization(); }
     if(_input.mouseLeft || _input.s) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
-    glAssert();
+    if(_params.datapointsAreImages && _axisMapping[2] == 'a' && _iteration > 1) {
+      if(_iteration % 10 == 0) { invertTexel(_axisIndex, false); }
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
+      glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+    }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::invertTexel(int index, bool revert) {
+    if(revert && !_texelInverted) { return; }
+
+    void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eSelectedAverage), GL_READ_WRITE);
+    float attravg;
+    memcpy(&attravg, (float*) bfrptr + index, sizeof(float));
+    attravg = 1.f - attravg;
+    memcpy((float*) bfrptr + index, &attravg, sizeof(float));
+    glUnmapNamedBuffer(_buffers(BufferType::eSelectedAverage));
+    _texelInverted = !_texelInverted;
   }
 
   template <uint D, uint DD>
@@ -723,7 +743,7 @@ namespace dh::sne {
       program.template uniform<uint>("iter", 1);
       glDispatchCompute(1,_params.nHighDims, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
+      
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
       glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
       glAssert();
