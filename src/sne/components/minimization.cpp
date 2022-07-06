@@ -69,7 +69,8 @@ namespace dh::sne {
   template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
-    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisIndex(-1), _texelInverted(false), _iteration(0) {
+    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisIndexPrev(-1),
+    _texelInverted(false), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -180,8 +181,9 @@ namespace dh::sne {
 
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
+      std::string axistypesAbbr = "tpa-";
+      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
-      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, axisMapping, 1));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
@@ -329,13 +331,13 @@ namespace dh::sne {
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
-    std::vector<char> axisMapping = _axesRenderTask->getAxisMapping();
-    int axisIndex = _axesRenderTask->getSelectedIndex();
-    if(D < DD && (axisIndex != _axisIndex || axisMapping != _axisMapping)) {
-      invertTexel(_axisIndex, true);
-      _axisMapping = axisMapping;
-      _axisIndex = axisIndex;
+    _axisMapping = _axesRenderTask->getAxisMapping();
+    _axisIndex = _axesRenderTask->getSelectedIndex();
+    if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
+      if(_texelInverted) { invertTexel(_axisIndexPrev); }
       compIterationReaxis();
+      _axisMappingPrev = _axisMapping;
+      _axisIndexPrev = _axisIndex;
     }
 
     if(_input.r) { compIterationMinimizationRestart(); }
@@ -343,16 +345,14 @@ namespace dh::sne {
     if(_input.mouseLeft || _input.s) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
     if(_params.datapointsAreImages && _axisMapping[2] == 'a' && _iteration > 1) {
-      if(_iteration % 10 == 0) { invertTexel(_axisIndex, false); }
+      if(_iteration % 10 == 0) { invertTexel(_axisIndex); }
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
       glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
     }
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::invertTexel(int index, bool revert) {
-    if(revert && !_texelInverted) { return; }
-
+  void Minimization<D, DD>::invertTexel(int index) {
     void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eSelectedAverage), GL_READ_WRITE);
     float attravg;
     memcpy(&attravg, (float*) bfrptr + index, sizeof(float));

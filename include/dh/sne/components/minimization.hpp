@@ -66,17 +66,16 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
-    void invertTexel(int index, bool revert = false);
+    void invertTexel(int index);
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
     void compIteration();                                   // Compute a single iteration: minimization + selection + translation
-    void compIterationReaxis();                   // Compute a reconfiguring of the axes
+    void compIterationReaxis();                             // Compute a reconfiguring of the axes
     void compIterationMinimizationRestart();                // Compute a restart of the minimization
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
-    void checkBuffer(GLuint handle); ////
     void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
   private:
@@ -143,7 +142,9 @@ namespace dh::sne {
     bool _loggedNewline;
     Params _params;
     std::vector<char> _axisMapping;
+    std::vector<char> _axisMappingPrev;
     int _axisIndex;
+    int _axisIndexPrev;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     const float* _dataPtr;
@@ -205,7 +206,9 @@ namespace dh::sne {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._axisMapping, b._axisMapping);
+      swap(a._axisMappingPrev, b._axisMappingPrev);
       swap(a._axisIndex, b._axisIndex);
+      swap(a._axisIndexPrev, b._axisIndexPrev);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
