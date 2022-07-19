@@ -69,7 +69,7 @@ namespace dh::sne {
   template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
-    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisIndexPrev(-1),
+    _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
     _texelInverted(false), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
@@ -280,7 +280,7 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIteration() {
+  bool Minimization<D, DD>::compIteration() {
     _mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
@@ -319,6 +319,7 @@ namespace dh::sne {
 
     if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
+      _selectionRenderTask->setSelectionCount(_selectionCount);
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearNamedBufferData(_buffers(BufferType::eSelectedAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
@@ -333,6 +334,9 @@ namespace dh::sne {
     }
     _axisMapping = _axesRenderTask->getAxisMapping();
     _axisIndex = _axesRenderTask->getSelectedIndex();
+    if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
+      return true;
+    }
     if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
       if(_texelInverted) { invertTexel(_axisIndexPrev); }
       compIterationReaxis();
@@ -349,6 +353,8 @@ namespace dh::sne {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
       glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
     }
+
+    return false;
   }
 
   template <uint D, uint DD>
@@ -714,6 +720,8 @@ namespace dh::sne {
       uint selectionCountPrev = _selectionCount;
       glGetNamedBufferSubData(_buffers(BufferType::eSelectedCount), 0, sizeof(uint), &_selectionCount);
       glAssert();
+
+      _selectionRenderTask->setSelectionCount(_selectionCount);
 
       // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
       if(_selectionCount - selectionCountPrev > _params.n / 1000) { _embeddingRenderTask->setWeighForces(false); }

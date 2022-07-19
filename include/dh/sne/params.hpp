@@ -36,6 +36,7 @@ namespace dh::sne {
 
     // Basic tSNE parameters
     uint iterations = 1000;
+    bool iterateForever = true;
     float perplexity = 30.f;
     uint kMax = 192; // Don't exceeed this value for big vector datasets unless you have a lot of coffee and memory
     uint k = std::min(kMax, 3 * (uint)(perplexity) + 1);

@@ -67,10 +67,11 @@ namespace dh::sne {
 
     void initializeEmbeddingRandomly(int seed);
     void invertTexel(int index);
+    std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
-    void compIteration();                                   // Compute a single iteration: minimization + selection + translation
+    bool compIteration();                                   // Compute a single iteration: minimization + selection + translation
     void compIterationReaxis();                             // Compute a reconfiguring of the axes
     void compIterationMinimizationRestart();                // Compute a restart of the minimization
     void compIterationMinimization();                       // Compute the minimization part of a single iteration

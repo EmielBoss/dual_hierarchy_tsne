@@ -157,7 +157,7 @@ void sne() {
     window.display();
 
     // Render loop, one minimization step between frames
-    for (uint i = 0; i < params.iterations; ++i) {
+    for (uint i = 0; i < params.iterations || params.iterateForever; ++i) {
       window.processEvents();
       sne.compMinimizationStep();
       renderer.render();

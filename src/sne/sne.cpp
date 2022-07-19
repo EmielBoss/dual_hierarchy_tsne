@@ -63,6 +63,15 @@ namespace dh::sne {
     compMinimization();
   }
 
+  void SNE::constructMinimization() {
+    uint numSNEdims = uint(_axisMapping[0] == 't') + uint(_axisMapping[1] == 't') + uint(_axisMapping[2] == 't');
+    if (_params.nLowDims == 2) {  _minimization = sne::Minimization<2, 2>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
+    if (_params.nLowDims == 3) {
+      if(numSNEdims == 2) { _minimization = sne::Minimization<2, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
+      if(numSNEdims == 3) { _minimization = sne::Minimization<3, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); }
+    }
+  }
+
   void SNE::compSimilarities() {
     runtimeAssert(_isInit, "SNE::compSimilarities() called before initialization");
 
@@ -73,12 +82,7 @@ namespace dh::sne {
     _similaritiesTimer.poll();
 
     // After similarities are available, initialize minimization subcomponent
-    uint numSNEdims = uint(_axisMapping[0] == 't') + uint(_axisMapping[1] == 't') + uint(_axisMapping[2] == 't');
-    if (_params.nLowDims == 2) {  _minimization = sne::Minimization<2, 2>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
-    if (_params.nLowDims == 3) {
-      if(numSNEdims == 2) {       _minimization = sne::Minimization<2, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
-      if(numSNEdims == 3) {       _minimization = sne::Minimization<3, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); }
-    }
+    constructMinimization();
 
     // After similarities are available, initialize KL-divergence subcomponent
     const auto buffers = std::visit([](const auto& m) { return m.buffers(); }, _minimization);
@@ -100,9 +104,15 @@ namespace dh::sne {
   void SNE::compMinimizationStep() {
     // Run timer to track full minimization computation
     _minimizationTimer.tick();
-    std::visit([&](auto& m) { m.compIteration(); }, _minimization);
+    bool reconstructionNeeded = false;
+    std::visit([&](auto& m) { reconstructionNeeded = m.compIteration(); }, _minimization);
     _minimizationTimer.tock();
     _minimizationTimer.poll();
+    if(reconstructionNeeded) {
+      std::visit([&](auto& m) { _axisMapping = m.getAxisMapping(); }, _minimization);
+      _minimization.~variant();
+      constructMinimization();
+    }
   }
 
   std::chrono::milliseconds SNE::similaritiesTime() const {

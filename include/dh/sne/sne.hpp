@@ -50,6 +50,8 @@ namespace dh::sne {
     // Move constr/operator moves handles
     SNE(SNE&&) noexcept;
     SNE& operator=(SNE&&) noexcept;
+
+    void constructMinimization();
     
     // Main computation functions
     void comp();                  // Compute similarities and then perform minimization

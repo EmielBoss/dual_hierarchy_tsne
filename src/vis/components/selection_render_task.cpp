@@ -145,6 +145,8 @@ namespace dh::vis {
       if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
     }
 
+    ImGui::Text("No. of selected datapoints: %i", _selectionCount);
+
     if(_params.datapointsAreImages) {
       if (ImGui::CollapsingHeader("Average selection image", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Spacing();

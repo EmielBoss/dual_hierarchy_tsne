@@ -52,6 +52,7 @@ namespace dh::vis {
     void clearSelection(bool datapointsAreImages);
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
 
   private:
     enum class BufferType {
@@ -70,6 +71,7 @@ namespace dh::vis {
     bool _canDrawLabels;
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
+    uint _selectionCount;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
