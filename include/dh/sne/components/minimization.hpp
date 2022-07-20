@@ -111,6 +111,13 @@ namespace dh::sne {
       Length
     };
 
+    enum class TextureType {
+      eAverage,
+      eVariance,
+
+      Length
+    };
+
     enum class ProgramType {
       eBoundsComp,
       eZComp,
@@ -172,9 +179,9 @@ namespace dh::sne {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<TextureType, GLuint> _textures;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
-    GLuint _averageSelectionTexture;
 
     // Subcomponents
     Field<D> _field;
@@ -196,7 +203,7 @@ namespace dh::sne {
         _buffers(BufferType::eSelected),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
-        _averageSelectionTexture
+        _textures(TextureType::eAverage)
       };
     }
     bool isInit() const { return _isInit; }
@@ -217,6 +224,7 @@ namespace dh::sne {
       swap(a._texelInverted, b._texelInverted);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
+      swap(a._textures, b._textures);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
@@ -225,7 +233,6 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
-      swap(a._averageSelectionTexture, b._averageSelectionTexture);
     }
   };
 } // dh::sne

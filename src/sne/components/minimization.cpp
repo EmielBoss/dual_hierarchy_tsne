@@ -155,10 +155,10 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
       
-      glCreateTextures(GL_TEXTURE_2D, 1, &_averageSelectionTexture);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_averageSelectionTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_averageSelectionTexture, 1, GL_R8, _params.imgWidth, _params.imgHeight);
+      glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
+      glTextureParameteri(_textures(TextureType::eAverage), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_textures(TextureType::eAverage), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureStorage2D(_textures(TextureType::eAverage), 1, GL_R8, _params.imgWidth, _params.imgHeight);
     }
 
     initializeEmbeddingRandomly(_params.seed);
@@ -256,7 +256,7 @@ namespace dh::sne {
   Minimization<D, DD>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteTextures(1, &_averageSelectionTexture);
+      glDeleteTextures(_textures.size(), _textures.data());
       _isInit = false;
     }
   }
@@ -322,7 +322,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCount(_selectionCount);
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       glClearNamedBufferData(_buffers(BufferType::eSelectedAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      glClearTexImage(_averageSelectionTexture, 0,  GL_RED, GL_FLOAT, nullptr);
+      glClearTexImage(_textures(TextureType::eAverage), 0,  GL_RED, GL_FLOAT, nullptr);
       _texelInverted = false;
       _embeddingRenderTask->setWeighForces(true);
     }
@@ -351,7 +351,7 @@ namespace dh::sne {
     if(_params.datapointsAreImages && _axisMapping[2] == 'a' && _iteration > 1) {
       if(_iteration % 10 == 0) { invertTexel(_axisIndex); }
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
-      glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+      glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
     }
 
     return false;
@@ -752,7 +752,7 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
-      glTextureSubImage2D(_averageSelectionTexture, 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+      glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
       glAssert();
     }
   }
