@@ -473,7 +473,6 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPos", _params.n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
-      program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
       program.template uniform<float>("weightFalloff", _embeddingRenderTask->getWeightFalloff());
 
       // Set buffer bindings
@@ -724,7 +723,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCount(_selectionCount);
 
       // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
-      if(_selectionCount - selectionCountPrev > _params.n / 1000) { _embeddingRenderTask->setWeighForces(false); }
+      if(_selectionCount - selectionCountPrev > _params.n / 100) { _embeddingRenderTask->setWeighForces(false); }
     }
 
     // 3.

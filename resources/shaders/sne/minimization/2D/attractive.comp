@@ -46,7 +46,6 @@ layout(binding = 6, std430) restrict writeonly buffer Att { vec2 attrForcesBuffe
 // Uniform values
 layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
-layout(location = 2) uniform bool weighForces;
 layout(location = 3) uniform float weightFalloff;
 
 // Shorthand subgroup/warp constants
@@ -75,11 +74,8 @@ void main() {
     const float q_ij = 1.f / (1.f + dot(diff, diff));
 
     // Calculate weight
-    float weight = 1.0f;
-    if(weighForces) {
-      weight = weightsBuffer[j];
-      weightsBuffer[i] = max(1.0f, max(weight * weightFalloff, weightsBuffer[i]));
-    }
+    float weight = weightsBuffer[j];
+    weightsBuffer[i] = max(1.0f, max(weight * weightFalloff, weightsBuffer[i]));
 
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff * weight;
