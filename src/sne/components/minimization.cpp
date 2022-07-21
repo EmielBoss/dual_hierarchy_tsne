@@ -76,8 +76,9 @@ namespace dh::sne {
     // Initialize shader programs
     {
       _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
-      _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_count.comp"));
-      _programs(ProgramType::eAverageSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selected_average.comp"));
+      _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_count.comp"));
+      _programs(ProgramType::eSelectionAverageComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_average.comp"));
+      _programs(ProgramType::eSelectionVarianceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_variance.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -143,10 +144,11 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelected), _params.n * sizeof(uint), falses.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedCount), sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedCountReduce), 128 * sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedAverage), _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eSelectedAverageReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionAverage), _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionVariance), _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelectionAvariangeReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
@@ -155,10 +157,14 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
       
-      glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
-      glTextureParameteri(_textures(TextureType::eAverage), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_textures(TextureType::eAverage), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_textures(TextureType::eAverage), 1, GL_R8, _params.imgWidth, _params.imgHeight);
+      if(_params.imageDataset) {
+        glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
+        for(uint i = 0; i < _textures.size(); ++i) {
+          glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+          glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+          glTextureStorage2D(_textures[i], 1, GL_R8, _params.imgWidth, _params.imgHeight); 
+        }
+      }
     }
 
     initializeEmbeddingRandomly(_params.seed);
@@ -320,11 +326,13 @@ namespace dh::sne {
     if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
       _selectionCount = 0;
       _selectionRenderTask->setSelectionCount(_selectionCount);
-      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      glClearNamedBufferData(_buffers(BufferType::eSelectedAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      glClearTexImage(_textures(TextureType::eAverage), 0,  GL_RED, GL_FLOAT, nullptr);
-      _texelInverted = false;
       _embeddingRenderTask->setWeighForces(true);
+      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      if(_params.imageDataset) {
+        glClearNamedBufferData(_buffers(BufferType::eSelectionAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        for(uint i = 0; i < _textures.size(); ++i) { glClearTexImage(_textures[i], 0,  GL_RED, GL_FLOAT, nullptr); }
+        _texelInverted = false;
+      }
     }
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) {
@@ -348,10 +356,8 @@ namespace dh::sne {
     if(!_input.space) { compIterationMinimization(); }
     if(_input.mouseLeft || _input.s) { compIterationSelection(); }
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
-    if(_params.datapointsAreImages && _axisMapping[2] == 'a' && _iteration > 1) {
+    if(_params.imageDataset && _axisMapping[2] == 'a' && _iteration > 1) {
       if(_iteration % 10 == 0) { invertTexel(_axisIndex); }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
-      glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
     }
 
     return false;
@@ -359,13 +365,15 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::invertTexel(int index) {
-    void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eSelectedAverage), GL_READ_WRITE);
+    void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eSelectionAverage), GL_READ_WRITE);
     float attravg;
     memcpy(&attravg, (float*) bfrptr + index, sizeof(float));
     attravg = 1.f - attravg;
     memcpy((float*) bfrptr + index, &attravg, sizeof(float));
-    glUnmapNamedBuffer(_buffers(BufferType::eSelectedAverage));
+    glUnmapNamedBuffer(_buffers(BufferType::eSelectionAverage));
     _texelInverted = !_texelInverted;
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectionAverage));
+    glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
   }
 
   template <uint D, uint DD>
@@ -705,8 +713,8 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelected));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectedCountReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectedCount));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCount));
       glAssert();
 
       program.template uniform<uint>("iter", 0);
@@ -717,7 +725,7 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       uint selectionCountPrev = _selectionCount;
-      glGetNamedBufferSubData(_buffers(BufferType::eSelectedCount), 0, sizeof(uint), &_selectionCount);
+      glGetNamedBufferSubData(_buffers(BufferType::eSelectionCount), 0, sizeof(uint), &_selectionCount);
       glAssert();
 
       _selectionRenderTask->setSelectionCount(_selectionCount);
@@ -727,33 +735,64 @@ namespace dh::sne {
     }
 
     // 3.
-    // Average selected images
-    if(_params.datapointsAreImages) {
-      auto& program = _programs(ProgramType::eAverageSelectedComp);
-      program.bind();
+    // Calculate selection average and/or variance per attribute
+    if(_params.imageDataset) {
+      if(_selectionRenderTask->getShowingSelectionAverage() || _selectionRenderTask->getShowingSelectionVariance()) {
+        auto& program = _programs(ProgramType::eSelectionAverageComp);
+        program.bind();
 
-      // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("nSelected", _selectionCount);
-      program.template uniform<uint>("imgSize", _params.nHighDims);
+        // Set uniforms
+        program.template uniform<uint>("nPoints", _params.n);
+        program.template uniform<uint>("nSelected", _selectionCount);
+        program.template uniform<uint>("imgSize", _params.nHighDims);
 
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectedAverageReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelectedAverage));
-      glAssert();
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionAvariangeReduce));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelectionAverage));
+        glAssert();
 
-      program.template uniform<uint>("iter", 0);
-      glDispatchCompute(128, _params.nHighDims, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      program.template uniform<uint>("iter", 1);
-      glDispatchCompute(1,_params.nHighDims, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectedAverage));
-      glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
-      glAssert();
+        program.template uniform<uint>("iter", 0);
+        glDispatchCompute(128, _params.nHighDims, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        program.template uniform<uint>("iter", 1);
+        glDispatchCompute(1,_params.nHighDims, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectionAverage));
+        glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+        glAssert();
+      }
+
+      if(_selectionRenderTask->getShowingSelectionVariance()) {
+        auto& program = _programs(ProgramType::eSelectionVarianceComp);
+        program.bind();
+
+        // Set uniforms
+        program.template uniform<uint>("nPoints", _params.n);
+        program.template uniform<uint>("nSelected", _selectionCount);
+        program.template uniform<uint>("imgSize", _params.nHighDims);
+
+        // Set buffer bindings
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionAverage));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelectionAvariangeReduce));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSelectionVariance));
+        glAssert();
+
+        program.template uniform<uint>("iter", 0);
+        glDispatchCompute(128, _params.nHighDims, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        program.template uniform<uint>("iter", 1);
+        glDispatchCompute(1,_params.nHighDims, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffers(BufferType::eSelectionVariance));
+        glTextureSubImage2D(_textures(TextureType::eVariance), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RED, GL_FLOAT, 0);
+        glAssert();
+      }
     }
   }
 

@@ -49,7 +49,7 @@ namespace dh::vis {
     SelectionRenderTask& operator=(SelectionRenderTask&&) noexcept;
 
     void averageSelectedImages();
-    void clearSelection(bool datapointsAreImages);
+    void clearSelection(bool imageDataset);
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
     void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
@@ -72,6 +72,8 @@ namespace dh::vis {
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
     uint _selectionCount;
+    bool _showingSelectionAverage;
+    bool _showingSelectionVariance;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -85,8 +87,10 @@ namespace dh::vis {
     float getSelectionRadiusRel() { return _selectionRadiusRel; }
     void setSelectionRadiusRel(float selectionRadiusRel) { _selectionRadiusRel = selectionRadiusRel; }
     int getSelectionMode() { return _selectLabeledOnly; }
-    void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
+    bool getShowingSelectionAverage() { return _showingSelectionAverage; }
+    bool getShowingSelectionVariance() { return _showingSelectionVariance; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
+    void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {

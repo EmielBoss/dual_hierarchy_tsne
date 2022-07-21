@@ -147,10 +147,16 @@ namespace dh::vis {
 
     ImGui::Text("No. of selected datapoints: %i", _selectionCount);
 
-    if(_params.datapointsAreImages) {
-      if (ImGui::CollapsingHeader("Average selection image", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if(_params.imageDataset) {
+      if (_showingSelectionAverage = ImGui::CollapsingHeader("Selection average image", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Spacing();
-        ImGui::Image((void*)(intptr_t)_minimizationBuffers.averageSelectionTexture, ImVec2(256, 256));
+        ImGui::Image((void*)(intptr_t)_minimizationBuffers.selectionAverageTexture, ImVec2(256, 256));
+        ImGui::Spacing();
+      }
+
+      if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Spacing();
+        ImGui::Image((void*)(intptr_t)_minimizationBuffers.selectionVarianceTexture, ImVec2(256, 256));
         ImGui::Spacing();
       }
     }

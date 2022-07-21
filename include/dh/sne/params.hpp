@@ -76,7 +76,7 @@ namespace dh::sne {
     int nPCs = 10;
 
     // Image dataset params
-    bool datapointsAreImages = true;
+    bool imageDataset = true;
     uint imgWidth = 28;
     uint imgHeight = 28;
   };

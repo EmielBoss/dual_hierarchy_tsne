@@ -37,7 +37,8 @@ namespace dh::sne {
     GLuint selected;
     GLuint fixed;
     GLuint neighborhoodPreservation;
-    GLuint averageSelectionTexture;
+    GLuint selectionAverageTexture;
+    GLuint selectionVarianceTexture;
   };
 
   // Data class provided by dh::sne::Similarities<D>::buffers() for other components

@@ -96,10 +96,11 @@ namespace dh::sne {
       eNeighborsEmb,
       eNeighborhoodPreservation,
       eSelected,
-      eSelectedCount,
-      eSelectedCountReduce,
-      eSelectedAverage,
-      eSelectedAverageReduce,
+      eSelectionCount,
+      eSelectionCountReduce,
+      eSelectionAverage,
+      eSelectionVariance,
+      eSelectionAvariangeReduce,
       eFixed,
       eTranslating,
       eWeights,
@@ -128,7 +129,8 @@ namespace dh::sne {
       eNeighborhoodPreservationComp,
       eSelectionComp,
       eCountSelectedComp,
-      eAverageSelectedComp,
+      eSelectionAverageComp,
+      eSelectionVarianceComp,
       eTranslationComp,
 
       Length
@@ -203,7 +205,8 @@ namespace dh::sne {
         _buffers(BufferType::eSelected),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
-        _textures(TextureType::eAverage)
+        _textures(TextureType::eAverage),
+        _textures(TextureType::eVariance)
       };
     }
     bool isInit() const { return _isInit; }
