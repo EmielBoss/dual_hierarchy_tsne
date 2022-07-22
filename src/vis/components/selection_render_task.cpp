@@ -55,7 +55,9 @@ namespace dh::vis {
     _params(params),
     _selectLabeledOnly(false),
     _selectionRadiusRel(0.03),
-    _mousePosScreen({0.0, 0.0}) {
+    _selectionCount(0),
+    _mousePosScreen({0.0, 0.0}),
+    _draggedAttribute(-1) {
 
     // Initialize shader program
     {
@@ -142,6 +144,7 @@ namespace dh::vis {
     if (_canDrawLabels) {
       ImGui::Text("Selection mode:");
       if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
+      ImGui::SameLine();
       if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
     }
 
@@ -149,17 +152,26 @@ namespace dh::vis {
 
     if(_params.imageDataset) {
       if (_showingSelectionAverage = ImGui::CollapsingHeader("Selection average image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Spacing();
-        ImGui::Image((void*)(intptr_t)_minimizationBuffers.selectionAverageTexture, ImVec2(256, 256));
-        ImGui::Spacing();
+        drawImGuiImageButton(_minimizationBuffers.selectionAverageTexture);
       }
 
       if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Spacing();
-        ImGui::Image((void*)(intptr_t)_minimizationBuffers.selectionVarianceTexture, ImVec2(256, 256));
-        ImGui::Spacing();
+        drawImGuiImageButton(_minimizationBuffers.selectionVarianceTexture);
       }
     }
+  }
+
+  void SelectionRenderTask::drawImGuiImageButton(GLuint textureHandle) {
+    ImGui::Spacing();
+    ImGui::ImageButton((void*)(intptr_t)textureHandle, ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
+    if(ImGui::IsItemActive() && ImGui::IsItemHovered()) {
+      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
+      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
+      _draggedAttribute = teYel * _params.imgWidth + teXel;
+    } else {
+      _draggedAttribute = -1;
+    }
+    ImGui::Spacing();
   }
 
 } // dh::vis

@@ -66,7 +66,7 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
-    void invertTexel(int index);
+    void flipTexel(int texelIndex, int component);
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
@@ -98,9 +98,7 @@ namespace dh::sne {
       eSelected,
       eSelectionCount,
       eSelectionCountReduce,
-      eSelectionAverage,
-      eSelectionVariance,
-      eSelectionAvariangeReduce,
+      eTextureDataReduce,
       eFixed,
       eTranslating,
       eWeights,
@@ -108,6 +106,13 @@ namespace dh::sne {
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eTest,
+
+      Length
+    };
+
+    enum class TextureDataType {
+      eAverage,
+      eVariance,
 
       Length
     };
@@ -177,10 +182,14 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    bool _texelInverted;
+    bool _texelActive;
+    std::vector<bool> _texelActives;
+    int _draggedAttribute;
+    int _draggedAttributePrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<TextureDataType, GLuint> _buffersTextureData;
     util::EnumArray<TextureType, GLuint> _textures;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
@@ -224,9 +233,14 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
-      swap(a._texelInverted, b._texelInverted);
+      swap(a._texelActive, b._texelActive);
+      swap(a._texelActives, b._texelActives);
+      swap(a._draggedAttribute, b._draggedAttribute);
+      swap(a._draggedAttributePrev, b._draggedAttributePrev);
+      swap(a._selectionCount, b._selectionCount);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
+      swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._textures, b._textures);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);

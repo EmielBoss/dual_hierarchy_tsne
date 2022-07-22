@@ -193,7 +193,9 @@ namespace dh::vis {
       if (_canDrawLabels) {
         ImGui::Text("Color mapping:");
         if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
+        ImGui::SameLine();
         if (ImGui::RadioButton("Neighborhood preservation", _colorMapping==ColorMapping::neighborhoodPreservation)) { _colorMapping = ColorMapping::neighborhoodPreservation; }
+        ImGui::SameLine();
         if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);

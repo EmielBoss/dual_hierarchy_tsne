@@ -50,7 +50,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
               i < nPoints;
               i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(selected[i] == 1) { sum += pow(data[i * imgSize + pid] - selectedAverage[pid], 2) ; }
+      if(selected[i] == 1) { sum += pow(data[i * imgSize + pid] - selectedAverage[pid * 3], 2) ; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
@@ -76,7 +76,7 @@ void main() {
     if (iter == 0) {
       selectedVarianceReduce[gl_WorkGroupID.x * imgSize + pid] = reduction_array[0] + reduction_array[1];
     } else if (iter == 1) {
-      selectedVariance[pid] = (reduction_array[0] + reduction_array[1]) / float(nSelected);
+      selectedVariance[pid * 3] = (reduction_array[0] + reduction_array[1]) / float(nSelected);
     }
   }
 }

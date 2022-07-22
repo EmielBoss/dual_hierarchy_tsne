@@ -52,6 +52,7 @@ namespace dh::vis {
     void clearSelection(bool imageDataset);
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    void drawImGuiImageButton(GLuint textureHandle);
     void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
 
   private:
@@ -74,6 +75,7 @@ namespace dh::vis {
     uint _selectionCount;
     bool _showingSelectionAverage;
     bool _showingSelectionVariance;
+    int _draggedAttribute;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -91,6 +93,7 @@ namespace dh::vis {
     bool getShowingSelectionVariance() { return _showingSelectionVariance; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
+    int getDraggedAttribute() { return _draggedAttribute; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -100,7 +103,9 @@ namespace dh::vis {
       swap(a._params, b._params);
       swap(a._selectionRadiusRel, b._selectionRadiusRel);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
+      swap(a._selectionCount, b._selectionCount);
       swap(a._mousePosScreen, b._mousePosScreen);
+      swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buffers, b._buffers);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._vaoHandle, b._vaoHandle);

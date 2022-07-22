@@ -147,9 +147,13 @@ namespace dh::vis {
     }
 
     // Start new frame for IMGUI
+    glAssert();
     ImGui_ImplOpenGL3_NewFrame();
+    glAssert();
     ImGui_ImplGlfw_NewFrame();
+    glAssert();
     ImGui::NewFrame();
+    glAssert();
 
     // Add ImGui components
 #ifdef DH_ENABLE_VIS_IMGUI
@@ -170,6 +174,7 @@ namespace dh::vis {
 
     // Set viewport for render tasks
     glViewport(0, 0, _fboSize.x, _fboSize.y);
+    glAssert();
 
     // Clear framebuffer
     constexpr glm::vec4 clearColor(1.0f, 1.0f, 1.0f, 0.0f);
@@ -187,6 +192,7 @@ namespace dh::vis {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glBindFramebuffer(GL_FRAMEBUFFER, _fboHandle);
+    glAssert();
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {

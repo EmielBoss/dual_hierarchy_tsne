@@ -45,7 +45,7 @@ namespace dh::vis {
     0.0f, 0.0f, 0.0f,   // 2
     0.0f, 1.0f, 0.0f,   // 3
     0.0f, 0.0f, 0.0f,   // 4
-    0.0f, 0.0f, 1.0f,   // 5
+    0.0f, 0.0f, 1.0f    // 5
   };
 
   constexpr float axesColors3D[] = {
@@ -54,7 +54,7 @@ namespace dh::vis {
     0.0f, 1.0f, 0.0f,   // 2
     0.0f, 1.0f, 0.0f,   // 3
     0.0f, 0.0f, 1.0f,   // 4
-    0.0f, 0.0f, 1.0f,   // 5
+    0.0f, 0.0f, 1.0f    // 5
   };
   
   template <uint D>
@@ -91,40 +91,42 @@ namespace dh::vis {
 
     // Initialize vertex array object
     {
-      glGenVertexArrays(1, &_vaoHandle);
-      glBindVertexArray(_vaoHandle);
+      glCreateVertexArrays(1, &_vaoHandle);
 
       // Create positions buffer/VBO
-      glGenBuffers(1, &_vboHandlePositions);
-      glBindBuffer(GL_ARRAY_BUFFER, _vboHandlePositions);
-      if constexpr (D == 2) { glBufferData(GL_ARRAY_BUFFER, sizeof(quadPositions2D), quadPositions2D, GL_DYNAMIC_DRAW); } else
-      if constexpr (D == 3) { glBufferData(GL_ARRAY_BUFFER, sizeof(axesPositions3D), axesPositions3D, GL_DYNAMIC_DRAW); }
+      glCreateBuffers(1, &_vboHandlePositions);
+      if constexpr (D == 2) { glNamedBufferData(_vboHandlePositions, sizeof(quadPositions2D), quadPositions2D, GL_DYNAMIC_DRAW); } else
+      if constexpr (D == 3) { glNamedBufferData(_vboHandlePositions, sizeof(axesPositions3D), axesPositions3D, GL_DYNAMIC_DRAW); }
       if constexpr (D == 3) { 
-        glGenBuffers(1, &_vboHandleColors);
-        glBindBuffer(GL_ARRAY_BUFFER, _vboHandleColors);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(axesColors3D), axesColors3D, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &_vboHandleColors);
+        glNamedBufferData(_vboHandleColors, sizeof(axesColors3D), axesColors3D, GL_DYNAMIC_DRAW);
       }
+      glAssert();
 
       // Specify vertex buffers/VAO
       if constexpr (D == 2) { glVertexArrayVertexBuffer(_vaoHandle, 0, _vboHandlePositions, 0, sizeof(glm::vec2)); } else
       if constexpr (D == 3) { glVertexArrayVertexBuffer(_vaoHandle, 0, _vboHandlePositions, 0, sizeof(glm::vec3)); }
-      if constexpr (D == 3) {
-        glBindBuffer(GL_ARRAY_BUFFER, _vboHandleColors);
-        glVertexArrayVertexBuffer(_vaoHandle, 1, _vboHandleColors, 0, sizeof(glm::vec3));
-      }
+      glAssert();
+      if constexpr (D == 3) { glVertexArrayVertexBuffer(_vaoHandle, 1, _vboHandleColors, 0, sizeof(glm::vec3)); }
+      glAssert();
       
       // Specify vertex array data organization
-      glBindBuffer(GL_ARRAY_BUFFER, _vboHandlePositions);
-      if constexpr (D == 2) { glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0); } else
-      if constexpr (D == 3) { glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); }
+      if constexpr (D == 2) { glVertexArrayAttribFormat(_vaoHandle, 0, 2, GL_FLOAT, GL_FALSE, 0); } else
+      glAssert();
+      if constexpr (D == 3) { glVertexArrayAttribFormat(_vaoHandle, 0, 3, GL_FLOAT, GL_FALSE, 0); }
+      glAssert();
+      if constexpr (D == 3) { glVertexArrayAttribFormat(_vaoHandle, 1, 3, GL_FLOAT, GL_FALSE, 0); }
+      glAssert();
+      glEnableVertexArrayAttrib(_vaoHandle, 0);
+      glAssert();
+      glVertexArrayAttribBinding(_vaoHandle, 0, 0);
+      glAssert();
       if constexpr (D == 3) {
-        glBindBuffer(GL_ARRAY_BUFFER, _vboHandleColors);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); }
-      glBindBuffer(GL_ARRAY_BUFFER, _vboHandlePositions);
-      glEnableVertexAttribArray(0);
-      if constexpr (D == 3) {
-        glBindBuffer(GL_ARRAY_BUFFER, _vboHandleColors);
-        glEnableVertexAttribArray(1); }
+        glEnableVertexArrayAttrib(_vaoHandle, 1);
+        glAssert();
+        glVertexArrayAttribBinding(_vaoHandle, 1, 1);
+        glAssert();
+      }
       
       glAssert();
     }

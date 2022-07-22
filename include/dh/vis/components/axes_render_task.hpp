@@ -90,6 +90,7 @@ namespace dh::vis {
       swap(a._minimization, b._minimization);
       swap(a._params, b._params);
       swap(a._axisMapping, b._axisMapping);
+      swap(a._axisMappingPrev, b._axisMappingPrev);
       swap(a._selectedAxistype, b._selectedAxistype);
       swap(a._selectedIndex, b._selectedIndex);
       swap(a._vboHandlePositions, b._vboHandlePositions);
