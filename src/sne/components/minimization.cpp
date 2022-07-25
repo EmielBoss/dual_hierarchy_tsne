@@ -147,6 +147,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
@@ -363,6 +364,34 @@ namespace dh::sne {
       _draggedAttributePrev = _draggedAttribute;
     }
 
+    _button = _selectionRenderTask->getButtonPressed();
+    if(_button > 0 && _button != _buttonPrev) {
+      if(_button == 1) {
+        float weight = _selectionRenderTask->getAttributeWeight();
+        for(uint i = 0; i < _params.nHighDims; ++i) {
+          if(_texelActives[i]) {
+            void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eAttributeWeights), GL_WRITE_ONLY);
+            memcpy((float*) bfrptr + i, &weight, sizeof(float));
+            glUnmapNamedBuffer(_buffers(BufferType::eAttributeWeights));
+          }
+        }
+      }
+      if(_button == 2 || _button == 3) {
+        for(uint i = 0; i < _params.nHighDims; ++i) {
+          if(_texelActives[i]) { flipTexel(i, 2); }
+        }
+      }
+      if(_button == 3) {
+        const std::vector<vec> zerovecs(_params.n, vec(0));
+        glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+      }
+      if(_button == 1 || _button == 3) {
+
+      }
+    }
+    _buttonPrev = _button;
+
+
     if(_input.r) { compIterationMinimizationRestart(); }
     if(!_input.space) { compIterationMinimization(); }
     if(_input.mouseLeft || _input.s) { compIterationSelection(); }
@@ -370,6 +399,8 @@ namespace dh::sne {
 
     return false;
   }
+
+
 
   template <uint D, uint DD>
   void Minimization<D, DD>::flipTexel(int texelIndex, int component) {
@@ -385,7 +416,7 @@ namespace dh::sne {
     }
 
     if(component == 1) { _texelActive = !_texelActive; } else
-    if(component == 2) { _texelActives[texelIndex] != _texelActives[texelIndex]; }
+    if(component == 2) { _texelActives[texelIndex] = !_texelActives[texelIndex]; }
     glAssert();
   }
 

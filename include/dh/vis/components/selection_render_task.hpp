@@ -76,6 +76,8 @@ namespace dh::vis {
     bool _showingSelectionAverage;
     bool _showingSelectionVariance;
     int _draggedAttribute;
+    float _attributeWeight;
+    uint _buttonPressed;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -94,6 +96,8 @@ namespace dh::vis {
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     int getDraggedAttribute() { return _draggedAttribute; }
+    uint getButtonPressed() { return _buttonPressed; }
+    float getAttributeWeight() { return _attributeWeight; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -106,6 +110,8 @@ namespace dh::vis {
       swap(a._selectionCount, b._selectionCount);
       swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._draggedAttribute, b._draggedAttribute);
+      swap(a._buttonPressed, b._buttonPressed);
+      swap(a._attributeWeight, b._attributeWeight);
       swap(a._buffers, b._buffers);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._vaoHandle, b._vaoHandle);

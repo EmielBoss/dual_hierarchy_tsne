@@ -57,7 +57,9 @@ namespace dh::vis {
     _selectionRadiusRel(0.03),
     _selectionCount(0),
     _mousePosScreen({0.0, 0.0}),
-    _draggedAttribute(-1) {
+    _draggedAttribute(-1),
+    _buttonPressed(0),
+    _attributeWeight(1.f) {
 
     // Initialize shader program
     {
@@ -151,9 +153,17 @@ namespace dh::vis {
     ImGui::Text("No. of selected datapoints: %i", _selectionCount);
 
     if(_params.imageDataset) {
+      _draggedAttribute = -1;
       if (_showingSelectionAverage = ImGui::CollapsingHeader("Selection average image", ImGuiTreeNodeFlags_DefaultOpen)) {
         drawImGuiImageButton(_minimizationBuffers.selectionAverageTexture);
       }
+
+      ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, 3.0f);
+
+      if(ImGui::Button("Apply")){ _buttonPressed = 1; } else
+      if(ImGui::SameLine(); ImGui::Button("Clear")) { _buttonPressed = 2; } else
+      if(ImGui::SameLine(); ImGui::Button("Reset")){ _buttonPressed = 3; }
+      else { _buttonPressed = 0; }
 
       if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {
         drawImGuiImageButton(_minimizationBuffers.selectionVarianceTexture);
@@ -164,6 +174,7 @@ namespace dh::vis {
   void SelectionRenderTask::drawImGuiImageButton(GLuint textureHandle) {
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)textureHandle, ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
+    if(_draggedAttribute >= 0) { return; }
     if(ImGui::IsItemActive() && ImGui::IsItemHovered()) {
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;

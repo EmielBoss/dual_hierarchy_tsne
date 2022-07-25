@@ -99,6 +99,7 @@ namespace dh::sne {
       eSelectionCount,
       eSelectionCountReduce,
       eTextureDataReduce,
+      eAttributeWeights,
       eFixed,
       eTranslating,
       eWeights,
@@ -186,6 +187,8 @@ namespace dh::sne {
     std::vector<bool> _texelActives;
     int _draggedAttribute;
     int _draggedAttributePrev;
+    uint _button;
+    uint _buttonPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
