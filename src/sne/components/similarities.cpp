@@ -259,7 +259,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n * _params.k, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -268,23 +268,23 @@ namespace dh::sne {
 
     // 7.
     // Sort neighbours within each KNN set (and corresponding similarities)
-    {
-      auto &program = _programs(ProgramType::eNeighborsSortComp);
-      program.bind();
+    // {
+    //   auto &program = _programs(ProgramType::eNeighborsSortComp);
+    //   program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
+    //   program.template uniform<uint>("nPoints", _params.n);
 
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSimilarities));
+    //   // Set buffer bindings
+    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayout));
+    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eNeighbors));
+    //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSimilarities));
 
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    //   // Dispatch shader
+    //   glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-      glAssert();
-    }
+    //   glAssert();
+    // }
     
     // Update progress bar
     progressBar.setPostfix("Done!");

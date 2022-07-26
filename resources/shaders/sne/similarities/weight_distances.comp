@@ -24,18 +24,39 @@
 
 #version 460 core
 
+struct Layout {
+  uint offset;
+  uint size;
+};
+
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Sele { uint selectionBuffer[]; }; // 0 if unselected, 1 if in selection 1, 2 if in selection 2
-layout(binding = 1, std430) restrict writeonly buffer Sel { uint selectedBuffer[]; }; // 0 if unselected, 1 if selected
+layout(binding = 0, std430) restrict readonly buffer Attr { float attributeWeightsBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Sele { float selectedBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Indi { uint neighborsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Dist1 { uint distances1Buffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Dist2 { float distances2Buffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform uint kNeighbors;
+layout(location = 2) uniform uint nHighDims;
 
 void main() {
-  const uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (selectionBuffer[i] == 0 || i >= nPoints) { return; }
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / kNeighbors;
+  const uint k = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % kNeighbors;
+  const uint j = neighborsBuffer[i * kNeighbors + k];
 
-  selectedBuffer[i] = 1;
+  if (i >= nPoints || i > j || k == 0 || selectedBuffer[i] == 0) { return; }
+
+  float sum = distances1Buffer[i * kNeighbors + k];
+  for(uint d = 0; d < nHighDims; d++) {
+    if(attributeWeightsBuffer[d] =! 1.0f) {
+      sum += pow(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d], 2);
+    }
+  }
+  distances2Buffer[i * kNeighbors + k] = sum;
+
 }

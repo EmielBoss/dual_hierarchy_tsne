@@ -55,13 +55,10 @@ uint searchk(uint i, uint j) {
 }
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / kNeighbors;
-  const uint k = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % kNeighbors;
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / (kNeighbors - 1);
+  const uint k = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % (kNeighbors - 1) + 1;
 
   if (i >= nPoints) { return; }
-
-  // TODO Optimize this so the first index is just intrinsically not part of the computation
-  if (k == 0) { return; }
 
   // Read original asymmetric neighbors
   const uint j = asymmetricNeighborsBuffer[i * kNeighbors + k];

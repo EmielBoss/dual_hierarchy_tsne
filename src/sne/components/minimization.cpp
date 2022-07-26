@@ -775,7 +775,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCount(_selectionCount);
 
       // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
-      if(_selectionCount - selectionCountPrev > _params.n / 100) { _embeddingRenderTask->setWeighForces(false); }
+      if(_selectionCount - selectionCountPrev > _params.n / 500) { _embeddingRenderTask->setWeighForces(false); }
     }
 
     // 3.
