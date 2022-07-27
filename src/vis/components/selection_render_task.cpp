@@ -175,7 +175,7 @@ namespace dh::vis {
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)textureHandle, ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
     if(_draggedAttribute >= 0) { return; }
-    if(ImGui::IsItemActive() && ImGui::IsItemHovered()) {
+    if(ImGui::IsAnyMouseDown() && ImGui::IsItemHovered()) {
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
       _draggedAttribute = teYel * _params.imgWidth + teXel;

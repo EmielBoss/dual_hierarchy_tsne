@@ -34,6 +34,7 @@
 #include "dh/vis/input_queue.hpp"
 #include "dh/util/cu/knn.cuh"
 #include <faiss/VectorTransform.h>
+#include <imgui.h>
 #include <numeric> //
 #include <fstream> //
 #include <filesystem> //
@@ -330,7 +331,7 @@ namespace dh::sne {
       _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
     }
 
-    if(_input.d || (_selectOnlyLabeled != _selectOnlyLabeledPrev)) {
+    if(_input.d) { // || (_selectOnlyLabeled != _selectOnlyLabeledPrev)
       _selectionCount = 0;
       _selectionRenderTask->setSelectionCount(_selectionCount);
       _embeddingRenderTask->setWeighForces(true);
@@ -341,6 +342,7 @@ namespace dh::sne {
         _texelActive = false;
       }
     }
+    
     if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
     if(_input.f) {
       const std::vector<float> ones(_params.n, 1.0f);
@@ -358,9 +360,11 @@ namespace dh::sne {
       _axisMappingPrev = _axisMapping;
       _axisIndexPrev = _axisIndex;
     }
+
     _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
     if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
-      flipTexel(_draggedAttribute, 2);
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && !_texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } else
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Right) && _texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } 
       _draggedAttributePrev = _draggedAttribute;
     }
 
@@ -386,7 +390,7 @@ namespace dh::sne {
         glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
       }
       if(_button == 1 || _button == 3) {
-
+        // _similarities->comp(_buffers(BufferType::eAttributeWeights), _buffers(BufferType::eSelected));
       }
     }
     _buttonPrev = _button;
