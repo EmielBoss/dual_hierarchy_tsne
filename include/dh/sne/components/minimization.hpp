@@ -66,14 +66,15 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
+    void restartMinimization();
     void flipTexel(int texelIndex, int component);
+    void clearTextureComponent(uint component);
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
     bool compIteration();                                   // Compute a single iteration: minimization + selection + translation
     void compIterationReaxis();                             // Compute a reconfiguring of the axes
-    void compIterationMinimizationRestart();                // Compute a restart of the minimization
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
@@ -99,7 +100,6 @@ namespace dh::sne {
       eSelectionCount,
       eSelectionCountReduce,
       eTextureDataReduce,
-      eAttributeWeights,
       eFixed,
       eTranslating,
       eWeights,
@@ -107,13 +107,6 @@ namespace dh::sne {
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eTest,
-
-      Length
-    };
-
-    enum class TextureDataType {
-      eAverage,
-      eVariance,
 
       Length
     };
@@ -183,7 +176,6 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    bool _texelActive;
     std::vector<bool> _texelActives;
     int _draggedAttribute;
     int _draggedAttributePrev;
@@ -192,7 +184,7 @@ namespace dh::sne {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<TextureDataType, GLuint> _buffersTextureData;
+    util::EnumArray<TextureType, GLuint> _buffersTextureData;
     util::EnumArray<TextureType, GLuint> _textures;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
@@ -236,7 +228,6 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
-      swap(a._texelActive, b._texelActive);
       swap(a._texelActives, b._texelActives);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._draggedAttributePrev, b._draggedAttributePrev);

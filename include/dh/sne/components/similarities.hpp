@@ -51,24 +51,17 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
-    void update(GLuint selectionBuffer, GLuint selectionCountsBuffer, uint* selectionCounts);
 
   private:
     enum class BufferType {
       eDataset,
       eSimilarities,
-      eBetas,
-      eBetasFound,
-      eV_jiSumBuffer,
       eLayout,
       eLayoutPrev,
       eNeighbors,
       eSizes,
       eScan,
       eCounts,
-
-      eSelected,
-      eSelectedScan,
       
       Length
     };
@@ -106,7 +99,6 @@ namespace dh::sne {
     bool _isInit;
     Params _params;
     const float* _dataPtr;
-    uint _totalNeighborsPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

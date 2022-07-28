@@ -147,13 +147,10 @@ namespace dh::vis {
     }
 
     // Start new frame for IMGUI
-    glAssert();
     ImGui_ImplOpenGL3_NewFrame();
-    glAssert();
+    glAssert(); // If it fails here it probably has to do with the textures (and something on the zero'th iteration)
     ImGui_ImplGlfw_NewFrame();
-    glAssert();
     ImGui::NewFrame();
-    glAssert();
 
     // Add ImGui components
 #ifdef DH_ENABLE_VIS_IMGUI

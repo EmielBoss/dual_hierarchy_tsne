@@ -53,6 +53,7 @@ namespace dh::sne {
     // ...
   }
 
+  // Auxiliary function purely for debugging; will be removed
   template <uint D, uint DD>
   void Minimization<D, DD>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<float> buffer(n * d);
@@ -71,7 +72,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _texelActive(false), _texelActives(params.nHighDims, false), _draggedAttribute(-1), _draggedAttributePrev(-1), _iteration(0) {
+    _texelActives(params.nHighDims, false), _draggedAttribute(-1), _draggedAttributePrev(-1), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -117,15 +118,15 @@ namespace dh::sne {
 
     // Initialize buffer objects
     {
-      std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       const std::vector<vec> zerovecs(_params.n, vec(0));
       const std::vector<vec> unitvecs(_params.n, vec(1));
       const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params.n, 1.0f);
       const std::vector<float> zeros(_params.n, 0.0f);
       std::vector<uint> labeled(_params.n, 0);
-      // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
-      for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; }
+      // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
+      std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
+      for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
       std::vector<float> data(_params.n * _params.nHighDims);
       for(uint p = 0; p < _params.n * _params.nHighDims; ++p) { data[p] = *(dataPtr + p) / 255.0f; }
 
@@ -148,7 +149,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
@@ -156,15 +156,14 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_MAP_WRITE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
-      
-      glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
-      glNamedBufferStorage(_buffersTextureData(TextureDataType::eAverage), 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
-      glNamedBufferStorage(_buffersTextureData(TextureDataType::eVariance), 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
-      
 
+      // Initialize everything required for textures
       if(_params.imageDataset) {
+        glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
         glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
         for(uint i = 0; i < _textures.size(); ++i) {
+          glNamedBufferStorage(_buffersTextureData[i], 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+
           glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
           glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight); 
@@ -172,10 +171,13 @@ namespace dh::sne {
       }
     }
 
-    initializeEmbeddingRandomly(_params.seed);
+    // Calculate nPCs number of principal components and stores the values in _pcs
     faiss::PCAMatrix matrixPCA(_params.nHighDims, _params.nPCs);
     matrixPCA.train(_params.n, _dataPtr);
     _pcs = matrixPCA.apply(_params.n, _dataPtr);
+
+    initializeEmbeddingRandomly(_params.seed);
+
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
     Logger::rest() << prefix << "Initialized, buffer storage : " << static_cast<float>(bufferSize) / 1'048'576.0f << " mb";
@@ -192,7 +194,7 @@ namespace dh::sne {
 
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
-      std::string axistypesAbbr = "tpa-";
+      std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, dataPtr));
@@ -240,6 +242,37 @@ namespace dh::sne {
     glAssert();
   }
 
+  template <uint D, uint DD>
+  Minimization<D, DD>::~Minimization() {
+    if (_isInit) {
+      glDeleteBuffers(_buffers.size(), _buffers.data());
+      glDeleteTextures(_buffersTextureData.size(), _buffersTextureData.data());
+      glDeleteTextures(_textures.size(), _textures.data());
+      _isInit = false;
+    }
+  }
+
+  template <uint D, uint DD>
+  Minimization<D, DD>::Minimization(Minimization<D, DD>&& other) noexcept {
+    swap(*this, other);
+  }
+
+  template <uint D, uint DD>
+  Minimization<D, DD>& Minimization<D, DD>::operator=(Minimization<D, DD>&& other) noexcept {
+    swap(*this, other);
+    return *this;
+  }
+
+  // Restarts the minimization
+  template <uint D, uint DD>
+  void Minimization<D, DD>::restartMinimization() {
+    if(_iteration < 100) { return; }
+    initializeEmbeddingRandomly(_iteration);
+    _iteration = 0;
+    const std::vector<vec> zerovecs(_params.n, vec(0));
+    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+  }
+
   // Configures the axes on request of change
   template <uint D, uint DD>
   void Minimization<D, DD>::compIterationReaxis() {
@@ -265,25 +298,33 @@ namespace dh::sne {
     glAssert();
   }
 
+  // Flips a specified texel in both texture buffers, updates the textures, and does bookkeeping
   template <uint D, uint DD>
-  Minimization<D, DD>::~Minimization() {
-    if (_isInit) {
-      glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteTextures(_buffersTextureData.size(), _buffersTextureData.data());
-      glDeleteTextures(_textures.size(), _textures.data());
-      _isInit = false;
+  void Minimization<D, DD>::flipTexel(int texelIndex, int component) {
+    for(uint i = 0; i < _textures.size(); ++i) {
+      void* bfrptr = glMapNamedBuffer(_buffersTextureData[i], GL_READ_WRITE);
+      float texelVal;
+      memcpy(&texelVal, (float*) bfrptr + texelIndex * 3 + component, sizeof(float));
+      texelVal = std::fmod(texelVal + 0.5, 1.f);
+      memcpy((float*) bfrptr + texelIndex * 3 + component, &texelVal, sizeof(float));
+      glUnmapNamedBuffer(_buffersTextureData[i]);
     }
+
+    if(component == 2) { _texelActives[texelIndex] = !_texelActives[texelIndex]; }
+    glAssert();
   }
 
   template <uint D, uint DD>
-  Minimization<D, DD>::Minimization(Minimization<D, DD>&& other) noexcept {
-    swap(*this, other);
-  }
-
-  template <uint D, uint DD>
-  Minimization<D, DD>& Minimization<D, DD>::operator=(Minimization<D, DD>&& other) noexcept {
-    swap(*this, other);
-    return *this;
+  void Minimization<D, DD>::clearTextureComponent(uint component) {
+    for(uint i = 0; i < _textures.size(); ++i) {
+      void* bfrptr = glMapNamedBuffer(_buffersTextureData[i], GL_WRITE_ONLY);
+      float zero = 0.f;
+      for(uint t = 0; t < _params.nHighDims; ++t) {
+        memcpy((float*) bfrptr + t * 3 + component, &zero, sizeof(float));
+        if(component == 2) { _texelActives[t] = false; }
+      }
+      glUnmapNamedBuffer(_buffersTextureData[i]);
+    }
   }
 
   template <uint D, uint DD>
@@ -293,33 +334,34 @@ namespace dh::sne {
     }
   }
 
+  // Core function handling everything that needs to happen each frame
   template <uint D, uint DD>
   bool Minimization<D, DD>::compIteration() {
-    _mousePosClipPrev = _input.mousePosClip;
-    _mouseLeftPrev = _input.mouseLeft;
-    _mouseRightPrev = _input.mouseRight;
     _input = _selectionInputTask->getInput();
-    bool mouseRight = _input.mouseRight;
 
-    // Synchronizing color mapping between GUI and input
-    _colorMappingPrev = _colorMapping;
-    _colorMapping = _input.num;
-    if(_colorMapping != _colorMappingPrev) { _embeddingRenderTask->setColorMapping(_colorMapping); }
-    _colorMapping = _embeddingRenderTask->getColorMapping();
-    if (_colorMapping != _colorMappingPrev) { _selectionInputTask->setNumPressed(_colorMapping); }
+    // Ugly synchronization work; I blame the existing software architecture
+    {
+      // Synchronizing color mapping between GUI and input
+      _colorMappingPrev = _colorMapping;
+      _colorMapping = _input.num;
+      if(_colorMapping != _colorMappingPrev) { _embeddingRenderTask->setColorMapping(_colorMapping); }
+      _colorMapping = _embeddingRenderTask->getColorMapping();
+      if (_colorMapping != _colorMappingPrev) { _selectionInputTask->setNumPressed(_colorMapping); }
 
-    // Synchronizing selection radius between GUI and input
-    float selectionRadiusRelPrev = _selectionRadiusRel;
-    _selectionRadiusRel = _selectionRenderTask->getSelectionRadiusRel();
-    if (_selectionRadiusRel != selectionRadiusRelPrev) { _selectionInputTask->setMouseScroll(_selectionRadiusRel * 100); }
-    _selectionRadiusRel = _input.mouseScroll / 100.f;
-    if(_selectionRadiusRel != selectionRadiusRelPrev) { _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel); }
+      // Synchronizing selection radius between GUI and input
+      float selectionRadiusRelPrev = _selectionRadiusRel;
+      _selectionRadiusRel = _selectionRenderTask->getSelectionRadiusRel();
+      if (_selectionRadiusRel != selectionRadiusRelPrev) { _selectionInputTask->setMouseScroll(_selectionRadiusRel * 100); }
+      _selectionRadiusRel = _input.mouseScroll / 100.f;
+      if(_selectionRadiusRel != selectionRadiusRelPrev) { _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel); }
 
-    _selectionRenderTask->setMousePosScreen(_input.mousePosScreen);
-    // Synchronize selection mode
-    _selectOnlyLabeledPrev = _selectOnlyLabeled;
-    _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
-    _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
+      _selectionRenderTask->setMousePosScreen(_input.mousePosScreen); // Send screen position to GUI
+
+      // Synchronize selection mode
+      _selectOnlyLabeledPrev = _selectOnlyLabeled;
+      _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
+      _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
+    }
 
     // Get everything related with the cursor and selection brush
     util::GLWindow* window = util::GLWindow::currentWindow();
@@ -331,63 +373,44 @@ namespace dh::sne {
       _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
     }
 
-    if(_input.d) { // || (_selectOnlyLabeled != _selectOnlyLabeledPrev)
+    // Deselect
+    if(_input.d) {
       _selectionCount = 0;
       _selectionRenderTask->setSelectionCount(_selectionCount);
-      _embeddingRenderTask->setWeighForces(true);
+      _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      if(_params.imageDataset) {
-        glClearNamedBufferData(_buffersTextureData(TextureDataType::eAverage), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-        for(uint i = 0; i < _textures.size(); ++i) { glClearTexImage(_textures[i], 0,  GL_RED, GL_FLOAT, nullptr); }
-        _texelActive = false;
-      }
+      if(_params.imageDataset) { clearTextureComponent(0); }
     }
     
-    if(!mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    // Clear translations if not translating
+    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    
+    // Free/unfix fixed datapoints
     if(_input.f) {
       const std::vector<float> ones(_params.n, 1.0f);
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
-    _axisMapping = _axesRenderTask->getAxisMapping();
-    _axisIndex = _axesRenderTask->getSelectedIndex();
-    if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
-      return true;
-    }
-    if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-      if(_texelActive) { flipTexel(_axisIndexPrev, 1); }
-      compIterationReaxis();
-      _axisMappingPrev = _axisMapping;
-      _axisIndexPrev = _axisIndex;
-    }
 
-    _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
-    if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
-      if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && !_texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } else
-      if(ImGui::IsMouseDown(ImGuiMouseButton_Right) && _texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } 
-      _draggedAttributePrev = _draggedAttribute;
-    }
-
+    // Process attribute selection texture buttons (0 = Apply, 1 = Clear, 2 = Reset)
     _button = _selectionRenderTask->getButtonPressed();
     if(_button > 0 && _button != _buttonPrev) {
       if(_button == 1) {
-        float weight = _selectionRenderTask->getAttributeWeight();
-        for(uint i = 0; i < _params.nHighDims; ++i) {
-          if(_texelActives[i]) {
-            void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eAttributeWeights), GL_WRITE_ONLY);
-            memcpy((float*) bfrptr + i, &weight, sizeof(float));
-            glUnmapNamedBuffer(_buffers(BufferType::eAttributeWeights));
-          }
-        }
+        // float weight = _selectionRenderTask->getAttributeWeight();
+        // for(uint i = 0; i < _params.nHighDims; ++i) {
+        //   if(_texelActives[i]) {
+        //     void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eAttributeWeights), GL_WRITE_ONLY);
+        //     memcpy((float*) bfrptr + i, &weight, sizeof(float));
+        //     glUnmapNamedBuffer(_buffers(BufferType::eAttributeWeights));
+        //   }
+        // }
       }
       if(_button == 2 || _button == 3) {
-        for(uint i = 0; i < _params.nHighDims; ++i) {
-          if(_texelActives[i]) { flipTexel(i, 2); }
-        }
+        clearTextureComponent(2);
       }
       if(_button == 3) {
         const std::vector<vec> zerovecs(_params.n, vec(0));
-        glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+        // glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
       }
       if(_button == 1 || _button == 3) {
         // _similarities->comp(_buffers(BufferType::eAttributeWeights), _buffers(BufferType::eSelected));
@@ -396,41 +419,46 @@ namespace dh::sne {
     _buttonPrev = _button;
 
 
-    if(_input.r) { compIterationMinimizationRestart(); }
-    if(!_input.space) { compIterationMinimization(); }
-    if(_input.mouseLeft || _input.s) { compIterationSelection(); }
-    if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); }
+    if(_input.r) { restartMinimization(); } // Restart
+    if(!_input.space) { compIterationMinimization(); } // Compute iteration, or pause if space is pressed
+    if(_input.mouseLeft || _input.s) { compIterationSelection(); } // Select
+    if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); } // Translate
 
-    return false;
-  }
+    _mousePosClipPrev = _input.mousePosClip;
+    _mouseLeftPrev = _input.mouseLeft;
+    _mouseRightPrev = _input.mouseRight;
 
+    // Draw dragselected attributes in texture
+    _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
+    if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && !_texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } else
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Right) && _texelActives[_draggedAttribute]) { flipTexel(_draggedAttribute, 2); } 
+      _draggedAttributePrev = _draggedAttribute;
+    }
 
+    // Reset some stuff upon axis change
+    _axisMapping = _axesRenderTask->getAxisMapping();
+    _axisIndex = _axesRenderTask->getSelectedIndex();
+    if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
+      clearTextureComponent(1);
+      compIterationReaxis();
+      _axisMappingPrev = _axisMapping;
+      _axisIndexPrev = _axisIndex;
+    }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::flipTexel(int texelIndex, int component) {
-    for(uint i = 0; i < _textures.size(); ++i) {
-      void* bfrptr = glMapNamedBuffer(_buffersTextureData[i], GL_READ_WRITE);
-      float texelVal;
-      memcpy(&texelVal, (float*) bfrptr + texelIndex * 3 + component, sizeof(float));
-      texelVal = std::fmod(texelVal + 0.5, 1.f);
-      memcpy((float*) bfrptr + texelIndex * 3 + component, &texelVal, sizeof(float));
-      glUnmapNamedBuffer(_buffersTextureData[i]);
+    // Copy texture data to textures
+    for(uint i = 0; i < _textures.size() && _iteration > 1; ++i) {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
       glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
     }
 
-    if(component == 1) { _texelActive = !_texelActive; } else
-    if(component == 2) { _texelActives[texelIndex] = !_texelActives[texelIndex]; }
-    glAssert();
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationMinimizationRestart() {
-    if(_iteration < 100) { return; }
-    initializeEmbeddingRandomly(_iteration);
-    _iteration = 0;
-    const std::vector<vec> zerovecs(_params.n, vec(0));
-    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+    // Reconstruct this Minimization if adding subtracting a t-SNE dimension
+    // _axisMapping = _axesRenderTask->getAxisMapping();
+    // _axisIndex = _axesRenderTask->getSelectedIndex();
+    // if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
+    //   return true;
+    // }
+    return false;
   }
 
   template <uint D, uint DD>
@@ -798,7 +826,7 @@ namespace dh::sne {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTextureDataReduce));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTextureData(TextureDataType::eAverage));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTextureData(TextureType::eAverage));
         glAssert();
 
         program.template uniform<uint>("iter", 0);
@@ -807,9 +835,6 @@ namespace dh::sne {
         program.template uniform<uint>("iter", 1);
         glDispatchCompute(1,_params.nHighDims, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureDataType::eAverage));
-        glTextureSubImage2D(_textures(TextureType::eAverage), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
         glAssert();
       }
 
@@ -825,9 +850,9 @@ namespace dh::sne {
         // Set buffer bindings
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelected));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureDataType::eAverage));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureType::eAverage));
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eTextureDataReduce));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTextureData(TextureDataType::eVariance));
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTextureData(TextureType::eVariance));
         glAssert();
 
         program.template uniform<uint>("iter", 0);
@@ -836,9 +861,6 @@ namespace dh::sne {
         program.template uniform<uint>("iter", 1);
         glDispatchCompute(1,_params.nHighDims, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureDataType::eVariance));
-        glTextureSubImage2D(_textures(TextureType::eVariance), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
         glAssert();
       }
     }

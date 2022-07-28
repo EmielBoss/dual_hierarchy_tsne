@@ -33,9 +33,6 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict readonly buffer Indi { uint neighborsBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
 layout(binding = 2, std430) restrict buffer SimilaritiesM { float similaritiesBuffer[]; };
-layout(binding = 3, std430) restrict writeonly buffer Bet { float betasBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer BtF { uint betasFoundBuffer[]; };
-layout(binding = 5, std430) restrict writeonly buffer Sum { float v_jiSumBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -97,10 +94,6 @@ void main() {
     
     iter++;
   }
-
-  betasBuffer[i] = beta;
-  betasFoundBuffer[i] = int(foundBeta);
-  v_jiSumBuffer[i] = sum;
 
   // Normalize kernel at the end
   if (!foundBeta) {
