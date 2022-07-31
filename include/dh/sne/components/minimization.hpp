@@ -78,7 +78,7 @@ namespace dh::sne {
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
-    void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
+    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
   private:
     enum class BufferType {
@@ -181,6 +181,8 @@ namespace dh::sne {
     int _draggedAttributePrev;
     uint _button;
     uint _buttonPrev;
+    std::set<uint> _selectedAttributeIndices;
+    bool _kevertje;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -244,6 +246,7 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
+      swap(a._kevertje, b._kevertje);
     }
   };
 } // dh::sne

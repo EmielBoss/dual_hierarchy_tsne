@@ -47,6 +47,7 @@ namespace dh::sne {
     GLuint similarities;
     GLuint layout;
     GLuint neighbors;
+    GLuint attributeWeights;
   };
 
   // Data class provided by dh::sne::Field<D>::buffers() for other components

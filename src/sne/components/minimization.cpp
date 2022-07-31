@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <random>
 #include <vector>
+#include <set>
 #include <resource_embed/resource_embed.hpp>
 #include "dh/constants.hpp"
 #include "dh/sne/components/minimization.hpp"
@@ -55,13 +56,14 @@ namespace dh::sne {
 
   // Auxiliary function purely for debugging; will be removed
   template <uint D, uint DD>
+  template<typename T>
   void Minimization<D, DD>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
-    std::vector<float> buffer(n * d);
-    glGetNamedBufferSubData(handle, 0, n * d * sizeof(float), buffer.data());
+    std::vector<T> buffer(n * d);
+    glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
     std::ofstream file("../buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
-        float val = buffer[i * d + j];
+        T val = buffer[i * d + j];
         file << val << "|";
       }
       file << "\n";
@@ -72,7 +74,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _texelActives(params.nHighDims, false), _draggedAttribute(-1), _draggedAttributePrev(-1), _iteration(0) {
+    _texelActives(params.nHighDims, false), _draggedAttribute(-1), _draggedAttributePrev(-1), _iteration(0), _kevertje(false) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -310,7 +312,11 @@ namespace dh::sne {
       glUnmapNamedBuffer(_buffersTextureData[i]);
     }
 
-    if(component == 2) { _texelActives[texelIndex] = !_texelActives[texelIndex]; }
+    if(component == 2) {
+      _texelActives[texelIndex] = !_texelActives[texelIndex];
+      if(!_selectedAttributeIndices.count(texelIndex)) { _selectedAttributeIndices.insert(texelIndex); } else
+      if( _selectedAttributeIndices.count(texelIndex)) { _selectedAttributeIndices.erase(texelIndex); }
+    }
     glAssert();
   }
 
@@ -396,24 +402,25 @@ namespace dh::sne {
     _button = _selectionRenderTask->getButtonPressed();
     if(_button > 0 && _button != _buttonPrev) {
       if(_button == 1) {
-        // float weight = _selectionRenderTask->getAttributeWeight();
-        // for(uint i = 0; i < _params.nHighDims; ++i) {
-        //   if(_texelActives[i]) {
-        //     void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eAttributeWeights), GL_WRITE_ONLY);
-        //     memcpy((float*) bfrptr + i, &weight, sizeof(float));
-        //     glUnmapNamedBuffer(_buffers(BufferType::eAttributeWeights));
-        //   }
-        // }
+        float weight = _selectionRenderTask->getAttributeWeight();
+        for(uint i = 0; i < _params.nHighDims; ++i) {
+          if(_texelActives[i]) {
+            void* bfrptr = glMapNamedBuffer(_similaritiesBuffers.attributeWeights, GL_WRITE_ONLY);
+            memcpy((float*) bfrptr + i, &weight, sizeof(float));
+            glUnmapNamedBuffer(_similaritiesBuffers.attributeWeights);
+          }
+        }
       }
       if(_button == 2 || _button == 3) {
         clearTextureComponent(2);
       }
       if(_button == 3) {
         const std::vector<vec> zerovecs(_params.n, vec(0));
-        // glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+        glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
       }
       if(_button == 1 || _button == 3) {
-        // _similarities->comp(_buffers(BufferType::eAttributeWeights), _buffers(BufferType::eSelected));
+        _kevertje = true;
+        _similarities->comp(_buffers(BufferType::eSelected), _selectedAttributeIndices);
       }
     }
     _buttonPrev = _button;
@@ -652,6 +659,26 @@ namespace dh::sne {
       timer.tock();
       glAssert();
     }
+
+    // if(_kevertje && _input.e) {
+    //   writeBuffer<float>(_buffers(BufferType::eAttractive), _params.n, 2, "attractive B");
+    //   writeBuffer<float>(_buffers(BufferType::eField), _params.n, 2, "field B");
+    //   writeBuffer<float>(_buffers(BufferType::eGradients), _params.n, 2, "gradients B");
+    //   writeBuffer<float>(_buffers(BufferType::eGain), _params.n, 2, "gain B");
+    //   writeBuffer<float>(_buffers(BufferType::eEmbedding), _params.n, 2, "embo B");
+    //   writeBuffer<float>(_similaritiesBuffers.similarities, _params.n, _params.k, "sims B");
+    //   writeBuffer<uint>(_similaritiesBuffers.neighbors, _params.n, _params.k, "neighbs B");
+    //   writeBuffer<uint>(_similaritiesBuffers.layout, _params.n, 2, "layout B");
+    // } else if(!_kevertje && _input.e) {
+    //   writeBuffer<float>(_buffers(BufferType::eAttractive), _params.n, 2, "attractive A");
+    //   writeBuffer<float>(_buffers(BufferType::eField), _params.n, 2, "field A");
+    //   writeBuffer<float>(_buffers(BufferType::eGradients), _params.n, 2, "gradients A");
+    //   writeBuffer<float>(_buffers(BufferType::eGain), _params.n, 2, "gain A");
+    //   writeBuffer<float>(_buffers(BufferType::eEmbedding), _params.n, 2, "embo A");
+    //   writeBuffer<float>(_similaritiesBuffers.similarities, _params.n, _params.k, "sims A");
+    //   writeBuffer<uint>(_similaritiesBuffers.neighbors, _params.n, _params.k, "neighbs A");
+    //   writeBuffer<uint>(_similaritiesBuffers.layout, _params.n, 2, "layout A");
+    // }
 
     // 7.
     // Re-center embedding

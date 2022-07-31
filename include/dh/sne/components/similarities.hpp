@@ -25,6 +25,7 @@
 #pragma once
 
 #include <vector>
+#include <set>
 #include "dh/types.hpp"
 #include "dh/util/enum.hpp"
 #include "dh/util/gl/timer.hpp"
@@ -49,30 +50,33 @@ namespace dh::sne {
     Similarities(Similarities&&) noexcept;
     Similarities& operator=(Similarities&&) noexcept;
 
+    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
+
     // Compute similarities
-    void comp();
+    void comp(GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
 
   private:
     enum class BufferType {
       eDataset,
+      eDistances,
+      eKNNeighbors,
       eSimilarities,
       eLayout,
-      eLayoutPrev,
       eNeighbors,
       eSizes,
       eScan,
-      eCounts,
+      eAttributeWeights,
       
       Length
     };
 
     // Basically buffers that have to be destroyed and recreated in order to grow their memory allocation
     enum class BufferTempType {
-      eDistances,
       eSimilarities,
-      eNeighbors,
+      eCounts,
       eSelectionIndices,
-      
+      eSelectedAttributeIndices,
+
       Length
     };
 
@@ -81,7 +85,8 @@ namespace dh::sne {
       eExpandComp,
       eLayoutComp,
       eNeighborsComp,
-      eNeighborsSortComp,
+      // eNeighborsSortComp,
+      eWeightDistancesComp,
       
       Length
     };
@@ -115,7 +120,8 @@ namespace dh::sne {
         _buffers(BufferType::eDataset),
         _buffers(BufferType::eSimilarities),
         _buffers(BufferType::eLayout),
-        _buffers(BufferType::eNeighbors)
+        _buffers(BufferType::eNeighbors),
+        _buffers(BufferType::eAttributeWeights)
       };
     }
 
