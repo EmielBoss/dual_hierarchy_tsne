@@ -43,7 +43,8 @@ layout(binding = 5, std430) restrict buffer Dist1 { float distancesBuffer[]; };
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint kNeighbors;
 layout(location = 2) uniform uint nHighDims;
-layout(location = 3) uniform uint nSelectedAttribs;
+layout(location = 3) uniform uint batchBegin;
+layout(location = 4) uniform uint batchEnd;
 
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / (kNeighbors - 1);
@@ -53,7 +54,7 @@ void main() {
   if (i >= nPoints || selectedBuffer[i] == 0) { return; }
 
   float sumSqrdDst = distancesBuffer[i * kNeighbors + k];
-  for(uint d = 0; d < nSelectedAttribs; d++) {
+  for(uint d = batchBegin; d < batchEnd; d++) {
     uint attr = selectedAttributeIndicesBuffer[d];
     float sqrdDst = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
     sumSqrdDst -= sqrdDst;

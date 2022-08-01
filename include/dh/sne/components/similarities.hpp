@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <set>
 #include "dh/types.hpp"

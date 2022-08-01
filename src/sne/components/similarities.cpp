@@ -151,7 +151,6 @@ namespace dh::sne {
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<uint>("kNeighbors", _params.k);
       program.template uniform<uint>("nHighDims", _params.nHighDims);
-      program.template uniform<uint>("nSelectedAttribs", selectedAttributeIndices.size());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
@@ -161,10 +160,17 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eKNNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eDistances));
 
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
+      // Dispatch shader in batches of 100 (selected) attriibutes
+      for(uint b = 0; b * 100 < selectedAttributeIndices.size(); ++b) {
+        uint begin = b*100;
+        uint end = std::min((b+1) * 100, (uint) selectedAttributeIndices.size());
+        uint size = selectedAttributeIndices.size();
+        program.template uniform<uint>("batchBegin", b * 100);
+        program.template uniform<uint>("batchEnd", std::min((b+1) * 100, (uint) selectedAttributeIndices.size()));
+        glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
+        glFinish();
+        glAssert();
+      }
     }
 
     if(selectedBufferHandle == 0) { writeBuffer<float>(_buffers(BufferType::eDistances), _params.n, _params.k, "dist A"); }
