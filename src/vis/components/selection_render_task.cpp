@@ -161,8 +161,7 @@ namespace dh::vis {
       ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, 3.0f);
 
       if(ImGui::Button("Apply")){ _buttonPressed = 1; } else
-      if(ImGui::SameLine(); ImGui::Button("Clear")) { _buttonPressed = 2; } else
-      if(ImGui::SameLine(); ImGui::Button("Reset")){ _buttonPressed = 3; }
+      if(ImGui::SameLine(); ImGui::Button("Clear")) { _buttonPressed = 2; _attributeWeight = 1.f; }
       else { _buttonPressed = 0; }
 
       if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {

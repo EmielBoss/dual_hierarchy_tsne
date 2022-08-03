@@ -144,6 +144,9 @@ namespace dh::sne {
       std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
 
+      writeBuffer<uint>(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size(), 1, "selectedAttributeIndices");
+      writeBuffer<float>(_buffers(BufferType::eAttributeWeights), _params.nHighDims, 1, "eAttributeWeights");
+
       auto& program = _programs(ProgramType::eWeightDistancesComp);
       program.bind();
 

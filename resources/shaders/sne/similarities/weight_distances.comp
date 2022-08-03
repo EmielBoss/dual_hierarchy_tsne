@@ -56,9 +56,9 @@ void main() {
   float sumSqrdDst = distancesBuffer[i * kNeighbors + k];
   for(uint d = batchBegin; d < batchEnd; d++) {
     uint attr = selectedAttributeIndicesBuffer[d];
-    float sqrdDst = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
-    sumSqrdDst -= sqrdDst;
-    sumSqrdDst += sqrdDst * attributeWeightsBuffer[attr];
+    float dist = datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr];
+    sumSqrdDst -= pow(dist, 2);
+    sumSqrdDst += pow(dist, 2) * attributeWeightsBuffer[attr];
   }
   distancesBuffer[i * kNeighbors + k] = sumSqrdDst;
 

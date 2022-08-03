@@ -67,7 +67,8 @@ namespace dh::sne {
 
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void flipTexel(int texelIndex, int component);
+    void setBufferValue(GLuint buffer, int index, float value);
+    void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
     void clearTextureComponent(uint component);
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
@@ -176,13 +177,11 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    std::vector<bool> _texelActives;
     int _draggedAttribute;
     int _draggedAttributePrev;
     uint _button;
     uint _buttonPrev;
     std::set<uint> _selectedAttributeIndices;
-    bool _kevertje;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -230,7 +229,6 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
-      swap(a._texelActives, b._texelActives);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._draggedAttributePrev, b._draggedAttributePrev);
       swap(a._selectionCount, b._selectionCount);
@@ -246,7 +244,6 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
-      swap(a._kevertje, b._kevertje);
     }
   };
 } // dh::sne
