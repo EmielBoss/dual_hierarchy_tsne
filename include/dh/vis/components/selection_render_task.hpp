@@ -37,7 +37,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority, const float* _dataPtr);
+    SelectionRenderTask(std::array<GLuint, 2> textures, std::array<GLuint, 2> texturedataBuffers, GLuint attributeWeights, sne::Params params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -54,6 +54,7 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     void drawImGuiImageButton(GLuint textureHandle);
     void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
+    float getBufferValue(GLuint buffer, int index);
 
   private:
     enum class BufferType {
@@ -81,7 +82,9 @@ namespace dh::vis {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    sne::MinimizationBuffers _minimizationBuffers;
+    std::array<GLuint, 2> _texturedataBuffers;
+    std::array<GLuint, 2> _textures;
+    GLuint _attributeWeightsBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
 
@@ -113,7 +116,9 @@ namespace dh::vis {
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._attributeWeight, b._attributeWeight);
       swap(a._buffers, b._buffers);
-      swap(a._minimizationBuffers, b._minimizationBuffers);
+      swap(a._texturedataBuffers, b._texturedataBuffers);
+      swap(a._textures, b._textures);
+      swap(a._attributeWeightsBuffer, b._attributeWeightsBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
     }

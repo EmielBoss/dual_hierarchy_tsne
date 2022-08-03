@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <array>
+#include <cmath>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -48,10 +48,12 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 2> textures, std::array<GLuint, 2> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
-    _minimizationBuffers(minimizationBuffers),
+    _textures(textures),
+    _texturedataBuffers(texturedataBuffers),
+    _attributeWeightsBuffer(attributeWeightsBuffer),
     _params(params),
     _selectLabeledOnly(false),
     _selectionRadiusRel(0.03),
@@ -155,7 +157,7 @@ namespace dh::vis {
     if(_params.imageDataset) {
       _draggedAttribute = -1;
       if (_showingSelectionAverage = ImGui::CollapsingHeader("Selection average image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        drawImGuiImageButton(_minimizationBuffers.selectionAverageTexture);
+        drawImGuiImageButton(0);
       }
 
       ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, 3.0f);
@@ -165,19 +167,44 @@ namespace dh::vis {
       else { _buttonPressed = 0; }
 
       if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        drawImGuiImageButton(_minimizationBuffers.selectionVarianceTexture);
+        drawImGuiImageButton(1);
       }
     }
   }
 
-  void SelectionRenderTask::drawImGuiImageButton(GLuint textureHandle) {
+  // Gets a specified location in a specified buffer
+  float SelectionRenderTask::getBufferValue(GLuint buffer, int index) {
+    float value;
+    void* bfrptr = glMapNamedBuffer(buffer, GL_READ_ONLY);
+    glAssert();
+    memcpy(&value, (float*) bfrptr + index, sizeof(float));
+    glUnmapNamedBuffer(buffer);
+    glAssert();
+    return value;
+  }
+
+  void SelectionRenderTask::drawImGuiImageButton(uint index) {
     ImGui::Spacing();
-    ImGui::ImageButton((void*)(intptr_t)textureHandle, ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
+    ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
     if(_draggedAttribute >= 0) { return; }
-    if(ImGui::IsAnyMouseDown() && ImGui::IsItemHovered()) {
+
+    if(ImGui::IsItemHovered()) {
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
-      _draggedAttribute = teYel * _params.imgWidth + teXel;
+      uint hoveredAttribute = teYel * _params.imgWidth + teXel;
+
+      ImGui::BeginTooltip();
+      ImGui::Text("Attribute: #%d", hoveredAttribute);
+      ImGui::Text("Weight: %f", std::sqrt(getBufferValue(_attributeWeightsBuffer, hoveredAttribute)));
+      std::array<const char*, 2> prompts = {"Mean: %f", "Variance: %f"};
+      ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredAttribute * 3));
+      ImGui::EndTooltip();
+
+      if(ImGui::IsAnyMouseDown()) {
+        _draggedAttribute = hoveredAttribute;
+      } else {
+        _draggedAttribute = -1;
+      }
     } else {
       _draggedAttribute = -1;
     }

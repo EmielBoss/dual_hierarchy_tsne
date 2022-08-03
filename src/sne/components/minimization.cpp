@@ -199,7 +199,7 @@ namespace dh::sne {
       std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
-      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(buffers(), _params, 5, dataPtr));
+      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_textures, _buffersTextureData, _similaritiesBuffers.attributeWeights, _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
