@@ -156,19 +156,23 @@ namespace dh::vis {
 
     if(_params.imageDataset) {
       _draggedAttribute = -1;
-      if (_showingSelectionAverage = ImGui::CollapsingHeader("Selection average image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        drawImGuiImageButton(0);
+      if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
+        if (ImGui::BeginTabItem("Average")) {
+            drawImGuiImageButton(0);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Variance")) {
+            drawImGuiImageButton(1);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
       }
 
-      ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, 3.0f);
+      ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
 
       if(ImGui::Button("Apply")){ _buttonPressed = 1; } else
       if(ImGui::SameLine(); ImGui::Button("Clear")) { _buttonPressed = 2; _attributeWeight = 1.f; }
       else { _buttonPressed = 0; }
-
-      if (_showingSelectionVariance = ImGui::CollapsingHeader("Selection variance image", ImGuiTreeNodeFlags_DefaultOpen)) {
-        drawImGuiImageButton(1);
-      }
     }
   }
 

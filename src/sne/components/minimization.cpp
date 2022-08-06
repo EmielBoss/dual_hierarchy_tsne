@@ -170,6 +170,7 @@ namespace dh::sne {
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
           glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight); 
         }
+        clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
       }
     }
 
@@ -318,12 +319,11 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::clearTextureComponent(uint component) {
+  void Minimization<D, DD>::clearTextureComponent(uint component, float value) {
     for(uint i = 0; i < _textures.size(); ++i) {
       void* bfrptr = glMapNamedBuffer(_buffersTextureData[i], GL_WRITE_ONLY);
-      float zero = 0.f;
       for(uint t = 0; t < _params.nHighDims; ++t) {
-        memcpy((float*) bfrptr + t * 3 + component, &zero, sizeof(float));
+        memcpy((float*) bfrptr + t * 3 + component, &value, sizeof(float));
       }
       glUnmapNamedBuffer(_buffersTextureData[i]);
     }
@@ -408,12 +408,12 @@ namespace dh::sne {
     if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
       float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
       if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        setTexelValue(_draggedAttribute, 2, std::min(weight / 2.f, 1.f));
+        setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
         setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, weight);
         _selectedAttributeIndices.insert(_draggedAttribute);
       } else
       if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        setTexelValue(_draggedAttribute, 2, 0.f);
+        setTexelValue(_draggedAttribute, 2, 1.f / _params.maxAttributeWeight);
         setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, 1.f);
         _selectedAttributeIndices.erase(_draggedAttribute);
       }
@@ -427,7 +427,7 @@ namespace dh::sne {
         _similarities->comp(_buffers(BufferType::eSelected), _selectedAttributeIndices);
       }
       if(_button == 2) {
-        clearTextureComponent(2);
+        clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
         const std::vector<float> ones(_params.nHighDims, 1.0f);
         glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
       }
@@ -811,7 +811,7 @@ namespace dh::sne {
     // 3.
     // Calculate selection average and/or variance per attribute
     if(_params.imageDataset) {
-      if(_selectionRenderTask->getShowingSelectionAverage() || _selectionRenderTask->getShowingSelectionVariance()) {
+      {
         auto& program = _programs(ProgramType::eSelectionAverageComp);
         program.bind();
 
@@ -836,7 +836,7 @@ namespace dh::sne {
         glAssert();
       }
 
-      if(_selectionRenderTask->getShowingSelectionVariance()) {
+      {
         auto& program = _programs(ProgramType::eSelectionVarianceComp);
         program.bind();
 

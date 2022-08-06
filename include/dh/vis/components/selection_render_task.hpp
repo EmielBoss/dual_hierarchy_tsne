@@ -74,8 +74,6 @@ namespace dh::vis {
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
     uint _selectionCount;
-    bool _showingSelectionAverage;
-    bool _showingSelectionVariance;
     int _draggedAttribute;
     float _attributeWeight;
     uint _buttonPressed;
@@ -94,8 +92,6 @@ namespace dh::vis {
     float getSelectionRadiusRel() { return _selectionRadiusRel; }
     void setSelectionRadiusRel(float selectionRadiusRel) { _selectionRadiusRel = selectionRadiusRel; }
     int getSelectionMode() { return _selectLabeledOnly; }
-    bool getShowingSelectionAverage() { return _showingSelectionAverage; }
-    bool getShowingSelectionVariance() { return _showingSelectionVariance; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     int getDraggedAttribute() { return _draggedAttribute; }

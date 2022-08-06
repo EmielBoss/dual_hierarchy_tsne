@@ -213,7 +213,7 @@ namespace dh::vis {
     ImGui::SetNextWindowPos(ImVec2(16, 16), ImGuiCond_Appearing);
 
     // Start body of main ImGui window
-    if (!ImGui::Begin("Dual-Hierarchy t-SNE Demo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (!ImGui::Begin("Dual-Hierarchy t-SNE Demo", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
       ImGui::End();
       return;
     }

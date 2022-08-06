@@ -74,6 +74,7 @@ namespace dh::sne {
     uint resWidth = 1536;
     uint resHeight = 1024;
     int nPCs = 10;
+    float maxAttributeWeight = 3.f;
 
     // Image dataset params
     bool imageDataset = true;

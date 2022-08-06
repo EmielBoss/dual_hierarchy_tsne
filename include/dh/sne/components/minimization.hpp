@@ -69,7 +69,7 @@ namespace dh::sne {
     void restartMinimization();
     void setBufferValue(GLuint buffer, int index, float value);
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
-    void clearTextureComponent(uint component);
+    void clearTextureComponent(uint component, float value = 0.f);
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
