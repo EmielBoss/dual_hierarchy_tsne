@@ -32,7 +32,8 @@ namespace dh::util {
   class KNN {
   public:
     KNN();
-    KNN(const float * dataPtr, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d);
+    KNN(const float* dataPtr, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d);
+    KNN(GLuint datasetBuffer, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d);
     ~KNN();
 
     // Copy constr/assignment is explicitly deleted (no copying handles)
@@ -50,6 +51,7 @@ namespace dh::util {
 
   private:
     enum class BufferType {
+      eDataset,
       eDistances,
       eIndices,
 

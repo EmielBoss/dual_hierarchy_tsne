@@ -54,10 +54,21 @@ namespace dh::util {
     // ...
   }
 
-  KNN::KNN(const float * dataPtr, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d)
+  KNN::KNN(const float* dataPtr, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d)
   : _isInit(false), _n(n), _k(k), _d(d), _dataPtr(dataPtr) {
     
     // Set up OpenGL-CUDA interoperability
+    _interopBuffers(BufferType::eDistances) = CUGLInteropBuffer(distancesBuffer, CUGLInteropType::eNone);
+    _interopBuffers(BufferType::eIndices) = CUGLInteropBuffer(indicesBuffer, CUGLInteropType::eNone);
+
+    _isInit = true;
+  }
+
+  KNN::KNN(GLuint datasetBuffer, GLuint distancesBuffer, GLuint indicesBuffer, uint n, uint k, uint d)
+  : _isInit(false), _n(n), _k(k), _d(d), _dataPtr(nullptr) {
+    
+    // Set up OpenGL-CUDA interoperability
+    _interopBuffers(BufferType::eDataset) = CUGLInteropBuffer(datasetBuffer, CUGLInteropType::eNone);
     _interopBuffers(BufferType::eDistances) = CUGLInteropBuffer(distancesBuffer, CUGLInteropType::eNone);
     _interopBuffers(BufferType::eIndices) = CUGLInteropBuffer(indicesBuffer, CUGLInteropType::eNone);
 
@@ -81,8 +92,14 @@ namespace dh::util {
 
   void KNN::comp() {
     // Map interop buffers for access on CUDA side
-    for (auto& buffer : _interopBuffers) {
-      buffer.map();
+    _interopBuffers(BufferType::eDistances).map();
+    _interopBuffers(BufferType::eIndices).map();
+
+    const float* dataPtr;
+    if(_dataPtr) { dataPtr = _dataPtr; }
+    else {
+      _interopBuffers(BufferType::eDataset).map();
+      dataPtr = (float*) _interopBuffers(BufferType::eDataset).cuHandle();
     }
 
     // Nr. of inverted lists used by FAISS IVL.
@@ -108,13 +125,13 @@ namespace dh::util {
       faissConfig
     );
     faissIndex.setNumProbes(nProbe);
-    faissIndex.train(_n, _dataPtr);
+    faissIndex.train(_n, dataPtr);
 
     // Add data in batches
     for (size_t i = 0; i < ceilDiv((size_t) _n, addBatchSize); ++i) {
       const size_t offset = i * addBatchSize;
       const size_t size = std::min(addBatchSize, _n - offset);
-      faissIndex.add(size, _dataPtr + (_d * offset));
+      faissIndex.add(size, dataPtr + (_d * offset));
     }
 
     // Create temporary space for storing 64 bit faiss indices
@@ -127,7 +144,7 @@ namespace dh::util {
       const size_t size = std::min(searchBatchSize, _n - offset);
       faissIndex.search(
         size,
-        _dataPtr + (_d * offset),
+        dataPtr + (_d * offset),
         _k,
         ((float *) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
         ((faiss::Index::idx_t *) tempIndicesHandle) + (_k * offset)

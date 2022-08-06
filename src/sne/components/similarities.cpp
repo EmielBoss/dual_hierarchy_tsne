@@ -134,7 +134,7 @@ namespace dh::sne {
     // Produces a fixed number of neighbors
     if(selectedBufferHandle == 0) {
       util::KNN knn(
-        _dataPtr,
+        _buffers(BufferType::eDataset),
         _buffers(BufferType::eDistances),
         _buffers(BufferType::eKNNeighbors),
         _params.n, _params.k, _params.nHighDims);
