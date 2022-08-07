@@ -64,7 +64,6 @@ namespace dh::sne {
       eSimilarities,
       eLayout,
       eNeighbors,
-      eSizes,
       eScan,
       eAttributeWeights,
       
@@ -74,6 +73,7 @@ namespace dh::sne {
     // Basically buffers that have to be destroyed and recreated in order to grow their memory allocation
     enum class BufferTempType {
       eSimilarities,
+      eSizes,
       eCounts,
       eSelectionIndices,
       eSelectedAttributeIndices,

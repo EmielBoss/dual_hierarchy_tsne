@@ -70,7 +70,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, 0); // Original dataset. TODO: make FAISS work from this instead of _dataPtr itself to avoid copying to GPU twice
       glNamedBufferStorage(_buffers(BufferType::eDistances), _params.n * _params.k * sizeof(float), nullptr, 0); // n * _params.k floats of neighbor distances; every _params.k'th element is 0
       glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * _params.k uints of neighbor indices (ranging from 0 to n-1); every _params.k'th element is vector index itself (so it's actually _params.k-1 NN)
-      glNamedBufferStorage(_buffers(BufferType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is _params.k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
       glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), ones.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
@@ -118,6 +117,7 @@ namespace dh::sne {
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     {
       const std::vector<uint> zeroes(_params.n * _params.k, 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is _params.k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params.n * _params.k * sizeof(float), zeroes.data(), 0); // n * _params.k floats of neighbor similarities; every _params.k'th element is 0
       glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
       glAssert();
@@ -144,9 +144,6 @@ namespace dh::sne {
       std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
 
-      writeBuffer<uint>(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size(), 1, "selectedAttributeIndices");
-      writeBuffer<float>(_buffers(BufferType::eAttributeWeights), _params.nHighDims, 1, "eAttributeWeights");
-
       auto& program = _programs(ProgramType::eWeightDistancesComp);
       program.bind();
 
@@ -165,9 +162,6 @@ namespace dh::sne {
 
       // Dispatch shader in batches of 100 (selected) attriibutes
       for(uint b = 0; b * 100 < selectedAttributeIndices.size(); ++b) {
-        uint begin = b*100;
-        uint end = std::min((b+1) * 100, (uint) selectedAttributeIndices.size());
-        uint size = selectedAttributeIndices.size();
         program.template uniform<uint>("batchBegin", b * 100);
         program.template uniform<uint>("batchEnd", std::min((b+1) * 100, (uint) selectedAttributeIndices.size()));
         glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
@@ -232,7 +226,7 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eKNNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSizes));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSizes));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -248,10 +242,9 @@ namespace dh::sne {
 
     // 4.
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
-
-    uint symmetricSize;
     if(selectedBufferHandle == 0) {
-      util::InclusiveScan scan(_buffers(BufferType::eSizes), _buffers(BufferType::eScan), _params.n);
+      uint symmetricSize;
+      util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params.n);
       scan.comp();
       glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     
