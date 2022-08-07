@@ -170,8 +170,9 @@ namespace dh::vis {
 
       ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
 
-      if(ImGui::Button("Apply")){ _buttonPressed = 1; } else
-      if(ImGui::SameLine(); ImGui::Button("Clear")) { _buttonPressed = 2; _attributeWeight = 1.f; }
+      if(                   ImGui::Button("Recomp distances")){ _buttonPressed = 1; } else
+      if(ImGui::SameLine(); ImGui::Button("Recomp dataset")) { _buttonPressed = 2; } else
+      if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 3; _attributeWeight = 1.f; }
       else { _buttonPressed = 0; }
     }
   }

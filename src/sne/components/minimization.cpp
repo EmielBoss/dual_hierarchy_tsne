@@ -420,13 +420,17 @@ namespace dh::sne {
       _draggedAttributePrev = _draggedAttribute;
     }
 
-    // Process attribute selection texture buttons (0 = Apply, 1 = Clear, 2 = Reset)
+    // Process attribute selection texture buttons (1 = Recomp distances, 2 = Recomp dataset, 3 = Clear selection)
     _button = _selectionRenderTask->getButtonPressed();
     if(_button > 0 && _button != _buttonPrev) {
       if(_button == 1) {
-        _similarities->comp(_buffers(BufferType::eSelected), _selectedAttributeIndices);
-      }
+        _similarities->comp(true, false, _buffers(BufferType::eSelected), _selectedAttributeIndices);
+      } else
       if(_button == 2) {
+        _similarities->comp(false, true, _buffers(BufferType::eSelected), _selectedAttributeIndices);
+        _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
+      } else
+      if(_button == 3) {
         clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
         const std::vector<float> ones(_params.nHighDims, 1.0f);
         glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
@@ -572,6 +576,14 @@ namespace dh::sne {
 
       timer.tock();
       glAssert();
+    }
+
+    if(_input.e) {
+      writeBuffer<uint>(_similaritiesBuffers.layout, _params.n, 2, "layo");
+      writeBuffer<uint>(_similaritiesBuffers.neighbors, _params.n, _params.k, "neig");
+      writeBuffer<float>(_similaritiesBuffers.similarities, _params.n, _params.k, "sims");
+      writeBuffer<float>(_buffers(BufferType::eEmbedding), _params.n, 2, "embo");
+      writeBuffer<float>(_buffers(BufferType::eAttractive), _params.n, 2, "attr");
     }
 
     // Compute exaggeration factor

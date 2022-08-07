@@ -54,7 +54,7 @@ namespace dh::sne {
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
 
     // Compute similarities
-    void comp(GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
+    void comp(bool recompDistances = false, bool recompDataset = false, GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
 
   private:
     enum class BufferType {
@@ -87,6 +87,7 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
       // eNeighborsSortComp,
+      eWeightDatasetComp,
       eWeightDistancesComp,
       
       Length
