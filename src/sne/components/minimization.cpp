@@ -403,55 +403,59 @@ namespace dh::sne {
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
 
-    // Draw dragselected attributes in texture
-    _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
-    if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
-      float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
-      if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
-        setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, weight);
-        _selectedAttributeIndices.insert(_draggedAttribute);
-      } else
-      if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        setTexelValue(_draggedAttribute, 2, 1.f / _params.maxAttributeWeight);
-        setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, 1.f);
-        _selectedAttributeIndices.erase(_draggedAttribute);
+    if(_params.imageDataset) {
+      // Draw dragselected attributes in texture
+      _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
+      if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
+        float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+          setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
+          setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, weight);
+          _selectedAttributeIndices.insert(_draggedAttribute);
+        } else
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+          setTexelValue(_draggedAttribute, 2, 1.f / _params.maxAttributeWeight);
+          setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, 1.f);
+          _selectedAttributeIndices.erase(_draggedAttribute);
+        }
+        _draggedAttributePrev = _draggedAttribute;
       }
-      _draggedAttributePrev = _draggedAttribute;
-    }
 
-    // Process attribute selection texture buttons (1 = Recomp distances, 2 = Recomp dataset, 3 = Clear selection)
-    _button = _selectionRenderTask->getButtonPressed();
-    if(_button > 0 && _button != _buttonPrev) {
-      if(_button == 1) {
-        _similarities->comp(true, false, _buffers(BufferType::eSelected), _selectedAttributeIndices);
-      } else
-      if(_button == 2) {
-        _similarities->comp(false, true, _buffers(BufferType::eSelected), _selectedAttributeIndices);
-        _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
-      } else
-      if(_button == 3) {
-        clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
-        const std::vector<float> ones(_params.nHighDims, 1.0f);
-        glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+      // Process attribute selection texture buttons (1 = Recomp distances, 2 = Recomp dataset, 3 = Clear selection)
+      _button = _selectionRenderTask->getButtonPressed();
+      if(_button > 0 && _button != _buttonPrev) {
+        if(_button == 1) {
+          _similarities->comp(true, false, _buffers(BufferType::eSelected), _selectedAttributeIndices);
+        } else
+        if(_button == 2) {
+          _similarities->comp(false, true, _buffers(BufferType::eSelected), _selectedAttributeIndices);
+          _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
+        } else
+        if(_button == 3) {
+          clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
+          const std::vector<float> ones(_params.nHighDims, 1.0f);
+          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+        }
       }
+      _buttonPrev = _button;
     }
-    _buttonPrev = _button;
 
     // Reset some stuff upon axis change
     _axisMapping = _axesRenderTask->getAxisMapping();
     _axisIndex = _axesRenderTask->getSelectedIndex();
     if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-      clearTextureComponent(1);
+      if(_params.imageDataset) { clearTextureComponent(1); }
       compIterationReaxis();
       _axisMappingPrev = _axisMapping;
       _axisIndexPrev = _axisIndex;
     }
 
     // Copy texture data to textures
-    for(uint i = 0; i < _textures.size() && _iteration > 1; ++i) {
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
-      glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
+    if(_params.imageDataset) {
+      for(uint i = 0; i < _textures.size() && _iteration > 1; ++i) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
+      }
     }
 
     // Reconstruct this Minimization if adding subtracting a t-SNE dimension

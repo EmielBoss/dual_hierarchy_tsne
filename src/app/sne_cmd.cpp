@@ -68,8 +68,11 @@ void cli(int argc, char** argv) {
 
     // Optional program arguments
     ("o,optFilename", "Output data file (default: none)", cxxopts::value<std::string>())
-    ("widthRes", "Window resolution width (default: 1536)", cxxopts::value<uint>())
-    ("heightRes", "Window resolution height (default: 1024)", cxxopts::value<uint>())
+    ("resWidth", "Window resolution width (default: 1536)", cxxopts::value<uint>())
+    ("resHeight", "Window resolution height (default: 1024)", cxxopts::value<uint>())
+    ("images", "Input data are images", cxxopts::value<bool>())
+    ("imgWidth", "Image resolution width (default: 28)", cxxopts::value<uint>())
+    ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
@@ -107,8 +110,11 @@ void cli(int argc, char** argv) {
 
   // Check for and parse optional arguments
   if (result.count("optFilename")) { optFilename = result["optFilename"].as<std::string>(); }
-  if (result.count("widthRes")) { params.resWidth = result["widthRes"].as<uint>(); }
-  if (result.count("heightRes")) { params.resHeight = result["heightRes"].as<uint>(); }
+  if (result.count("resWidth")) { params.resWidth = result["resWidth"].as<uint>(); }
+  if (result.count("resHeight")) { params.resHeight = result["resHeight"].as<uint>(); }
+  if (result.count("images")) { params.imageDataset = true; }
+  if (result.count("imgWidth")) { params.imgWidth = result["imgWidth"].as<uint>(); }
+  if (result.count("imgHeight")) { params.imgHeight = result["imgHeight"].as<uint>(); }
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }

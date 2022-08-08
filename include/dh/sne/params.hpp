@@ -77,7 +77,7 @@ namespace dh::sne {
     float maxAttributeWeight = 3.f;
 
     // Image dataset params
-    bool imageDataset = true;
+    bool imageDataset = false;
     uint imgWidth = 28;
     uint imgHeight = 28;
   };
