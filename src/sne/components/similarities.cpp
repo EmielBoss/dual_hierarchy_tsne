@@ -275,14 +275,11 @@ namespace dh::sne {
       scan.comp();
       glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
       
-      // Initialize permanent buffer objects
-      if(recompDataset) {
-        glDeleteBuffers(1, &_buffers(BufferType::eNeighbors));
-        glDeleteBuffers(1, &_buffers(BufferType::eSimilarities));
-        glCreateBuffers(1, &_buffers(BufferType::eNeighbors));
-        glCreateBuffers(1, &_buffers(BufferType::eSimilarities));
-        glAssert();
-      }
+      // (Re)initialize permanent buffer objects
+      glDeleteBuffers(1, &_buffers(BufferType::eNeighbors));
+      glDeleteBuffers(1, &_buffers(BufferType::eSimilarities));
+      glCreateBuffers(1, &_buffers(BufferType::eNeighbors));
+      glCreateBuffers(1, &_buffers(BufferType::eSimilarities));
       glNamedBufferStorage(_buffers(BufferType::eNeighbors), symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
       glNamedBufferStorage(_buffers(BufferType::eSimilarities), symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
       glAssert();
