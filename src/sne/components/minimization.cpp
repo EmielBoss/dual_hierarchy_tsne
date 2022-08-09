@@ -71,6 +71,46 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  std::vector<float> Minimization<D, DD>::normalizeDataset(const float* dataPtr) {
+    std::vector<float> mins(_params.nHighDims, FLT_MAX);
+    std::vector<float> maxs(_params.nHighDims, FLT_MIN);
+    for(uint i = 0; i < _params.n; ++i) {
+      for(uint a = 0; a < _params.nHighDims; ++a) {
+        float val = *(dataPtr + (i * _params.nHighDims) + a);
+        if(val < mins[a]) { mins[a] = val; }
+        if(val > maxs[a]) { maxs[a] = val; }
+      }
+    }
+
+    std::vector<float> data(_params.n * _params.nHighDims);
+    for(uint i = 0; i < _params.n; ++i) {
+      for(uint a = 0; a < _params.nHighDims; ++a) {
+        float val = *(dataPtr + (i * _params.nHighDims) + a);
+        data[i * _params.nHighDims + a] = (val - mins[a]) / (maxs[a] - mins[a]);
+      }
+    }
+    return data;
+  }
+
+  template <uint D, uint DD>
+  std::vector<float> Minimization<D, DD>::normalizeDatasetUniformScale(const float* dataPtr) {
+    float min = FLT_MAX;
+    float max = FLT_MIN;
+    for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
+      float val = *(dataPtr + i);
+      if(val < min) { min = val; }
+      if(val > max) { max = val; }
+    }
+
+    std::vector<float> data(_params.n * _params.nHighDims);
+    for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
+      float val = *(dataPtr + i);
+      data[i] = (val - min) / (max - min);
+    }
+    return data;
+  }
+
+  template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCount(0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
@@ -129,8 +169,7 @@ namespace dh::sne {
       // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
-      std::vector<float> data(_params.n * _params.nHighDims);
-      for(uint p = 0; p < _params.n * _params.nHighDims; ++p) { data[p] = *(dataPtr + p) / 255.0f; }
+      std::vector<float> data = normalizeDatasetUniformScale(dataPtr);
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
@@ -155,7 +194,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_MAP_WRITE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
 
@@ -164,8 +203,8 @@ namespace dh::sne {
         glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
         glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
         for(uint i = 0; i < _textures.size(); ++i) {
-          glNamedBufferStorage(_buffersTextureData[i], 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
-
+          glNamedBufferStorage(_buffersTextureData[i], 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
+          
           glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
           glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight); 
@@ -291,22 +330,11 @@ namespace dh::sne {
     float min = *minIt;
     float range = *maxIt - *minIt;
     float rangeInv = range > 0 ? 1 / range : 1;
-    void* bfrptr = glMapNamedBuffer(_buffers(BufferType::eEmbeddingRelative), GL_WRITE_ONLY);
     uint stride = (DD == 2) ? 2 : 4;
     for(uint i = 0; i < _params.n; ++i) {
       float valRel = (axisVals[i] - min) * rangeInv;
-      memcpy((float*) bfrptr + i*stride + D, &valRel, sizeof(float));
+      glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D), sizeof(float), &valRel);
     }
-    glUnmapNamedBuffer(_buffers(BufferType::eEmbeddingRelative));
-    glAssert();
-  }
-
-  // Sets a specified location in a specified buffer to the specified value
-  template <uint D, uint DD>
-  void Minimization<D, DD>::setBufferValue(GLuint buffer, int index, float value) {
-    void* bfrptr = glMapNamedBuffer(buffer, GL_WRITE_ONLY);
-    memcpy((float*) bfrptr + index, &value, sizeof(float));
-    glUnmapNamedBuffer(buffer);
     glAssert();
   }
 
@@ -314,19 +342,20 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::setTexelValue(int texelIndex, int component, float texelVal) {
     for(uint i = 0; i < _textures.size(); ++i) {
-      setBufferValue(_buffersTextureData[i], texelIndex * 3 + component, texelVal);
+      glAssert();
+      glNamedBufferSubData(_buffersTextureData[i], (texelIndex * 3 + component) * sizeof(float), sizeof(float), &texelVal);
+      glAssert();
     }
   }
 
   template <uint D, uint DD>
   void Minimization<D, DD>::clearTextureComponent(uint component, float value) {
     for(uint i = 0; i < _textures.size(); ++i) {
-      void* bfrptr = glMapNamedBuffer(_buffersTextureData[i], GL_WRITE_ONLY);
       for(uint t = 0; t < _params.nHighDims; ++t) {
-        memcpy((float*) bfrptr + t * 3 + component, &value, sizeof(float));
+        glNamedBufferSubData(_buffersTextureData[i], (t * 3 + component) * sizeof(float), sizeof(float), &value);
       }
-      glUnmapNamedBuffer(_buffersTextureData[i]);
     }
+    glAssert();
   }
 
   template <uint D, uint DD>
@@ -407,15 +436,16 @@ namespace dh::sne {
       // Draw dragselected attributes in texture
       _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
       if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
-        float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+          float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
           setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
-          setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, weight);
+          glNamedBufferSubData(_similaritiesBuffers.attributeWeights, _draggedAttribute * sizeof(float), sizeof(float), &weight);
           _selectedAttributeIndices.insert(_draggedAttribute);
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+          float weight = 1.f;
           setTexelValue(_draggedAttribute, 2, 1.f / _params.maxAttributeWeight);
-          setBufferValue(_similaritiesBuffers.attributeWeights, _draggedAttribute, 1.f);
+          glNamedBufferSubData(_similaritiesBuffers.attributeWeights, _draggedAttribute * sizeof(float), sizeof(float), &weight);
           _selectedAttributeIndices.erase(_draggedAttribute);
         }
         _draggedAttributePrev = _draggedAttribute;
@@ -464,6 +494,8 @@ namespace dh::sne {
     // if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
     //   return true;
     // }
+
+    glAssert();
     return false;
   }
 
@@ -580,14 +612,6 @@ namespace dh::sne {
 
       timer.tock();
       glAssert();
-    }
-
-    if(_input.e) {
-      writeBuffer<uint>(_similaritiesBuffers.layout, _params.n, 2, "layo");
-      writeBuffer<uint>(_similaritiesBuffers.neighbors, _params.n, _params.k, "neig");
-      writeBuffer<float>(_similaritiesBuffers.similarities, _params.n, _params.k, "sims");
-      writeBuffer<float>(_buffers(BufferType::eEmbedding), _params.n, 2, "embo");
-      writeBuffer<float>(_buffers(BufferType::eAttractive), _params.n, 2, "attr");
     }
 
     // Compute exaggeration factor

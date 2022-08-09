@@ -73,7 +73,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * _params.k uints of neighbor indices (ranging from 0 to n-1); every _params.k'th element is vector index itself (so it's actually _params.k-1 NN)
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
-      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), ones.data(), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
     }
 
@@ -152,7 +152,7 @@ namespace dh::sne {
         glAssert();
       }
     }
-    
+
     // Progress bar for logging steps of the similarity computation
     Logger::newl();
     util::ProgressBar progressBar(prefix + "Computing...");
@@ -199,9 +199,6 @@ namespace dh::sne {
         glAssert();
       }
     }
-
-    if(!recompDistances && !recompDataset) { writeBuffer<float>(_buffers(BufferType::eDistances), _params.n, _params.k, "dist A"); }
-    else { writeBuffer<float>(_buffers(BufferType::eDistances), _params.n, _params.k, "dist B"); }
     
     // Update progress bar
     progressBar.setPostfix("Performing similarity computation");

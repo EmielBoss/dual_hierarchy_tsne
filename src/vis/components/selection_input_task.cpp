@@ -54,7 +54,7 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::process() {
-
+    
   }
 
   void SelectionInputTask::mousePosInput(double xPos, double yPos) {

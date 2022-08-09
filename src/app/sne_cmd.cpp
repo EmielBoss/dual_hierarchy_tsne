@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <cmath>
 #include <cxxopts.hpp>
 #include "dh/util/io.hpp"
 #include "dh/util/logger.hpp"
@@ -63,7 +64,7 @@ void cli(int argc, char** argv) {
     
     // Optional parameter arguments
     ("p,perplexity", "Perplexity parameter (default: 30)", cxxopts::value<float>())
-    ("i,iterations", "Number of minimization steps (default: 1000)", cxxopts::value<uint>())
+    ("i,iterations", "Number of minimization steps (default: 10000)", cxxopts::value<uint>())
     ("t,theta", "Approximation parameter (default: 0.25)", cxxopts::value<float>())
 
     // Optional program arguments
@@ -107,6 +108,7 @@ void cli(int argc, char** argv) {
   params.nHighDims = result["nHighDims"].as<uint>();
   params.nLowDims = result["nLowDims"].as<uint>();
   if(params.nLowDims == 2) { axisMapping[2] = '-'; }
+  params.nPCs = std::min(params.nPCs, (int) params.nHighDims);
 
   // Check for and parse optional arguments
   if (result.count("optFilename")) { optFilename = result["optFilename"].as<std::string>(); }

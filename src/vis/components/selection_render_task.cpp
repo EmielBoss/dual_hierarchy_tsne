@@ -180,10 +180,7 @@ namespace dh::vis {
   // Gets a specified location in a specified buffer
   float SelectionRenderTask::getBufferValue(GLuint buffer, int index) {
     float value;
-    void* bfrptr = glMapNamedBuffer(buffer, GL_READ_ONLY);
-    glAssert();
-    memcpy(&value, (float*) bfrptr + index, sizeof(float));
-    glUnmapNamedBuffer(buffer);
+    glGetNamedBufferSubData(buffer, index * sizeof(float), sizeof(float), &value);
     glAssert();
     return value;
   }

@@ -176,22 +176,24 @@ namespace dh::vis {
   void AxesRenderTask<D>::drawImGuiComponent() {
     const char* axistypes[] = {"t-sne", "PCA", "Attribute"};
     const char axistypesAbbr[3] = {'t', 'p', 'a'};
-    if (ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if(ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      ImGui::Text("Z");
-      ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes));
-      _axisMapping[2] = axistypesAbbr[_selectedAxistype];
-      if(_axisMapping != _axisMappingPrev) {
-        _selectedIndex = 0;
-        _axisMappingPrev = _axisMapping;
+      if(D == 3) {
+        ImGui::Text("Z");
+        ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes));
+        _axisMapping[2] = axistypesAbbr[_selectedAxistype];
+        if(_axisMapping != _axisMappingPrev) {
+          _selectedIndex = 0;
+          _axisMappingPrev = _axisMapping;
+        }
+        if(_axisMapping[2] == 'p') {
+          ImGui::SliderInt("Principal component", &_selectedIndex, 0, _params.nPCs-1);
+        } else
+        if (_axisMapping[2] == 'a') {
+          ImGui::SliderInt("Attribute", &_selectedIndex, 0, _params.nHighDims-1);
+        }
+        ImGui::Spacing();
       }
-      if(_axisMapping[2] == 'p') {
-        ImGui::SliderInt("Principal component", &_selectedIndex, 0, _params.nPCs-1);
-      } else
-      if (_axisMapping[2] == 'a') {
-        ImGui::SliderInt("Attribute", &_selectedIndex, 0, _params.nHighDims-1);
-      }
-      ImGui::Spacing();
     }
   }
 

@@ -65,9 +65,10 @@ namespace dh::sne {
     Minimization(Minimization&&) noexcept;
     Minimization& operator=(Minimization&&) noexcept;
 
+    std::vector<float> normalizeDataset(const float* dataPtr);
+    std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void setBufferValue(GLuint buffer, int index, float value);
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
     void clearTextureComponent(uint component, float value = 0.f);
     std::vector<char> getAxisMapping() { return _axisMapping; }
