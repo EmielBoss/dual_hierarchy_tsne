@@ -162,15 +162,15 @@ namespace dh::sne {
     // 1.
     // Compute approximate KNN of each point, delegated to FAISS
     // Produces a fixed number of neighbors
-    if(!recompDistances || recompDataset) {
-      util::KNN knn(
-        _buffers(BufferType::eDataset),
-        _buffers(BufferType::eDistances),
-        _buffers(BufferType::eKNNeighbors),
-        _params.n, _params.k, _params.nHighDims);
-      knn.comp();
-    }
-    else {
+    if(!recompDistances && !recompDataset) {
+      util::KNN(_dataPtr,                       _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
+                _params.n, _params.k, _params.nHighDims).comp();
+    } else
+    if(recompDataset) {
+      util::KNN(_buffers(BufferType::eDataset), _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
+                _params.n, _params.k, _params.nHighDims).comp();
+    } else
+    if(recompDistances) {
       std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
 

@@ -317,7 +317,9 @@ namespace dh::sne {
 
   // Configures the axes on request of change
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationReaxis() {
+  void Minimization<D, DD>::reconfigureZAxis() {
+    if constexpr (D == DD) { return; }
+
     std::vector<float> axisVals(_params.n);
     if(_axisMapping[2] == 'p') {
       for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _pcs[i*_params.nPCs + _axisIndex]; }
@@ -333,7 +335,7 @@ namespace dh::sne {
     uint stride = (DD == 2) ? 2 : 4;
     for(uint i = 0; i < _params.n; ++i) {
       float valRel = (axisVals[i] - min) * rangeInv;
-      glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D), sizeof(float), &valRel);
+      glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D) * sizeof(float), sizeof(float), &valRel);
     }
     glAssert();
   }
@@ -461,10 +463,13 @@ namespace dh::sne {
           _similarities->comp(false, true, _buffers(BufferType::eSelected), _selectedAttributeIndices);
           _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
         } else
-        if(_button == 3) {
+        if(_button == 3 || _button == 4) {
           clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+        }
+        if(_button == 4) {
+          _similarities->comp();
         }
       }
       _buttonPrev = _button;
@@ -475,7 +480,7 @@ namespace dh::sne {
     _axisIndex = _axesRenderTask->getSelectedIndex();
     if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
       if(_params.imageDataset) { clearTextureComponent(1); }
-      compIterationReaxis();
+      reconfigureZAxis();
       _axisMappingPrev = _axisMapping;
       _axisIndexPrev = _axisIndex;
     }

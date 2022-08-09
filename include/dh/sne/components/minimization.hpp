@@ -69,6 +69,7 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
+    void reconfigureZAxis();
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
     void clearTextureComponent(uint component, float value = 0.f);
     std::vector<char> getAxisMapping() { return _axisMapping; }
@@ -76,7 +77,6 @@ namespace dh::sne {
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
     bool compIteration();                                   // Compute a single iteration: minimization + selection + translation
-    void compIterationReaxis();                             // Compute a reconfiguring of the axes
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
