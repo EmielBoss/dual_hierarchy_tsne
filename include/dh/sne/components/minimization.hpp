@@ -71,7 +71,7 @@ namespace dh::sne {
     void restartMinimization();
     void reconfigureZAxis();
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
-    void clearTextureComponent(uint component, float value = 0.f);
+    void fillTextureComponent(uint component, float value, GLuint buffer = 0);
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation

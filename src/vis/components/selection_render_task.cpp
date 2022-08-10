@@ -191,7 +191,9 @@ namespace dh::vis {
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
     if(_draggedAttribute >= 0) { return; }
 
+    _hoveringTexturePrev = _hoveringTexture;
     if(ImGui::IsItemHovered()) {
+      _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
       uint hoveredAttribute = teYel * _params.imgWidth + teXel;
@@ -209,6 +211,7 @@ namespace dh::vis {
         _draggedAttribute = -1;
       }
     } else {
+      _hoveringTexture = false;
       _draggedAttribute = -1;
     }
     ImGui::Spacing();

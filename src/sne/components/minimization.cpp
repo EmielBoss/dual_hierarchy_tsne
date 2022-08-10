@@ -209,7 +209,6 @@ namespace dh::sne {
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
           glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight); 
         }
-        clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
       }
     }
 
@@ -344,16 +343,20 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::setTexelValue(int texelIndex, int component, float texelVal) {
     for(uint i = 0; i < _textures.size(); ++i) {
-      glAssert();
       glNamedBufferSubData(_buffersTextureData[i], (texelIndex * 3 + component) * sizeof(float), sizeof(float), &texelVal);
       glAssert();
     }
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::clearTextureComponent(uint component, float value) {
+  void Minimization<D, DD>::fillTextureComponent(uint component, float value, GLuint buffer) {
     for(uint i = 0; i < _textures.size(); ++i) {
       for(uint t = 0; t < _params.nHighDims; ++t) {
+        if(buffer > 0) {
+          glGetNamedBufferSubData(buffer, t * sizeof(float), sizeof(float), &value);
+          value /= _params.maxAttributeWeight; // Only using this for writing weights [0, maxAttributeWeight] to texture [0, 1]
+        }
+        uint offset = (t * 3 + component);
         glNamedBufferSubData(_buffersTextureData[i], (t * 3 + component) * sizeof(float), sizeof(float), &value);
       }
     }
@@ -412,7 +415,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCount(_selectionCount);
       _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
       glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      if(_params.imageDataset) { clearTextureComponent(0); }
+      if(_params.imageDataset) { fillTextureComponent(0, 0.f); }
     }
     
     // Clear translations if not translating
@@ -464,7 +467,7 @@ namespace dh::sne {
           _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
         } else
         if(_button == 3 || _button == 4) {
-          clearTextureComponent(2, 1.f / _params.maxAttributeWeight);
+          fillTextureComponent(2, 1.f / _params.maxAttributeWeight);
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
         }
@@ -479,10 +482,19 @@ namespace dh::sne {
     _axisMapping = _axesRenderTask->getAxisMapping();
     _axisIndex = _axesRenderTask->getSelectedIndex();
     if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-      if(_params.imageDataset) { clearTextureComponent(1); }
+      if(_params.imageDataset) { fillTextureComponent(1, 0.f); }
       reconfigureZAxis();
       _axisMappingPrev = _axisMapping;
       _axisIndexPrev = _axisIndex;
+    }
+
+    // Write attribute weights to blue component if hovering texture
+    bool hovering = _selectionRenderTask->getHoveringTexture(); bool hoveringPrev = _selectionRenderTask->getHoveringTexturePrev();
+    if(hovering && !hoveringPrev) {
+      fillTextureComponent(2, 0.f, _similaritiesBuffers.attributeWeights);
+    } else
+    if(!hovering && hoveringPrev) {
+      fillTextureComponent(2, 0.f);
     }
 
     // Copy texture data to textures

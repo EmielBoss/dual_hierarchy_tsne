@@ -55,6 +55,8 @@ namespace dh::vis {
     void drawImGuiImageButton(GLuint textureHandle);
     void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
     float getBufferValue(GLuint buffer, int index);
+    bool getHoveringTexture() { return _hoveringTexture; }
+    bool getHoveringTexturePrev() { return _hoveringTexturePrev; }
 
   private:
     enum class BufferType {
@@ -77,6 +79,8 @@ namespace dh::vis {
     int _draggedAttribute;
     float _attributeWeight;
     uint _buttonPressed;
+    bool _hoveringTexture;
+    bool _hoveringTexturePrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
