@@ -202,7 +202,7 @@ namespace dh::vis {
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
       ImGui::Spacing();
       ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
-      ImGui::SliderFloat("Weight for fixed datapoints", &_weightFixed, 1.0f, _params.k * 5.0f);
+      ImGui::SliderFloat("Fixed datapoint weight", &_weightFixed, 1.0f, _params.k * 5.0f);
       ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
       ImGui::Text("or set the number of clusters you see:");
       ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);

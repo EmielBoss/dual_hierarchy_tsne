@@ -169,7 +169,7 @@ namespace dh::sne {
       // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
-      std::vector<float> data = normalizeDatasetUniformScale(dataPtr);
+      std::vector<float> data = normalizeDataset(dataPtr);
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
@@ -430,7 +430,7 @@ namespace dh::sne {
 
     if(_input.r) { restartMinimization(); } // Restart
     if(!_input.space) { compIterationMinimization(); } // Compute iteration, or pause if space is pressed
-    if(_input.mouseLeft || _input.s) { compIterationSelection(); } // Select
+    if(_input.mouseLeft || _input.s || _selectionRenderTask->getSelectAll()) { compIterationSelection(); } // Select
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); } // Translate
 
     _mousePosClipPrev = _input.mousePosClip;
@@ -456,25 +456,27 @@ namespace dh::sne {
         _draggedAttributePrev = _draggedAttribute;
       }
 
-      // Process attribute selection texture buttons (1 = Recomp distances, 2 = Recomp dataset, 3 = Clear selection)
+      // Process attribute selection texture buttons (1 = Clear selection, 2 = Recomp distances, 3 = Recomp dataset, 4 = Recomp, 5 = Reset)
       _button = _selectionRenderTask->getButtonPressed();
       if(_button > 0 && _button != _buttonPrev) {
-        if(_button == 1) {
-          _similarities->comp(true, false, _buffers(BufferType::eSelected), _selectedAttributeIndices);
-        } else
-        if(_button == 2) {
-          _similarities->comp(false, true, _buffers(BufferType::eSelected), _selectedAttributeIndices);
-          _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because the comp deletes and recreates neighbours and similarities buffers
-        } else
-        if(_button == 3 || _button == 4) {
-          fillTextureComponent(2, 1.f / _params.maxAttributeWeight);
+        if(_button == 1 || _button == 5) {
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
         }
+        if(_button == 2) {
+          _similarities->comp(true, false, false, _selectionRenderTask->getPerplexity(), 0, _buffers(BufferType::eSelected), _selectedAttributeIndices);
+        } else
+        if(_button == 3) {
+          _similarities->comp(false, true, false, _selectionRenderTask->getPerplexity(), _selectionRenderTask->getK(), _buffers(BufferType::eSelected), _selectedAttributeIndices);
+        } else
         if(_button == 4) {
+          _similarities->comp(false, false, true, _selectionRenderTask->getPerplexity(), _selectionRenderTask->getK());
+        } else
+        if(_button == 5) {
           _similarities->comp();
         }
       }
+      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
       _buttonPrev = _button;
     }
 
@@ -808,7 +810,11 @@ namespace dh::sne {
   void Minimization<D, DD>::compIterationSelection() {
 
     // 1.
-    // Compute selection
+    // Compute selection (or select all)
+    if(_selectionRenderTask->getSelectAll()) {
+      const std::vector<uint> ones(_params.n, 1);
+      glClearNamedBufferData(_buffers(BufferType::eSelected), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, ones.data());
+    } else
     {
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();

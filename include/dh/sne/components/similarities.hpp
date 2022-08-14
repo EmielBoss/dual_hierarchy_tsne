@@ -54,7 +54,7 @@ namespace dh::sne {
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
 
     // Compute similarities
-    void comp(bool recompDistances = false, bool recompDataset = false, GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
+    void comp(bool recompDistances = false, bool recompDataset = false, bool recomp = false, float perplexity = 0.f, uint k = 0, GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
 
   private:
     enum class BufferType {
@@ -106,6 +106,7 @@ namespace dh::sne {
     bool _isInit;
     Params _params;
     const float* _dataPtr;
+    uint _kPrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -133,6 +134,7 @@ namespace dh::sne {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._dataPtr, b._dataPtr);
+      swap(a._kPrev, b._kPrev);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._programs, b._programs);

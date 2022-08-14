@@ -79,8 +79,11 @@ namespace dh::vis {
     int _draggedAttribute;
     float _attributeWeight;
     uint _buttonPressed;
+    bool _selectAll;
     bool _hoveringTexture;
     bool _hoveringTexturePrev;
+    float _perplexity;
+    int _k;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -100,7 +103,10 @@ namespace dh::vis {
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     int getDraggedAttribute() { return _draggedAttribute; }
     uint getButtonPressed() { return _buttonPressed; }
+    bool getSelectAll() { return _selectAll; }
     float getAttributeWeight() { return _attributeWeight; }
+    float getPerplexity() { return _perplexity; }
+    uint getK() { return (uint) _k; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -115,6 +121,8 @@ namespace dh::vis {
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._attributeWeight, b._attributeWeight);
+      swap(a._perplexity, b._perplexity);
+      swap(a._k, b._k);
       swap(a._buffers, b._buffers);
       swap(a._texturedataBuffers, b._texturedataBuffers);
       swap(a._textures, b._textures);

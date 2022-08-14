@@ -44,7 +44,7 @@ namespace dh::sne {
   }
 
   Similarities::Similarities(const float* dataPtr, Params params)
-  : _isInit(false), _dataPtr(dataPtr), _params(params) {
+  : _isInit(false), _dataPtr(dataPtr), _params(params), _kPrev(params.k) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -66,12 +66,11 @@ namespace dh::sne {
     // Create and initialize buffers
     glCreateBuffers(_buffers.size(), _buffers.data());
     {
-      const std::vector<uint> zeroes(_params.n * _params.k, 0);
       const std::vector<float> ones(_params.nHighDims, 1.0f);
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, 0); // Original dataset. TODO: make FAISS work from this instead of _dataPtr itself to avoid copying to GPU twice
-      glNamedBufferStorage(_buffers(BufferType::eDistances), _params.n * _params.k * sizeof(float), nullptr, 0); // n * _params.k floats of neighbor distances; every _params.k'th element is 0
-      glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * _params.k uints of neighbor indices (ranging from 0 to n-1); every _params.k'th element is vector index itself (so it's actually _params.k-1 NN)
-      glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes)
+      glNamedBufferStorage(_buffers(BufferType::eDistances), _params.n * _params.k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
+      glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
+      glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
       glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
@@ -111,24 +110,39 @@ namespace dh::sne {
     }
   }
 
-  void Similarities::comp(bool recompDistances, bool recompDataset, GLuint selectedBufferHandle, std::set<uint> selectedAttributeIndices) {
+  void Similarities::comp(bool recompDistances, bool recompDataset, bool recomp, float perplexity, uint k, GLuint selectedBufferHandle, std::set<uint> selectedAttributeIndices) {
     runtimeAssert(isInit(), "Similarities::comp() called without proper initialization");
+
+    if(perplexity < 0.1f) { perplexity = _params.perplexity; }
+    if(recompDistances) { k = _kPrev; }
+    else if(k == 0) { k = _params.k; }
 
     // Create and initialize temporary buffer objects
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     {
-      const std::vector<uint> zeroes(_params.n * _params.k, 0);
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is _params.k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params.n * _params.k * sizeof(float), zeroes.data(), 0); // n * _params.k floats of neighbor similarities; every _params.k'th element is 0
+      const std::vector<uint> zeroes(_params.n * k, 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params.n * k * sizeof(float), zeroes.data(), 0); // n * k floats of neighbor similarities; every k'th element is 0
       glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
+    }
+
+    // Rereate and initialize semi-temporary buffer objects
+    if(k != _kPrev) {
+      glDeleteBuffers(1, &_buffers(BufferType::eDistances));
+      glDeleteBuffers(1, &_buffers(BufferType::eKNNeighbors));
+      glCreateBuffers(1, &_buffers(BufferType::eDistances));
+      glCreateBuffers(1, &_buffers(BufferType::eKNNeighbors));
+      glNamedBufferStorage(_buffers(BufferType::eDistances), _params.n * k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
+      glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
       glAssert();
     }
 
     // 0.
     // Weight dataset attribute values
-    if(recompDataset) {
-      std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
+    if(recompDataset && selectedAttributeIndices.size() > 0) {
+      std::vector<uint> saiSetVec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), saiSetVec.data(), 0);
+      glAssert();
 
       auto& program = _programs(ProgramType::eWeightDatasetComp);
       program.bind();
@@ -160,17 +174,18 @@ namespace dh::sne {
     progressBar.setProgress(0.0f);
     
     // 1.
-    // Compute approximate KNN of each point, delegated to FAISS
-    // Produces a fixed number of neighbors
+    // Compute approximate KNN of each point, delegated to FAISS. Produces a fixed number of neighbors
+    // _dataPtr on the CPU maintains the original dataset, eDataset on the GPU maintains the potentially weighted dataset
     if(!recompDistances && !recompDataset) {
       util::KNN(_dataPtr,                       _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
-                _params.n, _params.k, _params.nHighDims).comp();
+                _params.n, k, _params.nHighDims).comp();
+      if(!recomp) { glClearNamedBufferData(_buffers(BufferType::eDataset), GL_R32F, GL_RED, GL_FLOAT, _dataPtr); } // !recompDistances && !recompDataset && !recomp = reset
     } else
     if(recompDataset) {
       util::KNN(_buffers(BufferType::eDataset), _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
-                _params.n, _params.k, _params.nHighDims).comp();
+                _params.n, k, _params.nHighDims).comp();
     } else
-    if(recompDistances) {
+    if(recompDistances && selectedAttributeIndices.size() > 0) {
       std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
 
@@ -179,7 +194,7 @@ namespace dh::sne {
 
       // Set uniforms
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
+      program.template uniform<uint>("kNeighbors", k);
       program.template uniform<uint>("nHighDims", _params.nHighDims);
 
       // Set buffer bindings
@@ -194,10 +209,12 @@ namespace dh::sne {
       for(uint b = 0; b * 100 < selectedAttributeIndices.size(); ++b) {
         program.template uniform<uint>("batchBegin", b * 100);
         program.template uniform<uint>("batchEnd", std::min((b+1) * 100, (uint) selectedAttributeIndices.size()));
-        glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
+        glDispatchCompute(ceilDiv(_params.n * (k-1), 256u), 1, 1);
         glFinish();
         glAssert();
       }
+    } else {
+      return;
     }
     
     // Update progress bar
@@ -215,8 +232,8 @@ namespace dh::sne {
 
       // Set uniforms
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
-      program.template uniform<float>("perplexity", _params.perplexity);
+      program.template uniform<uint>("kNeighbors", k);
+      program.template uniform<float>("perplexity", perplexity);
       program.template uniform<uint>("nIters", 200); // Number of binary search iterations for finding sigma corresponding to perplexity
       program.template uniform<float>("epsilon", 1e-4);
 
@@ -239,8 +256,8 @@ namespace dh::sne {
 
     // 3.
     // Expand KNN data so it becomes symmetric. That is, every neigbor referred by a point itself refers to that point as a neighbor.
-    // Actually just fills eSizes, which, for each element, is _params.k-1+the number of "unregistered neighbors"; datapoints that have it as a neighbor but which it doesn't reciprocate
-    if(!recompDistances || recompDataset) {
+    // Actually just fills eSizes, which, for each element, is k-1+the number of "unregistered neighbors"; datapoints that have it as a neighbor but which it doesn't reciprocate
+    if(!recompDistances) {
       auto& timer = _timers(TimerType::eExpandComp);
       timer.tick();
       
@@ -249,7 +266,7 @@ namespace dh::sne {
       
       // Set uniforms
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
+      program.template uniform<uint>("kNeighbors", k);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eKNNeighbors));
@@ -269,7 +286,7 @@ namespace dh::sne {
 
     // 4.
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
-    if(!recompDistances || recompDataset) {
+    if(!recompDistances) {
       uint symmetricSize;
       util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params.n);
       scan.comp();
@@ -291,7 +308,7 @@ namespace dh::sne {
 
     // 5.
     // Fill layout buffer
-    if(!recompDistances || recompDataset) {
+    if(!recompDistances) {
       auto& timer = _timers(TimerType::eLayoutComp);
       timer.tick();
 
@@ -327,7 +344,7 @@ namespace dh::sne {
       program.bind();
 
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
+      program.template uniform<uint>("kNeighbors", k);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eKNNeighbors));
@@ -338,7 +355,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params.n * (k-1), 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -380,6 +397,8 @@ namespace dh::sne {
     // Poll twice so front/back timers are swapped
     glPollTimers(_timers.size(), _timers.data());
     glPollTimers(_timers.size(), _timers.data());
+
+    _kPrev = k;
   }
 
 } // dh::sne
