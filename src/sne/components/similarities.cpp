@@ -67,7 +67,7 @@ namespace dh::sne {
     glCreateBuffers(_buffers.size(), _buffers.data());
     {
       const std::vector<float> ones(_params.nHighDims, 1.0f);
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, 0); // Original dataset. TODO: make FAISS work from this instead of _dataPtr itself to avoid copying to GPU twice
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, GL_DYNAMIC_STORAGE_BIT); // Original dataset. TODO: make FAISS work from this instead of _dataPtr itself to avoid copying to GPU twice
       glNamedBufferStorage(_buffers(BufferType::eDistances), _params.n * _params.k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
       glNamedBufferStorage(_buffers(BufferType::eKNNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
       glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
@@ -100,6 +100,7 @@ namespace dh::sne {
   void Similarities::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
+    glAssert();
     std::ofstream file("../buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
@@ -126,7 +127,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
     }
 
-    // Rereate and initialize semi-temporary buffer objects
+    // Recreate and initialize semi-temporary buffer objects
     if(k != _kPrev) {
       glDeleteBuffers(1, &_buffers(BufferType::eDistances));
       glDeleteBuffers(1, &_buffers(BufferType::eKNNeighbors));
@@ -172,14 +173,14 @@ namespace dh::sne {
     util::ProgressBar progressBar(prefix + "Computing...");
     progressBar.setPostfix("Performing KNN search");
     progressBar.setProgress(0.0f);
-    
+
     // 1.
     // Compute approximate KNN of each point, delegated to FAISS. Produces a fixed number of neighbors
     // _dataPtr on the CPU maintains the original dataset, eDataset on the GPU maintains the potentially weighted dataset
     if(!recompDistances && !recompDataset) {
       util::KNN(_dataPtr,                       _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
                 _params.n, k, _params.nHighDims).comp();
-      if(!recomp) { glClearNamedBufferData(_buffers(BufferType::eDataset), GL_R32F, GL_RED, GL_FLOAT, _dataPtr); } // !recompDistances && !recompDataset && !recomp = reset
+      if(!recomp) { glAssert(); glNamedBufferSubData(_buffers(BufferType::eDataset), 0, _params.n * _params.nHighDims * sizeof(float), _dataPtr); glAssert(); } // !recompDistances && !recompDataset && !recomp = reset
     } else
     if(recompDataset) {
       util::KNN(_buffers(BufferType::eDataset), _buffers(BufferType::eDistances), _buffers(BufferType::eKNNeighbors),
