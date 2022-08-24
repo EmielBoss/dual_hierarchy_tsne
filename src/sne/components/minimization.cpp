@@ -464,15 +464,6 @@ namespace dh::sne {
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
         }
         if(_button == 2) {
-          _similarities->comp(true, false, false, _selectionRenderTask->getPerplexity(), 0, _buffers(BufferType::eSelected), _selectedAttributeIndices);
-        } else
-        if(_button == 3) {
-          _similarities->comp(false, true, false, _selectionRenderTask->getPerplexity(), _selectionRenderTask->getK(), _buffers(BufferType::eSelected), _selectedAttributeIndices);
-        } else
-        if(_button == 4) {
-          _similarities->comp(false, false, true, _selectionRenderTask->getPerplexity(), _selectionRenderTask->getK());
-        } else
-        if(_button == 5) {
           _similarities->comp();
         }
       }

@@ -54,16 +54,14 @@ namespace dh::sne {
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
 
     // Compute similarities
-    void comp(bool recompDistances = false, bool recompDataset = false, bool recomp = false, float perplexity = 0.f, uint k = 0, GLuint selectedBufferHandle = 0, std::set<uint> selectedAttributeIndices = {});
+    void comp();
 
   private:
     enum class BufferType {
       eDataset,
-      eDistances,
-      eKNNeighbors,
+      eNeighbors,
       eSimilarities,
       eLayout,
-      eNeighbors,
       eScan,
       eAttributeWeights,
       
@@ -72,6 +70,8 @@ namespace dh::sne {
 
     // Basically buffers that have to be destroyed and recreated in order to grow their memory allocation
     enum class BufferTempType {
+      eDistances,
+      eNeighbors,
       eSimilarities,
       eSizes,
       eCounts,
@@ -86,9 +86,7 @@ namespace dh::sne {
       eExpandComp,
       eLayoutComp,
       eNeighborsComp,
-      // eNeighborsSortComp,
-      eWeightDatasetComp,
-      eWeightDistancesComp,
+      eNeighborsSortComp,
       
       Length
     };
