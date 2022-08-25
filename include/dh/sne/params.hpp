@@ -75,6 +75,7 @@ namespace dh::sne {
     uint resHeight = 1024;
     int nPCs = 10;
     float maxAttributeWeight = 3.f;
+    float maxSimilarityWeight = 3.f;
 
     // Image dataset params
     bool imageDataset = false;

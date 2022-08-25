@@ -62,6 +62,7 @@ namespace dh::vis {
     _draggedAttribute(-1),
     _buttonPressed(0),
     _attributeWeight(1.f),
+    _similarityWeight(2.f),
     _perplexity(params.perplexity),
     _k((int) _params.k) {
 
@@ -157,6 +158,14 @@ namespace dh::vis {
     ImGui::Text("No. of selected datapoints: %i", _selectionCount);
     if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
     else { _selectAll = false; }
+    ImGui::Spacing();
+
+    _buttonPressed = 0;
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+    ImGui::SliderFloat("Similarity weight", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
+    if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight"); ImGui::EndTooltip(); }
+    ImGui::Spacing();
 
     if(_params.imageDataset) {
       _draggedAttribute = -1;
@@ -174,22 +183,15 @@ namespace dh::vis {
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
       ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
-      _buttonPressed = 0;
-      if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 1; }
+      if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 2; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection"); ImGui::EndTooltip(); }
-      if(                   ImGui::Button("Recomp distances")){ _buttonPressed = 2; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recomputes similarities by weighting distances, with the given perplexity (keeps KNN sets)"); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Recomp dataset")) { _buttonPressed = 3; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recomputes similarities by weighting dataset itself, with the given perplexity and k (recomputes KNN sets)"); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Recomp")) { _buttonPressed = 4; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recomputes similarities only with the given perplexity and k (recomputes KNN sets).\n(This is equal to Recomp dataset without attribute weights)"); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 5; _perplexity = _params.perplexity; _k = _params.k; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restores original similarities and clears weights and attribute selections (recomputes original KNN sets"); ImGui::EndTooltip(); }
-      ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
-      ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
-      if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
-      ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params.kMax);
-      ImGui::PopItemWidth();
+      // if(                   ImGui::Button("Weight similarities")){ _buttonPressed = 2; }
+      // if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight similarities"); ImGui::EndTooltip(); }
+      // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
+      // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
+      // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
+      // ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params.kMax);
+      // ImGui::PopItemWidth();
     }
   }
 

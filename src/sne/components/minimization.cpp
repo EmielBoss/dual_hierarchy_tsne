@@ -459,12 +459,12 @@ namespace dh::sne {
       // Process attribute selection texture buttons (1 = Clear selection, 2 = Recomp distances, 3 = Recomp dataset, 4 = Recomp, 5 = Reset)
       _button = _selectionRenderTask->getButtonPressed();
       if(_button > 0 && _button != _buttonPrev) {
-        if(_button == 1 || _button == 5) {
-          const std::vector<float> ones(_params.nHighDims, 1.0f);
-          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+        if(_button == 1) {
+          _similarities->weightSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelected));
         }
         if(_button == 2) {
-          _similarities->comp();
+          const std::vector<float> ones(_params.nHighDims, 1.0f);
+          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
@@ -617,7 +617,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/sub21ee1group per datapoint
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();

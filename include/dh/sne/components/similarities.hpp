@@ -55,6 +55,7 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
+    void weightSimilarities(float weight, GLuint selectedBufferHandle);
 
   private:
     enum class BufferType {
@@ -76,7 +77,7 @@ namespace dh::sne {
       eSizes,
       eCounts,
       eSelectionIndices,
-      eSelectedAttributeIndices,
+      // eSelectedAttributeIndices,
 
       Length
     };
@@ -87,6 +88,7 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
       eNeighborsSortComp,
+      eWeightSimilarities,
       
       Length
     };

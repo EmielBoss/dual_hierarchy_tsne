@@ -51,6 +51,7 @@ namespace dh::sne {
       _programs(ProgramType::eLayoutComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/layout.comp"));
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
+      _programs(ProgramType::eWeightSimilarities).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -297,6 +298,25 @@ namespace dh::sne {
     // Poll twice so front/back timers are swapped
     glPollTimers(_timers.size(), _timers.data());
     glPollTimers(_timers.size(), _timers.data());
+  }
+
+  void Similarities::weightSimilarities(float weight, GLuint selectedBufferHandle) {
+    auto &program = _programs(ProgramType::eWeightSimilarities);
+    program.bind();
+
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<float>("weight", weight);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
   }
 
 } // dh::sne

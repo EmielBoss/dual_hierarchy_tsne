@@ -77,6 +77,7 @@ namespace dh::vis {
     bool _selectLabeledOnly;
     uint _selectionCount;
     int _draggedAttribute;
+    float _similarityWeight;
     float _attributeWeight;
     uint _buttonPressed;
     bool _selectAll;
@@ -105,6 +106,7 @@ namespace dh::vis {
     uint getButtonPressed() { return _buttonPressed; }
     bool getSelectAll() { return _selectAll; }
     float getAttributeWeight() { return _attributeWeight; }
+    float getSimilarityWeight() { return _similarityWeight; }
     float getPerplexity() { return _perplexity; }
     uint getK() { return (uint) _k; }
     
@@ -121,6 +123,7 @@ namespace dh::vis {
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._attributeWeight, b._attributeWeight);
+      swap(a._similarityWeight, b._similarityWeight);
       swap(a._perplexity, b._perplexity);
       swap(a._k, b._k);
       swap(a._buffers, b._buffers);
