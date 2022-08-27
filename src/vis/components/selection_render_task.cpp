@@ -164,7 +164,7 @@ namespace dh::vis {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     ImGui::SliderFloat("Similarity weight", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
     if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight"); ImGui::EndTooltip(); }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
     ImGui::Spacing();
 
     if(_params.imageDataset) {
@@ -185,8 +185,8 @@ namespace dh::vis {
       ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
       if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 2; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection"); ImGui::EndTooltip(); }
-      // if(                   ImGui::Button("Weight similarities")){ _buttonPressed = 2; }
-      // if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight similarities"); ImGui::EndTooltip(); }
+      if(                   ImGui::Button("Recalc")) { _buttonPressed = 3; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
       // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }

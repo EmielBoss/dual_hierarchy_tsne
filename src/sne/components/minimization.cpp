@@ -48,12 +48,6 @@ namespace dh::sne {
   // Params for field size
   constexpr uint fieldMinSize = 5;
 
-  template <uint D, uint DD>
-  Minimization<D, DD>::Minimization()
-  : _isInit(false) {
-    // ...
-  }
-
   // Auxiliary function purely for debugging; will be removed
   template <uint D, uint DD>
   template<typename T>
@@ -72,8 +66,8 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   std::vector<float> Minimization<D, DD>::normalizeDataset(const float* dataPtr) {
-    std::vector<float> mins(_params.nHighDims, FLT_MAX);
-    std::vector<float> maxs(_params.nHighDims, FLT_MIN);
+    std::vector<float> mins(_params.nHighDims,  FLT_MAX);
+    std::vector<float> maxs(_params.nHighDims, -FLT_MAX);
     for(uint i = 0; i < _params.n; ++i) {
       for(uint a = 0; a < _params.nHighDims; ++a) {
         float val = *(dataPtr + (i * _params.nHighDims) + a);
@@ -108,6 +102,12 @@ namespace dh::sne {
       data[i] = (val - min) / (max - min);
     }
     return data;
+  }
+
+  template <uint D, uint DD>
+  Minimization<D, DD>::Minimization()
+  : _isInit(false) {
+    // ...
   }
 
   template <uint D, uint DD>
@@ -465,6 +465,9 @@ namespace dh::sne {
         if(_button == 2) {
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+        }
+        if(_button == 3) {
+          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelected));
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers

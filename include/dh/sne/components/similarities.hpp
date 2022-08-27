@@ -56,10 +56,12 @@ namespace dh::sne {
     // Compute similarities
     void comp();
     void weightSimilarities(float weight, GLuint selectedBufferHandle);
+    void weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle);
 
   private:
     enum class BufferType {
       eDataset,
+      eDistances,
       eNeighbors,
       eSimilarities,
       eLayout,
@@ -77,7 +79,7 @@ namespace dh::sne {
       eSizes,
       eCounts,
       eSelectionIndices,
-      // eSelectedAttributeIndices,
+      eSelectedAttributeIndices,
 
       Length
     };
@@ -89,6 +91,7 @@ namespace dh::sne {
       eNeighborsComp,
       eNeighborsSortComp,
       eWeightSimilarities,
+      eWeightAttributes,
       
       Length
     };

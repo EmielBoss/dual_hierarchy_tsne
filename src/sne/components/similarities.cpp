@@ -29,11 +29,29 @@
 #include "dh/util/gl/metric.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
+#include <numeric> //
+#include <fstream> //
+#include <filesystem> //
 
 namespace dh::sne {
   // Logging shorthands
   using util::Logger;
   const std::string prefix = util::genLoggerPrefix("[Similarities]");
+
+  // Auxiliary function purely for debugging; will be removed
+  template<typename T>
+  void Similarities::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
+    std::vector<T> buffer(n * d);
+    glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
+    std::ofstream file("../buffer_dumps/" + filename + ".txt");
+    for(uint i = 0; i < n; i++) {
+      for(uint j = 0; j < d; ++j) {
+        T val = buffer[i * d + j];
+        file << val << "|";
+      }
+      file << "\n";
+    }
+  }
   
   Similarities::Similarities()
   : _isInit(false), _dataPtr(nullptr) {
@@ -52,6 +70,7 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
       _programs(ProgramType::eWeightSimilarities).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities.comp"));
+      _programs(ProgramType::eWeightAttributes).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -201,7 +220,8 @@ namespace dh::sne {
     // Initialize permanent buffer objects
     glNamedBufferStorage(_buffers(BufferType::eNeighbors), symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
     glNamedBufferStorage(_buffers(BufferType::eSimilarities), symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
-    glAssert();    
+    glNamedBufferStorage(_buffers(BufferType::eDistances), symmetricSize * sizeof(float), nullptr, 0); // Corresponding distances
+    glAssert();
 
     // Update progress bar
     progressBar.setPostfix("Computing layout");
@@ -236,7 +256,7 @@ namespace dh::sne {
     progressBar.setProgress(5.0f / 6.0f);
 
     // 6.
-    // Generate expanded similarities and neighbor buffers, symmetrized and ready for use during the minimization
+    // Generate expanded similarities, neighbor and distances buffers, symmetrized and ready for use during the minimization
     {
       auto& timer = _timers(TimerType::eNeighborsComp);
       timer.tick();
@@ -250,10 +270,12 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSimilarities));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eCounts));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eDistances));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eDistances));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
@@ -264,7 +286,7 @@ namespace dh::sne {
     }
 
     // 7.
-    // Sort neighbours within each KNN set (and corresponding similarities)
+    // Sort neighbours within each KNN set (and corresponding similarities and distances)
     {
       auto &program = _programs(ProgramType::eNeighborsSortComp);
       program.bind();
@@ -275,6 +297,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistances));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
@@ -316,6 +339,41 @@ namespace dh::sne {
     // Dispatch shader
     glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
+  void Similarities::weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle) {
+    std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
+    glCreateBuffers(1, &_buffersTemp(BufferTempType::eSelectedAttributeIndices));
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
+
+    auto &program = _programs(ProgramType::eWeightAttributes);
+    program.bind();
+
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nHighDims", _params.nHighDims);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSelectedAttributeIndices));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistances));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilarities));
+
+    // Dispatch shader in batches of batchSize (selected) attriibutes
+    uint batchSize = 10;
+    for(uint b = 0; b * batchSize < selectedAttributeIndices.size(); ++b) {
+      program.template uniform<uint>("batchBegin", b * batchSize);
+      program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) selectedAttributeIndices.size()));
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glFinish();
+      glAssert();
+    }
+
+    glDeleteBuffers(1, &_buffersTemp(BufferTempType::eSelectedAttributeIndices));
     glAssert();
   }
 
