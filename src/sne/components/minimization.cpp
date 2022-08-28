@@ -442,7 +442,7 @@ namespace dh::sne {
       _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
       if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          float weight = std::pow(_selectionRenderTask->getAttributeWeight(), 2);
+          float weight = _selectionRenderTask->getAttributeWeight();
           setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
           glNamedBufferSubData(_similaritiesBuffers.attributeWeights, _draggedAttribute * sizeof(float), sizeof(float), &weight);
           _selectedAttributeIndices.insert(_draggedAttribute);
@@ -468,6 +468,9 @@ namespace dh::sne {
         }
         if(_button == 3) {
           _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelected));
+        }
+        if(_button == 4) {
+          _similarities->reset();
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers

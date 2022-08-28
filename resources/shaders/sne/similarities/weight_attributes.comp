@@ -41,7 +41,8 @@ layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffe
 layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 7, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -68,8 +69,12 @@ void main() {
         float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
         float distAttrRatio = distAttr / dist;
 
-        similaritiesBuffer[ij] = similaritiesBuffer[ij] * (1 - distAttrRatio)
-                               + similaritiesBuffer[ij] * distAttrRatio * attributeWeightsBuffer[attr];
+        float simOld = similaritiesBackup[ij];
+        float simNew = simOld * (1 - distAttrRatio)
+                     + simOld * distAttrRatio * attributeWeightsBuffer[attr];
+        float simDif = simNew - simOld;
+
+        similaritiesBuffer[ij] += simDif;
       }
     }
   }

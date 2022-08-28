@@ -61,7 +61,7 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _draggedAttribute(-1),
     _buttonPressed(0),
-    _attributeWeight(1.f),
+    _attributeWeight(2.f),
     _similarityWeight(2.f),
     _perplexity(params.perplexity),
     _k((int) _params.k) {
@@ -187,6 +187,8 @@ namespace dh::vis {
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection"); ImGui::EndTooltip(); }
       if(                   ImGui::Button("Recalc")) { _buttonPressed = 3; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+      if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 4; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
       // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }

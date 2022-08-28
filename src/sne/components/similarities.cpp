@@ -210,17 +210,16 @@ namespace dh::sne {
     // 4.
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
 
-    uint symmetricSize;
     {
       util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params.n);
       scan.comp();
-      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
+      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     }
 
     // Initialize permanent buffer objects
-    glNamedBufferStorage(_buffers(BufferType::eNeighbors), symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-    glNamedBufferStorage(_buffers(BufferType::eSimilarities), symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
-    glNamedBufferStorage(_buffers(BufferType::eDistances), symmetricSize * sizeof(float), nullptr, 0); // Corresponding distances
+    glNamedBufferStorage(_buffers(BufferType::eNeighbors), _symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
+    glNamedBufferStorage(_buffers(BufferType::eSimilarities), _symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
+    glNamedBufferStorage(_buffers(BufferType::eDistances), _symmetricSize * sizeof(float), nullptr, 0); // Corresponding distances
     glAssert();
 
     // Update progress bar
@@ -305,7 +304,11 @@ namespace dh::sne {
 
       glAssert();
     }
-    
+
+    // Keep backup of similarities in eSimilaritiesOriginal, because eSimilarities may get changed
+    glNamedBufferStorage(_buffers(BufferType::eSimilaritiesOriginal), _symmetricSize * sizeof(float), nullptr, 0);
+    glCopyNamedBufferSubData(_buffers(BufferType::eSimilarities), _buffers(BufferType::eSimilaritiesOriginal), 0, 0, _symmetricSize * sizeof(float));
+
     // Update progress bar
     progressBar.setPostfix("Done!");
     progressBar.setProgress(1.0f);
@@ -361,7 +364,8 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilarities));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilaritiesOriginal));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
 
     // Dispatch shader in batches of batchSize (selected) attriibutes
     uint batchSize = 10;
@@ -375,6 +379,10 @@ namespace dh::sne {
 
     glDeleteBuffers(1, &_buffersTemp(BufferTempType::eSelectedAttributeIndices));
     glAssert();
+  }
+
+  void Similarities::reset() {
+    glCopyNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), _buffers(BufferType::eSimilarities), 0, 0, _symmetricSize * sizeof(float));
   }
 
 } // dh::sne
