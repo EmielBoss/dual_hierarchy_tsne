@@ -459,18 +459,18 @@ namespace dh::sne {
       // Process attribute selection texture buttons (1 = Clear selection, 2 = Recomp distances, 3 = Recomp dataset, 4 = Recomp, 5 = Reset)
       _button = _selectionRenderTask->getButtonPressed();
       if(_button > 0 && _button != _buttonPrev) {
-        if(_button == 1) {
+        if(_button == 1) { // Apply similarity weight
           _similarities->weightSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelected));
         }
-        if(_button == 2) {
-          const std::vector<float> ones(_params.nHighDims, 1.0f);
-          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
-        }
-        if(_button == 3) {
+        if(_button == 2) { // Recalc similarities
           _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelected));
         }
-        if(_button == 4) {
+        if(_button == 3) { // Reset similarities
           _similarities->reset();
+        }
+        if(_button == 4) { // Clear selection
+          const std::vector<float> ones(_params.nHighDims, 1.0f);
+          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers

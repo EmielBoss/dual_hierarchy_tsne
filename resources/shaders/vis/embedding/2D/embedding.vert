@@ -31,19 +31,19 @@ struct Bounds {
   vec2 invRange;
 };
 
-// 10 distinguishable label colors
-const vec3 colors[10] = vec3[10](
+// 11 distinguishable label colors (incl. white)
+const vec3 colors[11] = vec3[11](
   vec3(16, 78, 139),
+  vec3(0, 128, 0),
   vec3(139, 90, 43),
   vec3(138, 43, 226),
-  vec3(0, 128, 0),
   vec3(255, 150, 0),
   vec3(204, 40, 40),
   vec3(131, 139, 131),
-  vec3(0, 205, 0),
-  // vec3(235, 235, 235),
   vec3(20, 20, 20),
-  vec3(0, 150, 255)
+  vec3(0, 205, 0),
+  vec3(0, 150, 255),
+  vec3(235, 235, 235)
 );
 
 // Input attributes
@@ -90,8 +90,8 @@ void main() {
   if(colorMapping == 1) { // Labels
     int colorIndex = canDrawLabels && label >= 0 ? label : 9;
     color = colors[colorIndex];
-  }
-  else if(colorMapping == 2) { // Neighborhood preservation
+  } else
+  if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
     color = vec3(255, (1-value) * 255, (1-value) * 200);
   }
@@ -99,9 +99,12 @@ void main() {
     color = colors[9];
   }
 
+  // Determine whether to output unselected color or selected color
   if(selected[gl_InstanceID] == 1) {
-    colorOut = vec4(color / 355.0f, pointOpacity);
+    if(colorMapping == 1) { colorOut = vec4(color / 100.0f, pointOpacity); } // Selected label color should be inverted and lighter
+    else { colorOut = vec4(color / 355.0f, pointOpacity); } // Selected color should be made darker
   } else {
-    colorOut = vec4(color / 255.0f, pointOpacity / divider);
+    if(colorMapping == 1) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } // Unselected label color should be darker
+    else { colorOut = vec4(color / 255.0f, pointOpacity / divider); } // Unselected color should be normal
   }
 }

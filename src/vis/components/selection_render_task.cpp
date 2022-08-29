@@ -162,7 +162,7 @@ namespace dh::vis {
 
     _buttonPressed = 0;
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    ImGui::SliderFloat("Similarity weight", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
+    ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
     if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
     ImGui::Spacing();
@@ -182,13 +182,13 @@ namespace dh::vis {
       }
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::SliderFloat("Weight", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
-      if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 2; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection"); ImGui::EndTooltip(); }
-      if(                   ImGui::Button("Recalc")) { _buttonPressed = 3; }
+      ImGui::Text("Attribute weight:"); ImGui::SameLine(); ImGui::SliderFloat("", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
+      if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 4; }
+      if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+      if(ImGui::SameLine(); ImGui::Button("Clear selection")) { _buttonPressed = 4; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection"); ImGui::EndTooltip(); }
       // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
