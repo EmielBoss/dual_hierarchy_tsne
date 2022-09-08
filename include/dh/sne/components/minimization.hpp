@@ -85,6 +85,7 @@ namespace dh::sne {
   private:
     enum class BufferType {
       eDataset,
+      eLabels,
       eEmbedding,
       eBounds,
       eBoundsReduce,

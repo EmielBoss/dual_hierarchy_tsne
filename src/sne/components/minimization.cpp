@@ -173,6 +173,7 @@ namespace dh::sne {
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eLabels), _params.n * sizeof(int), labelPtr, 0);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), unitvecs.data(), 0);
@@ -463,7 +464,7 @@ namespace dh::sne {
           _similarities->weightSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelected));
         }
         if(_button == 2) { // Recalc similarities
-          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelected));
+          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelected), _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities
           _similarities->reset();

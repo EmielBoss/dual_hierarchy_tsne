@@ -218,7 +218,7 @@ namespace dh::sne {
 
     // Initialize permanent buffer objects
     glNamedBufferStorage(_buffers(BufferType::eNeighbors), _symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-    glNamedBufferStorage(_buffers(BufferType::eSimilarities), _symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
+    glNamedBufferStorage(_buffers(BufferType::eSimilarities), _symmetricSize * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT); // Corresponding similarities
     glNamedBufferStorage(_buffers(BufferType::eDistances), _symmetricSize * sizeof(float), nullptr, 0); // Corresponding distances
     glAssert();
 
@@ -313,6 +313,19 @@ namespace dh::sne {
     progressBar.setPostfix("Done!");
     progressBar.setProgress(1.0f);
 
+    // DISTANCES PROPERTIES
+    std::vector<float> dist(_symmetricSize);
+    glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
+    auto [minIt, maxIt] = std::minmax_element(dist.begin(), dist.end());
+    auto const count = static_cast<float>(dist.size());
+    float average = std::reduce(dist.begin(), dist.end()) / count;
+    double sq_sum = std::inner_product(dist.begin(), dist.end(), dist.begin(), 0.0);
+    double stdev = std::sqrt(sq_sum / dist.size() - average * average);
+    std::cout << "DIST MIN: " << *minIt << "\n";
+    std::cout << "DIST MAX: " << *maxIt << "\n";
+    std::cout << "DIST AVG: " << average << "\n";
+    std::cout << "DIST STD: " << stdev << "\n\n";
+
     // Delete temporary buffers
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
@@ -345,7 +358,9 @@ namespace dh::sne {
     glAssert();
   }
 
-  void Similarities::weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle) {
+  void Similarities::weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, GLuint labelsBufferHandle) {
+    if(selectedAttributeIndices.size() == 0) { return; }
+
     std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
     glCreateBuffers(1, &_buffersTemp(BufferTempType::eSelectedAttributeIndices));
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
@@ -379,6 +394,95 @@ namespace dh::sne {
 
     glDeleteBuffers(1, &_buffersTemp(BufferTempType::eSelectedAttributeIndices));
     glAssert();
+
+    //// DEBUGGING
+    // std::vector<uint> neig(_symmetricSize);
+    // glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
+    // std::vector<float> sims(_symmetricSize);
+    // glGetNamedBufferSubData(_buffers(BufferType::eSimilarities), 0, _symmetricSize * sizeof(float), sims.data());
+    // std::vector<float> simsO(_symmetricSize);
+    // glGetNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), 0, _symmetricSize * sizeof(float), simsO.data());
+    // std::vector<float> dist(_symmetricSize);
+    // glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
+    // std::vector<uint> layo(_params.n * 2);
+    // glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layo.data());
+    // std::vector<uint> selc(_params.n);
+    // glGetNamedBufferSubData(selectedBufferHandle, 0, _params.n * sizeof(uint), selc.data());
+    // std::vector<int> labl(_params.n);
+    // glGetNamedBufferSubData(labelsBufferHandle, 0, _params.n * sizeof(int), labl.data());
+
+    // int classA = 1;
+    // int classB = 2;
+    // // Print inter-class and intra-class average similarity change
+    // uint interCnt = 0;
+    // uint intraCnt = 0;
+    // float interAvg = 0.f;
+    // float intraAvg = 0.f;
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   if(selc[i] != 1) { continue; }
+    //   if(labl[i] != classA && labl[i] != classB) { continue; }
+    //   for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+    //     uint j = neig[ij];
+    //     if(selc[j] != 1) { continue; }
+    //     if(labl[j] != classA && labl[j] != classB) { continue; }
+
+    //     float simDelta = sims[ij] / simsO[ij];
+    //     if(labl[i] != labl[j]) {
+    //       interCnt++;
+    //       interAvg += simDelta;
+    //     }
+    //     else {
+    //       intraCnt++;
+    //       intraAvg += simDelta;
+    //     }
+    //   }
+    // }
+    // std::cout << "Inter: " << interAvg / (float) interCnt << "\n";
+    // std::cout << "Intra: " << intraAvg / (float) intraCnt << "\n";
+
+    // // Print inter-class and intra-class average ratio of selected attrib dist to total distance
+    // interCnt = 0;
+    // intraCnt = 1;
+    // float interDist = 0.f;
+    // float intraDist = 0.f;
+    // float interDistAttr = 0.f;
+    // float intraDistAttr = 0.f;
+    // float interDistAttrRatio = 0.f;
+    // float intraDistAttrRatio = 0.f;
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   if(selc[i] != 1) { continue; }
+    //   if(labl[i] != classA && labl[i] != classB) { continue; }
+    //   for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+    //     uint j = neig[ij];
+    //     if(selc[j] != 1) { continue; }
+    //     if(labl[j] != classA && labl[j] != classB) { continue; }
+
+    //     float distAttrSum = 0.f;
+    //     float distAttrRatioSum = 0.f;
+    //     for (const uint &attr : selectedAttributeIndices) {
+    //       float distAttr = std::pow(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr], 2);
+    //       float distAttrRatio = distAttr / dist[ij];
+    //       distAttrSum += distAttr;
+    //       distAttrRatioSum += distAttrRatio;
+    //     }
+
+    //     if(labl[i] != labl[j]) {
+    //       interCnt++;
+    //       interDist += dist[ij];
+    //       interDistAttr += distAttrSum;
+    //       interDistAttrRatio += distAttrRatioSum;
+    //     }
+    //     else {
+    //       intraCnt++;
+    //       intraDist += dist[ij];
+    //       intraDistAttr += distAttrSum;
+    //       intraDistAttrRatio += distAttrRatioSum;
+    //     }
+    //   }
+    // }
+    // std::cout << "Inter: " << interDistAttr / (float) interCnt << " / " << interDist / (float) interCnt << " = " << interDistAttrRatio / (float) interCnt << "\n";
+    // std::cout << "Intra: " << intraDistAttr / (float) intraCnt << " / " << intraDist / (float) intraCnt << " = " << intraDistAttrRatio / (float) intraCnt << "\n";
+
   }
 
   void Similarities::reset() {
