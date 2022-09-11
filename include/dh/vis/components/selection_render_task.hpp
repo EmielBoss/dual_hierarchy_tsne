@@ -53,7 +53,7 @@ namespace dh::vis {
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
     void drawImGuiImageButton(GLuint textureHandle);
-    void setSelectionCount(uint selectionCount) { _selectionCount = selectionCount; }
+    void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     float getBufferValue(GLuint buffer, int index);
     bool getHoveringTexture() { return _hoveringTexture; }
     bool getHoveringTexturePrev() { return _hoveringTexturePrev; }
@@ -75,7 +75,7 @@ namespace dh::vis {
     bool _canDrawLabels;
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
-    uint _selectionCount;
+    std::vector<uint> _selectionCounts;
     int _draggedAttribute;
     float _similarityWeight;
     float _attributeWeight;
@@ -118,7 +118,7 @@ namespace dh::vis {
       swap(a._params, b._params);
       swap(a._selectionRadiusRel, b._selectionRadiusRel);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
-      swap(a._selectionCount, b._selectionCount);
+      swap(a._selectionCounts, b._selectionCounts);
       swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buttonPressed, b._buttonPressed);

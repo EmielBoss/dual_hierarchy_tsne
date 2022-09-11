@@ -99,7 +99,7 @@ namespace dh::sne {
       eDistancesEmb,
       eNeighborsEmb,
       eNeighborhoodPreservation,
-      eSelected,
+      eSelection,
       eSelectionCount,
       eSelectionCountReduce,
       eTextureDataReduce,
@@ -170,7 +170,7 @@ namespace dh::sne {
     uint _colorMappingPrev;
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
-    uint _selectionCount;
+    std::vector<uint> _selectionCounts;
     float _selectionRadiusRel;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
@@ -209,7 +209,7 @@ namespace dh::sne {
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
         _buffers(BufferType::eLabeled),
-        _buffers(BufferType::eSelected),
+        _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
         _textures(TextureType::eAverage),
@@ -233,7 +233,7 @@ namespace dh::sne {
       swap(a._pcs, b._pcs);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._draggedAttributePrev, b._draggedAttributePrev);
-      swap(a._selectionCount, b._selectionCount);
+      swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
       swap(a._buffersTextureData, b._buffersTextureData);

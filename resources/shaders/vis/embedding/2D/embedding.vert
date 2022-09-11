@@ -60,7 +60,7 @@ layout(location = 3) out float multiplier;
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
-layout(binding = 3, std430) restrict readonly buffer SelectedBuffer { uint selected[]; };
+layout(binding = 3, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
 layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations
@@ -71,6 +71,7 @@ layout(location = 3) uniform float pointRadius;
 layout(location = 4) uniform uint colorMapping;
 layout(location = 5) uniform bool canDrawLabels;
 layout(location = 6) uniform bool selectLabeledOnly;
+layout(location = 7) uniform float divisor;
 
 void main() {
   multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 2.f : 1.f;
@@ -100,9 +101,12 @@ void main() {
   }
 
   // Determine whether to output unselected color or selected color
-  if(selected[gl_InstanceID] == 1) {
+  if(selection[gl_InstanceID] == 1) {
     if(colorMapping == 1) { colorOut = vec4(color / 100.0f, pointOpacity); } // Selected label color should be inverted and lighter
     else { colorOut = vec4(color / 355.0f, pointOpacity); } // Selected color should be made darker
+  } else
+  if(selection[gl_InstanceID] == 2) {
+    colorOut = vec4(color / divisor, pointOpacity);
   } else {
     if(colorMapping == 1) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } // Unselected label color should be darker
     else { colorOut = vec4(color / 255.0f, pointOpacity / divider); } // Unselected color should be normal

@@ -57,7 +57,7 @@ namespace dh::vis {
     _params(params),
     _selectLabeledOnly(false),
     _selectionRadiusRel(0.03),
-    _selectionCount(0),
+    _selectionCounts(2, 0),
     _mousePosScreen({0.0, 0.0}),
     _draggedAttribute(-1),
     _buttonPressed(0),
@@ -155,16 +155,24 @@ namespace dh::vis {
       if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
     }
 
-    ImGui::Text("No. of selected datapoints: %i", _selectionCount);
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+    ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
+
+    ImGui::Text("No. of selected datapoints: %i", _selectionCounts[0]);
     if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
     else { _selectAll = false; }
+    _buttonPressed = 0;
+    if(ImGui::SameLine(); ImGui::Button("Apply weight ")) { _buttonPressed = 1; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
     ImGui::Spacing();
 
-    _buttonPressed = 0;
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat(" ", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
-    if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
+    if(_selectionCounts[1] > 0) {
+      ImGui::Text("No. of selected datapoints (secondary): %i", _selectionCounts[1]);
+      if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 10; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
+    } else {
+      ImGui::Dummy(ImVec2(0.0f, 19.0f));
+    }
     ImGui::Spacing();
 
     if(_params.imageDataset) {
@@ -182,7 +190,7 @@ namespace dh::vis {
       }
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::Text("Attribute weight:"); ImGui::SameLine(); ImGui::SliderFloat("  ", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
+      ImGui::Text("Attribute weight:"); ImGui::SameLine(); ImGui::SliderFloat(" ", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
       if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
       if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }

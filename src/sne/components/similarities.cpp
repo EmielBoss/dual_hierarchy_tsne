@@ -70,6 +70,7 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
       _programs(ProgramType::eWeightSimilarities).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities.comp"));
+      _programs(ProgramType::eWeightSimilaritiesInter).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities_inter.comp"));
       _programs(ProgramType::eWeightAttributes).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes.comp"));
 
       for (auto& program : _programs) {
@@ -314,17 +315,17 @@ namespace dh::sne {
     progressBar.setProgress(1.0f);
 
     // DISTANCES PROPERTIES
-    std::vector<float> dist(_symmetricSize);
-    glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
-    auto [minIt, maxIt] = std::minmax_element(dist.begin(), dist.end());
-    auto const count = static_cast<float>(dist.size());
-    float average = std::reduce(dist.begin(), dist.end()) / count;
-    double sq_sum = std::inner_product(dist.begin(), dist.end(), dist.begin(), 0.0);
-    double stdev = std::sqrt(sq_sum / dist.size() - average * average);
-    std::cout << "DIST MIN: " << *minIt << "\n";
-    std::cout << "DIST MAX: " << *maxIt << "\n";
-    std::cout << "DIST AVG: " << average << "\n";
-    std::cout << "DIST STD: " << stdev << "\n\n";
+    // std::vector<float> dist(_symmetricSize);
+    // glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
+    // auto [minIt, maxIt] = std::minmax_element(dist.begin(), dist.end());
+    // auto const count = static_cast<float>(dist.size());
+    // float average = std::reduce(dist.begin(), dist.end()) / count;
+    // double sq_sum = std::inner_product(dist.begin(), dist.end(), dist.begin(), 0.0);
+    // double stdev = std::sqrt(sq_sum / dist.size() - average * average);
+    // std::cout << "DIST MIN: " << *minIt << "\n";
+    // std::cout << "DIST MAX: " << *maxIt << "\n";
+    // std::cout << "DIST AVG: " << average << "\n";
+    // std::cout << "DIST STD: " << stdev << "\n\n";
 
     // Delete temporary buffers
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
@@ -341,6 +342,25 @@ namespace dh::sne {
 
   void Similarities::weightSimilarities(float weight, GLuint selectedBufferHandle) {
     auto &program = _programs(ProgramType::eWeightSimilarities);
+    program.bind();
+
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<float>("weight", weight);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
+  void Similarities::weightSimilaritiesInter(float weight, GLuint selectedBufferHandle) {
+    auto &program = _programs(ProgramType::eWeightSimilaritiesInter);
     program.bind();
 
     program.template uniform<uint>("nPoints", _params.n);

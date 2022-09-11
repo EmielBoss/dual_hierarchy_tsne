@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <chrono>
 #include "dh/types.hpp"
 #include "dh/util/aligned.hpp"
 #include "dh/util/enum.hpp"

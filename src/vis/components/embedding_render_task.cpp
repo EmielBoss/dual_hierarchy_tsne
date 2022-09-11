@@ -25,6 +25,8 @@
 #include <array>
 #include <cmath>
 #include <random>
+#include <algorithm>
+#include <chrono>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -153,6 +155,11 @@ namespace dh::vis {
 
     // Only allow drawing labels if a buffer is provided with said labels
     _canDrawLabels = (labelsHandle > 0);
+
+    // Time-based effect for the secondary selection
+    int ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    int looper = (ms / 2) % 510;
+    float divisor = looper - std::max(0, looper * 2 - 510);
     
     _program.bind();
 
@@ -167,12 +174,13 @@ namespace dh::vis {
     _program.template uniform<uint>("colorMapping", _colorMapping);
     _program.template uniform<bool>("canDrawLabels", _canDrawLabels);
     _program.template uniform<bool>("selectLabeledOnly", _selectLabeledOnly);
+    _program.template uniform<float>("divisor", divisor);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labeled);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.selected);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.selection);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.neighborhoodPreservation);
 
     // Perform draw

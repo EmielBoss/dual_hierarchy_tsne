@@ -43,6 +43,7 @@ namespace dh::vis {
     _yPressed(false),
     _zPressed(false),
     _shiftPressed(false),
+    _ctrlPressed(false),
     _numPressed(1),
     _mouseLeftPressed(false),
     _mouseRightPressed(false),
@@ -89,9 +90,6 @@ namespace dh::vis {
   }
 
   void SelectionInputTask::keyboardInput(int button, int action) {
-    if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) { _spacePressed = true; }
-    else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) { _spacePressed = false; }
-
     if (button == GLFW_KEY_R && action == GLFW_PRESS) { _rPressed = true; }
     else if (button == GLFW_KEY_R && action == GLFW_RELEASE) { _rPressed = false; }
 
@@ -115,6 +113,12 @@ namespace dh::vis {
 
     if (button == GLFW_KEY_Z && action == GLFW_PRESS) { _zPressed = true; }
     else if (button == GLFW_KEY_Z && action == GLFW_RELEASE) { _zPressed = false; }
+
+    if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) { _spacePressed = true; }
+    else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) { _spacePressed = false; }
+
+    if (button == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS) { _ctrlPressed = true; }
+    else if (button == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE) { _ctrlPressed = false; }
 
     if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS) { _shiftPressed = true; }
     else if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE) { _shiftPressed = false; }
