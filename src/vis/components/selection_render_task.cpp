@@ -61,8 +61,10 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _draggedAttribute(-1),
     _buttonPressed(0),
-    _attributeWeight(1.f),
+    _attributeWeight(0.f),
     _similarityWeight(2.f),
+    _autoselectPercentage(0.1f),
+    _textureTabOpened(0),
     _perplexity(params.perplexity),
     _k((int) _params.k) {
 
@@ -180,10 +182,12 @@ namespace dh::vis {
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Average")) {
             drawImGuiImageButton(0);
+            _textureTabOpened = 0;
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Variance")) {
             drawImGuiImageButton(1);
+            _textureTabOpened = 1;
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -191,6 +195,8 @@ namespace dh::vis {
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
       ImGui::Text("Attribute weight:"); ImGui::SameLine(); ImGui::SliderFloat(" ", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
+      if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
+      ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("\% of attribs", &_autoselectPercentage, 0.0f, 1.f);
       if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
       if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }
@@ -218,7 +224,6 @@ namespace dh::vis {
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
     if(_draggedAttribute >= 0) { return; }
 
-    _hoveringTexturePrev = _hoveringTexture;
     if(ImGui::IsItemHovered()) {
       _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;

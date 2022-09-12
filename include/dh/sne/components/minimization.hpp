@@ -69,9 +69,11 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void reconfigureZAxis();
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
     void fillTextureComponent(uint component, float value, GLuint buffer = 0);
+    void weighAttribute(uint attributeIndex, float weight, bool insertOrErase);
+    void autoselectAttributes(uint textureType, float percentage);
+    void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation

@@ -81,6 +81,7 @@ namespace dh::sne {
       for(uint a = 0; a < _params.nHighDims; ++a) {
         float val = *(dataPtr + (i * _params.nHighDims) + a);
         data[i * _params.nHighDims + a] = (val - mins[a]) / (maxs[a] - mins[a]);
+        if(data[i * _params.nHighDims + a] != data[i * _params.nHighDims + a]) { data[i * _params.nHighDims + a] = 0.f; }
       }
     }
     return data;
@@ -100,6 +101,7 @@ namespace dh::sne {
     for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
       float val = *(dataPtr + i);
       data[i] = (val - min) / (max - min);
+      if(data[i] != data[i]) { data[i] = 0; }
     }
     return data;
   }
@@ -365,6 +367,33 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  void Minimization<D, DD>::weighAttribute(uint attributeIndex, float weight, bool insertOrErase) {
+    glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attributeIndex * sizeof(float), sizeof(float), &weight);
+    if(insertOrErase) { _selectedAttributeIndices.insert(attributeIndex); }
+    else { _selectedAttributeIndices.erase(attributeIndex); }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::autoselectAttributes(uint textureType, float percentage) {
+    std::vector<float> buffer(_params.nHighDims * 3);
+    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _params.nHighDims * 3 * sizeof(float), buffer.data());
+    std::vector<float> textureData(_params.nHighDims);
+    for(uint i = 0; i < _params.nHighDims; ++i) { textureData[i] = buffer[i * 3]; }
+
+    std::vector<size_t> indices(textureData.size());
+    std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
+    uint nSelected = _params.nHighDims * percentage;
+    std::partial_sort(indices.begin(), indices.begin() + nSelected, indices.end(),
+                      [&](size_t A, size_t B) {
+                        return textureData[A] > textureData[B];
+                      }); // Gives the nSelected indices of the largest values in textureData as nSelected first elements of indices
+    
+    for(uint i = 0; i < nSelected; ++i) {
+      weighAttribute(indices[i], _selectionRenderTask->getAttributeWeight(), true);
+    }
+  }
+
+  template <uint D, uint DD>
   void Minimization<D, DD>::comp() {
     while (_iteration < _params.iterations) {
       compIteration();
@@ -443,16 +472,10 @@ namespace dh::sne {
       _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
       if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          float weight = _selectionRenderTask->getAttributeWeight();
-          setTexelValue(_draggedAttribute, 2, weight / _params.maxAttributeWeight);
-          glNamedBufferSubData(_similaritiesBuffers.attributeWeights, _draggedAttribute * sizeof(float), sizeof(float), &weight);
-          _selectedAttributeIndices.insert(_draggedAttribute);
+          weighAttribute(_draggedAttribute, _selectionRenderTask->getAttributeWeight(), true);
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          float weight = 1.f;
-          setTexelValue(_draggedAttribute, 2, 1.f / _params.maxAttributeWeight);
-          glNamedBufferSubData(_similaritiesBuffers.attributeWeights, _draggedAttribute * sizeof(float), sizeof(float), &weight);
-          _selectedAttributeIndices.erase(_draggedAttribute);
+          weighAttribute(_draggedAttribute, 1.f, false);
         }
         _draggedAttributePrev = _draggedAttribute;
       }
@@ -465,6 +488,9 @@ namespace dh::sne {
         }
         if(_button == 10) { // Apply similarity weight to intersimilarities between selections
           _similarities->weightSimilaritiesInter(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+        }
+        if(_button == 15) { // Autoweigh/autoselect top % of attributes
+          autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
           _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _buffers(BufferType::eLabels));
@@ -492,13 +518,9 @@ namespace dh::sne {
     }
 
     // Write attribute weights to blue component if hovering texture
-    bool hovering = _selectionRenderTask->getHoveringTexture(); bool hoveringPrev = _selectionRenderTask->getHoveringTexturePrev();
-    if(hovering && !hoveringPrev) {
-      fillTextureComponent(2, 0.f, _similaritiesBuffers.attributeWeights);
-    } else
-    if(!hovering && hoveringPrev) {
-      fillTextureComponent(2, 0.f);
-    }
+    bool hovering = _selectionRenderTask->getHoveringTexture();
+    if( hovering) { fillTextureComponent(2, -1.f, _similaritiesBuffers.attributeWeights); } else
+    if(!hovering) { fillTextureComponent(2, 0.f); }
 
     // Copy texture data to textures
     if(_params.imageDataset) {
@@ -880,6 +902,7 @@ namespace dh::sne {
     // Calculate selection average and/or variance per attribute
     if(_params.imageDataset) {
       {
+
         auto& program = _programs(ProgramType::eSelectionAverageComp);
         program.bind();
 
