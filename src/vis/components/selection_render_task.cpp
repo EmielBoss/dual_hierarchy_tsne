@@ -48,7 +48,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 2> textures, std::array<GLuint, 2> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 6> textures, std::array<GLuint, 6> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _textures(textures),
@@ -180,15 +180,31 @@ namespace dh::vis {
     if(_params.imageDataset) {
       _draggedAttribute = -1;
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("Average")) {
+        if (ImGui::BeginTabItem("Mean")) {
             drawImGuiImageButton(0);
-            _textureTabOpened = 0;
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Variance")) {
             drawImGuiImageButton(1);
-            _textureTabOpened = 1;
             ImGui::EndTabItem();
+        }
+        if(_selectionCounts[1] > 0) {
+          if (ImGui::BeginTabItem("Mean 2")) {
+              drawImGuiImageButton(2);
+              ImGui::EndTabItem();
+          }
+          if (ImGui::BeginTabItem("Variance 2")) {
+              drawImGuiImageButton(3);
+              ImGui::EndTabItem();
+          }
+          if (ImGui::BeginTabItem("Mean diff")) {
+              drawImGuiImageButton(4);
+              ImGui::EndTabItem();
+          }
+          if (ImGui::BeginTabItem("Variance diff")) {
+              drawImGuiImageButton(5);
+              ImGui::EndTabItem();
+          }
         }
         ImGui::EndTabBar();
       }
@@ -220,6 +236,8 @@ namespace dh::vis {
   }
 
   void SelectionRenderTask::drawImGuiImageButton(uint index) {
+    _textureTabOpened = index;
+
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
     if(_draggedAttribute >= 0) { return; }
@@ -233,7 +251,7 @@ namespace dh::vis {
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredAttribute);
       ImGui::Text("Weight: %f", std::sqrt(getBufferValue(_attributeWeightsBuffer, hoveredAttribute)));
-      std::array<const char*, 2> prompts = {"Mean: %f", "Variance: %f"};
+      std::array<const char*, 6> prompts = {"Mean: %f", "Variance: %f", "Mean: %f", "Variance: %f", "Difference in mean: %f", "Difference in variance: %f"};
       ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredAttribute * 3));
       ImGui::EndTooltip();
 

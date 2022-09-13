@@ -117,8 +117,12 @@ namespace dh::sne {
     };
 
     enum class TextureType {
-      eAverage,
-      eVariance,
+      eAveragePrimary,
+      eVariancePrimary,
+      eAverageSecondary,
+      eVarianceSecondary,
+      eAverageDifference,
+      eVarianceDifference,
 
       Length
     };
@@ -135,6 +139,7 @@ namespace dh::sne {
       eCountSelectedComp,
       eSelectionAverageComp,
       eSelectionVarianceComp,
+      eSelectionDifferenceComp,
       eTranslationComp,
 
       Length
@@ -214,8 +219,8 @@ namespace dh::sne {
         _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eNeighborhoodPreservation),
-        _textures(TextureType::eAverage),
-        _textures(TextureType::eVariance)
+        _textures(TextureType::eAveragePrimary),
+        _textures(TextureType::eVariancePrimary)
       };
     }
     bool isInit() const { return _isInit; }
