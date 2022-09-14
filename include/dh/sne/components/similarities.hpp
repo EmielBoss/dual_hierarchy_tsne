@@ -57,7 +57,7 @@ namespace dh::sne {
     void comp();
     void weightSimilarities(float weight, GLuint selectedBufferHandle);
     void weightSimilaritiesInter(float weight, GLuint selectedBufferHandle);
-    void weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, GLuint labelsBufferHandle);
+    void weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
 
   private:
@@ -81,8 +81,10 @@ namespace dh::sne {
       eSimilarities,
       eSizes,
       eCounts,
-      eSelectionIndices,
       eSelectedAttributeIndices,
+      eAverageDistancePerNeighborhood,
+      eAverageDistanceReduce,
+      eAverageDistance,
 
       Length
     };
@@ -93,9 +95,11 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
       eNeighborsSortComp,
-      eWeightSimilarities,
-      eWeightSimilaritiesInter,
-      eWeightAttributes,
+      eWeightSimilaritiesComp,
+      eWeightSimilaritiesInterComp,
+      eWeightAttributesPreprocessComp,
+      eAverageDistanceComp,
+      eWeightAttributesComp,
       
       Length
     };

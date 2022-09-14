@@ -160,17 +160,17 @@ namespace dh::vis {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
 
-    ImGui::Text("No. of selected datapoints: %i", _selectionCounts[0]);
+    ImGui::Text("No. of sel. points: %i", _selectionCounts[0]);
     if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
     else { _selectAll = false; }
     _buttonPressed = 0;
-    if(ImGui::SameLine(); ImGui::Button("Apply weight ")) { _buttonPressed = 1; }
+    if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 1; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
     ImGui::Spacing();
 
     if(_selectionCounts[1] > 0) {
-      ImGui::Text("No. of selected datapoints (secondary): %i", _selectionCounts[1]);
-      if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 10; }
+      ImGui::Text("No. of sel. points (secondary): %i", _selectionCounts[1]);
+      if(ImGui::SameLine(); ImGui::Button("Apply  weight")) { _buttonPressed = 10; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
     } else {
       ImGui::Dummy(ImVec2(0.0f, 19.0f));

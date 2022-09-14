@@ -47,8 +47,10 @@ layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; }
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform uint batchBegin;
-layout(location = 3) uniform uint batchEnd;
+layout(location = 2) uniform bool useDistAverage;
+layout(location = 3) uniform float distAverage;
+layout(location = 4) uniform uint batchBegin;
+layout(location = 5) uniform uint batchEnd;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -76,7 +78,8 @@ void main() {
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    float dist = distancesBuffer[ij];
+    float dist = useDistAverage ? distAverage : distancesBuffer[ij];
+
     if(selectedBuffer[j] == 1) {
       for(uint a = batchBegin; a < batchEnd; a++) {
         uint attr = selectedAttributeIndicesBuffer[a];

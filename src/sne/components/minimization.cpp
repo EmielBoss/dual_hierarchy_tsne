@@ -494,7 +494,7 @@ namespace dh::sne {
           autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
-          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _buffers(BufferType::eLabels));
+          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities
           _similarities->reset();
@@ -909,7 +909,7 @@ namespace dh::sne {
 
         // Set uniforms
         program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("nSelected", _selectionCounts[0]);
+        program.template uniform<uint>("nSelected", _selectionCounts[i]);
         program.template uniform<uint>("imgSize", _params.nHighDims);
         program.template uniform<uint>("selectionNumber", i + 1);
 
@@ -935,7 +935,7 @@ namespace dh::sne {
 
         // Set uniforms
         program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("nSelected", _selectionCounts[0]);
+        program.template uniform<uint>("nSelected", _selectionCounts[i]);
         program.template uniform<uint>("imgSize", _params.nHighDims);
         program.template uniform<uint>("selectionNumber", i + 1);
 
