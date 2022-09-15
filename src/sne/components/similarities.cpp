@@ -371,12 +371,17 @@ namespace dh::sne {
     if(selectedAttributeIndices.size() == 0) { return; }
     
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
-    const std::vector<float> zeros(_params.n, 0.0f);
+    const std::vector<float> zeros(_symmetricSize, 0.f);
     std::vector<uint> setvec(selectedAttributeIndices.begin(), selectedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedAttributeIndices), selectedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eAverageDistancePerNeighborhood), _params.n * sizeof(float), zeros.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eAverageDistanceReduce), 128 * sizeof(float), nullptr, 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eAverageDistance), sizeof(float), nullptr, 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eDifferences), _symmetricSize * sizeof(float), zeros.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eMinMaxDifferencePerNeighborhood), _params.n * sizeof(glm::vec2), zeros.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eMinDifferenceReduce), 128 * sizeof(float), nullptr, 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eMaxDifferenceReduce), 128 * sizeof(float), nullptr, 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eMinMaxDifference), sizeof(glm::vec2), nullptr, 0);
 
     // Preprocessing pass over all similarities
     {
@@ -384,15 +389,30 @@ namespace dh::sne {
       program.bind();
 
       program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nHighDims", _params.nHighDims);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDistances));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTemp(BufferTempType::eAverageDistancePerNeighborhood));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSelectedAttributeIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistances));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eDifferences));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eAverageDistancePerNeighborhood));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eMinMaxDifferencePerNeighborhood));
 
-      // Dispatch shader
+      // Dispatch shader in batches of batchSize (selected) attriibutes
+      program.template uniform<bool>("phaseOneOrTwo", true);
+      uint batchSize = 10;
+      for(uint b = 0; b * batchSize < selectedAttributeIndices.size(); ++b) {
+        program.template uniform<uint>("batchBegin", b * batchSize);
+        program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) selectedAttributeIndices.size()));
+        glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+        glFinish();
+        glAssert();
+      }
+      program.template uniform<bool>("phaseOneOrTwo", false);
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
       glAssert();
     }
@@ -420,6 +440,10 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eAverageDistancePerNeighborhood));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eAverageDistanceReduce));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eAverageDistance));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eMinMaxDifferencePerNeighborhood));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTemp(BufferTempType::eMinDifferenceReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffersTemp(BufferTempType::eMaxDifferenceReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eMinMaxDifference));
 
       // Dispatch shader
       program.template uniform<uint>("iter", 0);
@@ -451,8 +475,10 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilaritiesOriginal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eDifferences));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eMinMaxDifference));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       uint batchSize = 10;
@@ -465,9 +491,6 @@ namespace dh::sne {
       }
     }
 
-    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
-    glAssert();
-
     //// DEBUGGING
     std::vector<uint> neig(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
@@ -477,12 +500,16 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), 0, _symmetricSize * sizeof(float), simsO.data());
     std::vector<float> dist(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
+    std::vector<float> diff(_symmetricSize);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eDifferences), 0, _symmetricSize * sizeof(float), diff.data());
     std::vector<uint> layo(_params.n * 2);
     glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layo.data());
     std::vector<uint> selc(_params.n);
     glGetNamedBufferSubData(selectedBufferHandle, 0, _params.n * sizeof(uint), selc.data());
     std::vector<int> labl(_params.n);
     glGetNamedBufferSubData(labelsBufferHandle, 0, _params.n * sizeof(int), labl.data());
+    std::vector<float> diffMM(2);
+    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eMinMaxDifference), 0, 2 * sizeof(float), diffMM.data());
 
     int classA = 4;
     int classB = 9;
@@ -498,6 +525,11 @@ namespace dh::sne {
     float interDistAttrRatio = 0.f;
     float intraDistAttrRatio = 0.f;
     float totalDist = 0.f;
+    float interRatio = 0.f;
+    float intraRatio = 0.f;
+    float interMult = 0.f;
+    float intraMult = 0.f;
+
     for(uint i = 0; i < _params.n; ++i) {
       if(selc[i] != 1) { continue; }
       if(labl[i] != classA && labl[i] != classB) { continue; }
@@ -515,6 +547,9 @@ namespace dh::sne {
           distAttrRatioSum += distAttrRatio;
         }
 
+        float x = (diff[ij] - diffMM[0]) / (diffMM[1] - diffMM[0]);
+        float multiplier = 6.f / (1.f + pow(x/(1-x), -3.f));
+
         float simDelta = sims[ij] / simsO[ij];
         if(labl[i] != labl[j]) {
           interCnt++;
@@ -522,6 +557,8 @@ namespace dh::sne {
           interDist += dist[ij];
           interDistAttr += distAttrSum;
           interDistAttrRatio += distAttrRatioSum;
+          interRatio += x;
+          interMult += multiplier;
         }
         else {
           intraCnt++;
@@ -529,6 +566,8 @@ namespace dh::sne {
           intraDist += dist[ij];
           intraDistAttr += distAttrSum;
           intraDistAttrRatio += distAttrRatioSum;
+          intraRatio += x;
+          intraMult += multiplier;
         }
         totalDist += dist[ij];
       }
@@ -537,10 +576,16 @@ namespace dh::sne {
     std::cout << "Intra: " << intraAvg / (float) intraCnt << "\n";
     std::cout << "Inter: " << interDistAttr / (float) interCnt << " / " << interDist / (float) interCnt << " = " << interDistAttrRatio / (float) interCnt << "\n";
     std::cout << "Intra: " << intraDistAttr / (float) intraCnt << " / " << intraDist / (float) intraCnt << " = " << intraDistAttrRatio / (float) intraCnt << "\n";
+    std::cout << "Inter: x = " << interRatio / (float) interCnt << " | mult = " << interMult / (float) interCnt << "\n";
+    std::cout << "Intra: x = " << intraRatio / (float) intraCnt << " | mult = " << intraMult / (float) intraCnt << "\n";
+    
+    
     std::cout << "Avgdist: " << totalDist / (float) (interCnt + intraCnt) << "\n";
     std::cout << "Avgdist: " << avgDist << "\n";
     std::cout << "Avgdist: " << averageDistance << "\n";
     
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+    glAssert();
   }
 
   void Similarities::reset() {

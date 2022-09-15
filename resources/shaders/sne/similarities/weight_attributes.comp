@@ -41,8 +41,10 @@ layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffe
 layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 7, std430) restrict readonly buffer Diff { float differencesBuffer[]; };
+layout(binding = 8, std430) restrict readonly buffer MinMaxDifference { vec2 minmaxDifference; };
+layout(binding = 9, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 10, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -81,6 +83,10 @@ void main() {
     float dist = useDistAverage ? distAverage : distancesBuffer[ij];
 
     if(selectedBuffer[j] == 1) {
+      
+      float x = (differencesBuffer[ij] - minmaxDifference[0]) / (minmaxDifference[1] - minmaxDifference[0]); // Normalize distAttrRatio between 0 and 1
+      float multiplier = 6.f / (1.f + pow(x/(1-x), -3.f)); // Multiply with simDif
+
       for(uint a = batchBegin; a < batchEnd; a++) {
         uint attr = selectedAttributeIndicesBuffer[a];
         float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
@@ -91,9 +97,7 @@ void main() {
         float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
         float simDif = simNew - simOld;
 
-        // float x = ((distAttrRatio-2)/3); // Normalize distAttrRatio between 0 and 1
-        // float multiplier = 3.f / (1.f + pow(x/(1-x), -3.f)); // Multiply with simDif
-        similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif, 0.f);
+        similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier * 20, 0.f);
       }
     }
   }

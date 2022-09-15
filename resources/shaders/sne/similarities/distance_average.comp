@@ -24,11 +24,18 @@
 
 #version 460 core
 
+#define FLT_MAX 3.402823466e+38F
+#define FLT_MIN 1.175494351e-38F
+
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer AverageDistancePerNeighborhood { float averageDistances[]; };
 layout(binding = 1, std430) restrict buffer AverageDistanceReduce { float averageDistanceReduce[128]; };
 layout(binding = 2, std430) restrict writeonly buffer AverageDistance { float averageDistance; };
+layout(binding = 3, std430) restrict readonly buffer MinMaxDifferencePerNeighborhood { vec2 minmaxDifferences[]; };
+layout(binding = 4, std430) restrict buffer MinDifferenceReduce { float minDifferenceReduce[128]; };
+layout(binding = 5, std430) restrict buffer MaxDifferenceReduce { float maxDifferenceReduce[128]; };
+layout(binding = 6, std430) restrict writeonly buffer MinMaxDifference { vec2 minmaxDifference; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nSelected;
@@ -36,45 +43,60 @@ layout(location = 2) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared float reduction_array_avgDist[halfGroupSize];
+shared float reduction_array_minDiff[halfGroupSize];
+shared float reduction_array_maxDiff[halfGroupSize];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  float sum = 0.f;
-  uint count = 0;
+  float distSum = 0.f;
+  float diffMin =  FLT_MAX;
+  float diffMax = -FLT_MAX;
   if (iter == 0) {
     // First iteration sums all
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      float averageDistanceNeighborhood = averageDistances[i];
-      sum += averageDistanceNeighborhood;
-      if(averageDistanceNeighborhood > 0.f) { count++; };
+      distSum += averageDistances[i];
+      diffMin = min(diffMin, minmaxDifferences[i][0]);
+      diffMax = max(diffMax, minmaxDifferences[i][1]);
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
-    sum = averageDistanceReduce[lid];
+    distSum = averageDistanceReduce[lid];
+    diffMin = minDifferenceReduce[lid];
+    diffMax = maxDifferenceReduce[lid];
   }
 
   // Reduce add to a single value
   if (lid >= halfGroupSize) {
-    reduction_array_avgDist[lid - halfGroupSize] = sum;
+    reduction_array_avgDist[lid - halfGroupSize] = distSum;
+    reduction_array_minDiff[lid - halfGroupSize] = diffMin;
+    reduction_array_maxDiff[lid - halfGroupSize] = diffMax;
   }
   barrier();
   if (lid < halfGroupSize) {
-    reduction_array_avgDist[lid] += sum;
+    reduction_array_avgDist[lid] += distSum;
+    reduction_array_minDiff[lid] = min(diffMin, reduction_array_minDiff[lid]);
+    reduction_array_maxDiff[lid] = max(diffMax, reduction_array_maxDiff[lid]);
   }
   for (uint i = halfGroupSize / 2; i > 1; i /= 2) {
     barrier();
     if (lid < i) {
       reduction_array_avgDist[lid] += reduction_array_avgDist[lid + i];
+      reduction_array_minDiff[lid] = min(reduction_array_minDiff[lid], reduction_array_minDiff[lid + i]);
+      reduction_array_maxDiff[lid] = max(reduction_array_maxDiff[lid], reduction_array_maxDiff[lid + i]);
     }
   }
   barrier();
   if (lid < 1) {
     if (iter == 0) {
       averageDistanceReduce[gl_WorkGroupID.x] = reduction_array_avgDist[0] + reduction_array_avgDist[1];
+      minDifferenceReduce[gl_WorkGroupID.x] = min(reduction_array_minDiff[0], reduction_array_minDiff[1]);
+      maxDifferenceReduce[gl_WorkGroupID.x] = min(reduction_array_maxDiff[0], reduction_array_maxDiff[1]);
     } else if (iter == 1) {
       averageDistance = (reduction_array_avgDist[0] + reduction_array_avgDist[1]) / float(nSelected);
+      minmaxDifference[0] = (reduction_array_minDiff[0] + reduction_array_minDiff[1]);
+      minmaxDifference[1] = (reduction_array_maxDiff[0] + reduction_array_maxDiff[1]);
     }
   }
 }

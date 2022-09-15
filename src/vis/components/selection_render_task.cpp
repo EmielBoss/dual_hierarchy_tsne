@@ -180,28 +180,28 @@ namespace dh::vis {
     if(_params.imageDataset) {
       _draggedAttribute = -1;
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("Mean")) {
+        if (ImGui::BeginTabItem("Avg")) {
             drawImGuiImageButton(0);
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Variance")) {
+        if (ImGui::BeginTabItem("Var")) {
             drawImGuiImageButton(1);
             ImGui::EndTabItem();
         }
         if(_selectionCounts[1] > 0) {
-          if (ImGui::BeginTabItem("Mean 2")) {
+          if (ImGui::BeginTabItem("Avg 2")) {
               drawImGuiImageButton(2);
               ImGui::EndTabItem();
           }
-          if (ImGui::BeginTabItem("Variance 2")) {
+          if (ImGui::BeginTabItem("Var 2")) {
               drawImGuiImageButton(3);
               ImGui::EndTabItem();
           }
-          if (ImGui::BeginTabItem("Mean diff")) {
+          if (ImGui::BeginTabItem("Avg diff")) {
               drawImGuiImageButton(4);
               ImGui::EndTabItem();
           }
-          if (ImGui::BeginTabItem("Variance diff")) {
+          if (ImGui::BeginTabItem("Var diff")) {
               drawImGuiImageButton(5);
               ImGui::EndTabItem();
           }

@@ -85,6 +85,11 @@ namespace dh::sne {
       eAverageDistancePerNeighborhood,
       eAverageDistanceReduce,
       eAverageDistance,
+      eDifferences,
+      eMinMaxDifferencePerNeighborhood,
+      eMinDifferenceReduce,
+      eMaxDifferenceReduce,
+      eMinMaxDifference,
 
       Length
     };
