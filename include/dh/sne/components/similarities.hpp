@@ -52,6 +52,7 @@ namespace dh::sne {
     Similarities& operator=(Similarities&&) noexcept;
 
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
+    template <typename T> T reduce(GLuint bufferToReduce, T subtractor = 0);
 
     // Compute similarities
     void comp();
@@ -82,19 +83,20 @@ namespace dh::sne {
       eSizes,
       eCounts,
       eSelectedAttributeIndices,
-      eAverageDistancePerNeighborhood,
-      eAverageDistanceReduce,
-      eAverageDistance,
+      eReduce,
+      eReduced,
       eDifferences,
-      eMinMaxDifferencePerNeighborhood,
-      eMinDifferenceReduce,
-      eMaxDifferenceReduce,
-      eMinMaxDifference,
+      eDifferencesSubtracted,
+      eDistanceSums,
+      eDifferenceSums,
+      eSelectedNeighborCounts,
 
       Length
     };
 
     enum class ProgramType {
+      eReduceFloatComp,
+      eReduceUintComp,
       eSimilaritiesComp,
       eExpandComp,
       eLayoutComp,
@@ -103,7 +105,6 @@ namespace dh::sne {
       eWeightSimilaritiesComp,
       eWeightSimilaritiesInterComp,
       eWeightAttributesPreprocessComp,
-      eAverageDistanceComp,
       eWeightAttributesComp,
       
       Length

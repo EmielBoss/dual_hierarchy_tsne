@@ -42,17 +42,19 @@ layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeigh
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 7, std430) restrict readonly buffer Diff { float differencesBuffer[]; };
-layout(binding = 8, std430) restrict readonly buffer MinMaxDifference { vec2 minmaxDifference; };
-layout(binding = 9, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 10, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 8, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 9, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform bool useDistAverage;
 layout(location = 3) uniform float distAverage;
-layout(location = 4) uniform uint batchBegin;
-layout(location = 5) uniform uint batchEnd;
+layout(location = 4) uniform bool useDiffMultiplier;
+layout(location = 5) uniform float diffMin;
+layout(location = 6) uniform float diffMax;
+layout(location = 7) uniform uint batchBegin;
+layout(location = 8) uniform uint batchEnd;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -83,9 +85,12 @@ void main() {
     float dist = useDistAverage ? distAverage : distancesBuffer[ij];
 
     if(selectedBuffer[j] == 1) {
-      
-      float x = (differencesBuffer[ij] - minmaxDifference[0]) / (minmaxDifference[1] - minmaxDifference[0]); // Normalize distAttrRatio between 0 and 1
-      float multiplier = 6.f / (1.f + pow(x/(1-x), -3.f)); // Multiply with simDif
+      float multiplier = 1.f;
+      if(useDiffMultiplier) {
+        float x = (differencesBuffer[ij] - diffMin) / (diffMax - diffMin); // Get distAttrRatio between 0 and 1 (not really but hey)
+        x = max(x, 0.f);
+        multiplier = 1.f / (1.f + pow(x/(1-x), -4.f)) * 3.f; // Multiply with simDif
+      }
 
       for(uint a = batchBegin; a < batchEnd; a++) {
         uint attr = selectedAttributeIndicesBuffer[a];
@@ -97,7 +102,7 @@ void main() {
         float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
         float simDif = simNew - simOld;
 
-        similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier * 20, 0.f);
+        similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier, 0.f);
       }
     }
   }
