@@ -513,29 +513,20 @@ namespace dh::sne {
     int classA = 4;
     int classB = 9;
     // Print inter-class and intra-class average similarity change
-    uint interCnt = 0;
-    uint intraCnt = 0;
-    float interAvg = 0.f;
-    float intraAvg = 0.f;
-    float interDist = 0.f;
-    float intraDist = 0.f;
-    float interDistAttr = 0.f;
-    float intraDistAttr = 0.f;
-    float interDistAttrRatio = 0.f;
-    float intraDistAttrRatio = 0.f;
+    uint interCnt = 0; uint intraCnt = 0;
+    float interAvg = 0.f; float intraAvg = 0.f;
+    float interDist = 0.f; float intraDist = 0.f;
+    float interDistAttr = 0.f; float intraDistAttr = 0.f;
+    float interDistAttrRatio = 0.f; float intraDistAttrRatio = 0.f;
+    float interRatio = 0.f; float intraRatio = 0.f;
+    float interMult = 0.f; float intraMult = 0.f;
     float totalDist = 0.f;
-    float interRatio = 0.f;
-    float intraRatio = 0.f;
-    float interMult = 0.f;
-    float intraMult = 0.f;
 
     for(uint i = 0; i < _params.n; ++i) {
-      if(selc[i] != 1) { continue; }
-      if(labl[i] != classA && labl[i] != classB) { continue; }
+      if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
       for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
         uint j = neig[ij];
-        if(selc[j] != 1) { continue; }
-        if(labl[j] != classA && labl[j] != classB) { continue; }
+        if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
 
         float distAttrSum = 0.f;
         float distAttrRatioSum = 0.f;
@@ -582,8 +573,6 @@ namespace dh::sne {
     std::cout << "Intra: x = " << intraRatio / (float) intraCnt << " | mult = " << intraMult / (float) intraCnt << "\n";
     
     
-    std::cout << "Avgdist: " << totalDist / (float) (interCnt + intraCnt) << "\n";
-    std::cout << "Avgdist: " << distanceAverage << "\n";
     
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
