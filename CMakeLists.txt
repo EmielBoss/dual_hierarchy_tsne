@@ -39,6 +39,7 @@ find_package(indicators CONFIG REQUIRED)
 # Include optional third party libraries provided through vcpkg
 if(BUILD_VIS OR BUILD_DEMO)
   find_package(imgui CONFIG REQUIRED)
+  find_package(implot CONFIG REQUIRED)
 endif()
 if(BUILD_DEMO)
   find_package(cxxopts CONFIG REQUIRED)
@@ -72,7 +73,7 @@ target_sources(sne PRIVATE ${shaders}) # Add shaders to sne library
 # Specify optional vis library
 if(BUILD_VIS OR BUILD_DEMO)
   add_library_recurse(vis ${CMAKE_SOURCE_DIR}/src/vis ${CMAKE_SOURCE_DIR}/include/dh/vis)
-  target_link_libraries(vis PRIVATE imgui::imgui util ResourceEmbed)
+  target_link_libraries(vis PRIVATE imgui::imgui implot::implot util ResourceEmbed)
   target_sources(vis PRIVATE ${shaders}) # Add shaders to vis library
   target_link_libraries(sne PUBLIC vis) # Link vis library against sne as it is available
 endif()

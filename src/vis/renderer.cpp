@@ -25,6 +25,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <implot.h>
 #include <glad/glad.h>
 #include "dh/constants.hpp"
 #include "dh/util/gl/error.hpp"

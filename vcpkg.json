@@ -22,7 +22,8 @@
         {
           "name": "imgui",
           "features": [ "opengl3-binding", "glfw-binding"] 
-        }
+        },
+        "implot"
       ]
     },
     "demo": {

@@ -34,6 +34,7 @@
 #include "dh/util/cu/timer.cuh"
 #include "dh/sne/params.hpp"
 #include "dh/sne/components/buffers.hpp"
+#include "dh/util/gl/window.hpp" //
 
 namespace dh::sne {
   class Similarities {
@@ -51,6 +52,8 @@ namespace dh::sne {
     Similarities(Similarities&&) noexcept;
     Similarities& operator=(Similarities&&) noexcept;
 
+    float average(std::vector<float> vec);
+    void displayGraph(std::vector<float> xs, std::vector<float> ys);
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
     template <typename T> T reduce(GLuint bufferToReduce, T subtractor = 0);
 
@@ -125,6 +128,7 @@ namespace dh::sne {
     const float* _dataPtr;
     uint _kPrev;
     uint _symmetricSize;
+    dh::util::GLWindow _debugWindow;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

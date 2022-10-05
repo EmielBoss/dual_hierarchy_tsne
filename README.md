@@ -130,6 +130,7 @@ The source code in this repository is released under the MIT License. However, a
 [cub](https://github.com/NVIDIA/cub),
 [date](https://github.com/HowardHinnant/date),
 [dear ImGui](https://github.com/ocornut/imgui),
+[ImPlot](https://github.com/epezent/implot),
 [faiss](https://github.com/facebookresearch/faiss),
 [glad](https://glad.dav1d.de/),
 [GLFW](https://www.glfw.org/),

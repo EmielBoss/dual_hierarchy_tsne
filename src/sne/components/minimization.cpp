@@ -36,6 +36,7 @@
 #include "dh/util/cu/knn.cuh"
 #include <faiss/VectorTransform.h>
 #include <imgui.h>
+#include <implot.h>
 #include <numeric> //
 #include <fstream> //
 #include <filesystem> //

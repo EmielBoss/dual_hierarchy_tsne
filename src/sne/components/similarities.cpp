@@ -39,6 +39,29 @@ namespace dh::sne {
   using util::Logger;
   const std::string prefix = util::genLoggerPrefix("[Similarities]");
 
+  float Similarities::average(std::vector<float> vec) {
+    return std::accumulate(vec.begin(), vec.end(), 0.f) / vec.size();
+  }
+
+  // Auxiliary function to create a window and display a scatterplot
+  void Similarities::displayGraph(std::vector<float> xs, std::vector<float> ys) {
+    dh::util::GLWindowInfo info;
+    {
+      using namespace dh::util;
+      info.title = "Scatterplot";
+      info.width = 500;
+      info.height = 500;
+      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
+                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
+                  | GLWindowInfo::bFloating;
+    }
+    dh::util::GLWindow _debugWindow(info);
+
+    _debugWindow.setVsync(true);
+    _debugWindow.setVisible(true);
+    while(true) { _debugWindow.display(); } 
+  }
+
   // Auxiliary function purely for debugging; will be removed
   template<typename T>
   void Similarities::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
@@ -513,13 +536,12 @@ namespace dh::sne {
     int classA = 4;
     int classB = 9;
     // Print inter-class and intra-class average similarity change
-    uint interCnt = 0; uint intraCnt = 0;
-    float interAvg = 0.f; float intraAvg = 0.f;
-    float interDist = 0.f; float intraDist = 0.f;
-    float interDistAttr = 0.f; float intraDistAttr = 0.f;
-    float interDistAttrRatio = 0.f; float intraDistAttrRatio = 0.f;
-    float interRatio = 0.f; float intraRatio = 0.f;
-    float interMult = 0.f; float intraMult = 0.f;
+    std::vector<float> interDeltas; std::vector<float> intraDeltas;
+    std::vector<float> interDists; std::vector<float> intraDists;
+    std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
+    std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
+    std::vector<float> interRatios; std::vector<float> intraRatios;
+    std::vector<float> interMults; std::vector<float> intraMults;
     float totalDist = 0.f;
 
     for(uint i = 0; i < _params.n; ++i) {
@@ -545,34 +567,32 @@ namespace dh::sne {
 
         float simDelta = sims[ij] / simsO[ij];
         if(labl[i] != labl[j]) {
-          interCnt++;
-          interAvg += simDelta;
-          interDist += dist[ij];
-          interDistAttr += distAttrSum;
-          interDistAttrRatio += distAttrRatioSum;
-          interRatio += x;
-          interMult += multiplier;
+          interDeltas.push_back(simDelta);
+          interDists.push_back(dist[ij]);
+          interDistsAttr.push_back(distAttrSum);
+          interDistsAttrRatios.push_back(distAttrRatioSum);
+          interRatios.push_back(x);
+          interMults.push_back(multiplier);
         }
         else {
-          intraCnt++;
-          intraAvg += simDelta;
-          intraDist += dist[ij];
-          intraDistAttr += distAttrSum;
-          intraDistAttrRatio += distAttrRatioSum;
-          intraRatio += x;
-          intraMult += multiplier;
+          intraDeltas.push_back(simDelta);
+          intraDists.push_back(dist[ij]);
+          intraDistsAttr.push_back(distAttrSum);
+          intraDistsAttrRatios.push_back(distAttrRatioSum);
+          intraRatios.push_back(x);
+          intraMults.push_back(multiplier);
         }
         totalDist += dist[ij];
       }
     }
-    std::cout << "Inter: " << interAvg / (float) interCnt << "\n";
-    std::cout << "Intra: " << intraAvg / (float) intraCnt << "\n";
-    std::cout << "Inter: " << interDistAttr / (float) interCnt << " / " << interDist / (float) interCnt << " = " << interDistAttrRatio / (float) interCnt << "\n";
-    std::cout << "Intra: " << intraDistAttr / (float) intraCnt << " / " << intraDist / (float) intraCnt << " = " << intraDistAttrRatio / (float) intraCnt << "\n";
-    std::cout << "Inter: x = " << interRatio / (float) interCnt << " | mult = " << interMult / (float) interCnt << "\n";
-    std::cout << "Intra: x = " << intraRatio / (float) intraCnt << " | mult = " << intraMult / (float) intraCnt << "\n";
+    std::cout << "Inter: " << average(interDeltas) << "\n";
+    std::cout << "Intra: " << average(intraDeltas) << "\n";
+    std::cout << "Inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
+    std::cout << "Intra: " << average(intraDeltas) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
+    std::cout << "Inter: x = " << average(interRatios) << " | mult = " << average(interMults) << "\n";
+    std::cout << "Intra: x = " << average(intraRatios) << " | mult = " << average(intraMults) << "\n";
     
-    
+    // displayGraph(interDists, std::vector(interDists.size(), 1.f));
     
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
