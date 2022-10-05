@@ -432,8 +432,8 @@ namespace dh::sne {
     }
 
     // Get everything related with the cursor and selection brush
-    util::GLWindow* window = util::GLWindow::currentWindow();
-    glm::vec2 resolution = glm::vec2(window->size());
+    if(_iteration < 1) { _window = util::GLWindow::currentWindow(); }
+    glm::vec2 resolution = glm::vec2(_window->size());
     _model_view_2D = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
     _proj_2D = glm::infinitePerspective(1.0f, resolution.x / resolution.y, 0.0001f); // TODO: get this directly from renderer
     if(DD == 3) {

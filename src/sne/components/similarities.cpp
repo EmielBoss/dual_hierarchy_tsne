@@ -33,6 +33,10 @@
 #include <numeric> //
 #include <fstream> //
 #include <filesystem> //
+#include <imgui.h> //
+#include <imgui_impl_glfw.h> //
+#include <imgui_impl_opengl3.h> //
+#include <implot.h> //
 
 namespace dh::sne {
   // Logging shorthands
@@ -44,22 +48,70 @@ namespace dh::sne {
   }
 
   // Auxiliary function to create a window and display a scatterplot
-  void Similarities::displayGraph(std::vector<float> xs, std::vector<float> ys) {
+  void Similarities::displayGraph(std::vector<float> inter, std::vector<float> intra) {
+    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
+
     dh::util::GLWindowInfo info;
     {
       using namespace dh::util;
-      info.title = "Scatterplot";
-      info.width = 500;
-      info.height = 500;
+      info.title = "Graphs";
+      info.width = 1500;
+      info.height = 1000;
       info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
                   | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
                   | GLWindowInfo::bFloating;
     }
-    dh::util::GLWindow _debugWindow(info);
+    dh::util::GLWindow window(info);
 
-    _debugWindow.setVsync(true);
-    _debugWindow.setVisible(true);
-    while(true) { _debugWindow.display(); } 
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+    ImPlot::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
+    ImGui_ImplOpenGL3_Init("#version 460");
+    ImGui::StyleColorsDark();
+
+    window.setVsync(true);
+    window.setVisible(true);
+
+    auto [minInter, maxInter] = std::minmax_element(inter.begin(), inter.end());
+    auto [minIntra, maxIntra] = std::minmax_element(intra.begin(), intra.end());
+    ImPlotRange range = ImPlotRange(std::min(*minInter, *minIntra), std::max(*maxInter, *maxIntra));
+    std::cout << "Inter count: " << inter.size() << "\n";
+    std::cout << "Intra count: " << intra.size() << "\n";
+
+    while(window.canDisplay()) {
+      window.processEvents();
+      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
+      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+
+      if (ImPlot::BeginPlot("Histogram 1")) {
+        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
+        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), 100, false, true, range);
+        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
+        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), 100, false, true, range);
+        ImPlot::EndPlot();
+      }
+
+      ImGui::End();
+
+      ImGui::Render(); // Finalize and render ImGui components
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+      window.display();
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    ImGui::SetCurrentContext(ctxMain);
   }
 
   // Auxiliary function purely for debugging; will be removed
@@ -592,7 +644,7 @@ namespace dh::sne {
     std::cout << "Inter: x = " << average(interRatios) << " | mult = " << average(interMults) << "\n";
     std::cout << "Intra: x = " << average(intraRatios) << " | mult = " << average(intraMults) << "\n";
     
-    // displayGraph(interDists, std::vector(interDists.size(), 1.f));
+    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios);
     
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();

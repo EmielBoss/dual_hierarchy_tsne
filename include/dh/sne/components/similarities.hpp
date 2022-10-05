@@ -53,7 +53,7 @@ namespace dh::sne {
     Similarities& operator=(Similarities&&) noexcept;
 
     float average(std::vector<float> vec);
-    void displayGraph(std::vector<float> xs, std::vector<float> ys);
+    void displayGraph(std::vector<float> inter, std::vector<float> intra);
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
     template <typename T> T reduce(GLuint bufferToReduce, T subtractor = 0);
 
@@ -128,7 +128,6 @@ namespace dh::sne {
     const float* _dataPtr;
     uint _kPrev;
     uint _symmetricSize;
-    dh::util::GLWindow _debugWindow;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

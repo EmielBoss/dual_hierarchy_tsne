@@ -167,6 +167,7 @@ namespace dh::sne {
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     const float* _dataPtr;
+    util::GLWindow* _window;
     float* _pcs;
     uint _iteration;
     Bounds _bounds;

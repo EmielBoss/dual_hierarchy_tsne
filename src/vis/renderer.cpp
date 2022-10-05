@@ -25,7 +25,6 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <implot.h>
 #include <glad/glad.h>
 #include "dh/constants.hpp"
 #include "dh/util/gl/error.hpp"
@@ -148,7 +147,6 @@ namespace dh::vis {
     }
 
     // Start new frame for IMGUI
-    glAssert();
     ImGui_ImplOpenGL3_NewFrame();
     glAssert(); // If it fails here it probably has to do with the textures (and something on the zero'th iteration)
     ImGui_ImplGlfw_NewFrame();
