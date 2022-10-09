@@ -117,7 +117,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _draggedAttribute(-1), _draggedAttributePrev(-1), _iteration(0) {
+    _draggedAttribute(-1), _draggedAttributePrev(-1), _selectedDatapointPrev(0), _iteration(0) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -191,7 +191,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
@@ -507,6 +507,17 @@ namespace dh::sne {
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
       _buttonPrev = _button;
+    }
+
+    // Select individual datapoints if int field input changed
+    uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
+    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params.n) {
+      uint sn = _input.s + 1; // Selection number
+      glAssert();
+      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
+      glAssert();
+      compIterationSelection();
+      _selectedDatapointPrev = selectedDatapoint;
     }
 
     // Reset some stuff upon axis change

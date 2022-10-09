@@ -180,6 +180,7 @@ namespace dh::sne {
     bool _selectOnlyLabeledPrev;
     std::vector<uint> _selectionCounts;
     float _selectionRadiusRel;
+    uint _selectedDatapointPrev;
     bool _mouseLeftPrev;
     bool _mouseRightPrev;
     glm::vec2 _mousePosClipPrev;
@@ -241,6 +242,7 @@ namespace dh::sne {
       swap(a._pcs, b._pcs);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._draggedAttributePrev, b._draggedAttributePrev);
+      swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);

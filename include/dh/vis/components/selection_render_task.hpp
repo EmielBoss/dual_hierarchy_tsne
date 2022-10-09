@@ -56,6 +56,7 @@ namespace dh::vis {
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     float getBufferValue(GLuint buffer, int index);
     bool getHoveringTexture() { return _hoveringTexture; }
+    int getSelectedDatapoint() { return _selectedDatapoint; }
 
   private:
     enum class BufferType {
@@ -80,6 +81,7 @@ namespace dh::vis {
     float _attributeWeight;
     float _autoselectPercentage;
     uint _buttonPressed;
+    int _selectedDatapoint;
     bool _selectAll;
     bool _hoveringTexture;
     uint _textureTabOpened;
@@ -124,6 +126,7 @@ namespace dh::vis {
       swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buttonPressed, b._buttonPressed);
+      swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._attributeWeight, b._attributeWeight);
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);

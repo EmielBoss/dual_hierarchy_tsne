@@ -81,6 +81,8 @@ namespace dh::sne {
     std::cout << "Inter count: " << inter.size() << "\n";
     std::cout << "Intra count: " << intra.size() << "\n";
 
+    int nBins = 100;
+
     while(window.canDisplay()) {
       window.processEvents();
       glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
@@ -93,11 +95,13 @@ namespace dh::sne {
       ImGui::SetNextWindowSize(ImVec2(1500, 1500));
       ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
 
+      ImGui::SliderInt("No. of bins", &nBins, 1, 1000);
+
       if (ImPlot::BeginPlot("Histogram 1")) {
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), 100, false, true, range);
+        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, true, range);
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), 100, false, true, range);
+        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, true, range);
         ImPlot::EndPlot();
       }
 
@@ -588,6 +592,7 @@ namespace dh::sne {
     int classA = 4;
     int classB = 9;
     // Print inter-class and intra-class average similarity change
+    std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
     std::vector<float> interDeltas; std::vector<float> intraDeltas;
     std::vector<float> interDists; std::vector<float> intraDists;
     std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
@@ -619,6 +624,7 @@ namespace dh::sne {
 
         float simDelta = sims[ij] / simsO[ij];
         if(labl[i] != labl[j]) {
+          interNeighbs.emplace_back(i, j);
           interDeltas.push_back(simDelta);
           interDists.push_back(dist[ij]);
           interDistsAttr.push_back(distAttrSum);
@@ -627,6 +633,7 @@ namespace dh::sne {
           interMults.push_back(multiplier);
         }
         else {
+          intraNeighbs.emplace_back(i, j);
           intraDeltas.push_back(simDelta);
           intraDists.push_back(dist[ij]);
           intraDistsAttr.push_back(distAttrSum);

@@ -61,6 +61,7 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _draggedAttribute(-1),
     _buttonPressed(0),
+    _selectedDatapoint(0),
     _attributeWeight(0.f),
     _similarityWeight(2.f),
     _autoselectPercentage(0.1f),
@@ -156,6 +157,8 @@ namespace dh::vis {
       ImGui::SameLine();
       if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
     }
+
+    ImGui::InputInt("Selection individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
 
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
