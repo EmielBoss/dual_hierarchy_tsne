@@ -61,8 +61,10 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _draggedAttribute(-1),
     _buttonPressed(0),
+    _selectAll(false),
     _selectedDatapoint(0),
     _attributeWeight(0.f),
+    _attributeBrushRadius(1),
     _similarityWeight(2.f),
     _autoselectPercentage(0.1f),
     _textureTabOpened(0),
@@ -213,7 +215,6 @@ namespace dh::vis {
       }
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::Text("Attribute weight:"); ImGui::SameLine(); ImGui::SliderFloat(" ", &_attributeWeight, 0.0f, _params.maxAttributeWeight);
       if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
       ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("\% of attribs", &_autoselectPercentage, 0.0f, 1.f);
       if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
@@ -234,7 +235,6 @@ namespace dh::vis {
   float SelectionRenderTask::getBufferValue(GLuint buffer, int index) {
     float value;
     glGetNamedBufferSubData(buffer, index * sizeof(float), sizeof(float), &value);
-    glAssert();
     return value;
   }
 
@@ -253,8 +253,8 @@ namespace dh::vis {
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredAttribute);
-      ImGui::Text("Weight: %f", std::sqrt(getBufferValue(_attributeWeightsBuffer, hoveredAttribute)));
-      std::array<const char*, 6> prompts = {"Mean: %f", "Variance: %f", "Mean: %f", "Variance: %f", "Difference in mean: %f", "Difference in variance: %f"};
+      ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredAttribute));
+      std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
       ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredAttribute * 3));
       ImGui::EndTooltip();
 
@@ -267,7 +267,8 @@ namespace dh::vis {
       _hoveringTexture = false;
       _draggedAttribute = -1;
     }
-    ImGui::Spacing();
+    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params.maxAttributeWeight, "Attr\nWght\n%.2f");
+    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_attributeBrushRadius, 0, 10, "Brsh\nSize\n%i");
   }
 
 } // dh::vis

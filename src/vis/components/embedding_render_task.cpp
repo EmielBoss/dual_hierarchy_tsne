@@ -71,7 +71,8 @@ namespace dh::vis {
     _numClusters(params.nClusters),
     _numClustersPrev(params.nClusters),
     _pointRadius(0.003f),
-    _pointOpacity(1.0f) {
+    _pointOpacity(1.0f),
+    _reinitializeRandomly(false) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
 
@@ -197,6 +198,8 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::Checkbox("Random reinitialization", &_reinitializeRandomly);
+
       ImGui::Spacing();
       if (_canDrawLabels) {
         ImGui::Text("Color mapping:");

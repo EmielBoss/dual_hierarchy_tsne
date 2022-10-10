@@ -79,6 +79,7 @@ namespace dh::vis {
     int _draggedAttribute;
     float _similarityWeight;
     float _attributeWeight;
+    int _attributeBrushRadius;
     float _autoselectPercentage;
     uint _buttonPressed;
     int _selectedDatapoint;
@@ -108,6 +109,7 @@ namespace dh::vis {
     uint getButtonPressed() { return _buttonPressed; }
     bool getSelectAll() { return _selectAll; }
     float getAttributeWeight() { return _attributeWeight; }
+    int getAttributeBrushRadius() { return _attributeBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
     float getTextureTabOpened() { return _textureTabOpened; }
@@ -126,8 +128,10 @@ namespace dh::vis {
       swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._draggedAttribute, b._draggedAttribute);
       swap(a._buttonPressed, b._buttonPressed);
+      swap(a._selectAll, b._selectAll);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._attributeWeight, b._attributeWeight);
+      swap(a._attributeBrushRadius, b._attributeBrushRadius);
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._perplexity, b._perplexity);

@@ -71,6 +71,8 @@ namespace dh::sne {
     void restartMinimization();
     void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
     void fillTextureComponent(uint component, float value, GLuint buffer = 0);
+    void brushAttributes(uint attributeIndex, int radius, float weight);
+    void eraseAttributes(uint attributeIndex, int radius);
     void weighAttribute(uint attributeIndex, float weight, bool insertOrErase);
     void autoselectAttributes(uint textureType, float percentage);
     void reconfigureZAxis();

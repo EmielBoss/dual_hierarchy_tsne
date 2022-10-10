@@ -60,6 +60,7 @@ namespace dh::vis {
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
+    bool getReinitializeRandomly() { return _reinitializeRandomly; }
 
   private:
     enum class BufferType {
@@ -85,6 +86,7 @@ namespace dh::vis {
     uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;
+    bool _reinitializeRandomly;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -116,6 +118,7 @@ namespace dh::vis {
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
+      swap(a._reinitializeRandomly, b._reinitializeRandomly);
       swap(a._buffers, b._buffers);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

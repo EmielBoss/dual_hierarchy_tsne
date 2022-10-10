@@ -59,9 +59,9 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
-    void weightSimilarities(float weight, GLuint selectedBufferHandle);
-    void weightSimilaritiesInter(float weight, GLuint selectedBufferHandle);
-    void weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
+    void weighSimilarities(float weight, GLuint selectedBufferHandle);
+    void weighSimilaritiesInter(float weight, GLuint selectedBufferHandle);
+    void weighAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
 
   private:

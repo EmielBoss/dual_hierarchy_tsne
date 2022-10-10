@@ -442,7 +442,7 @@ namespace dh::sne {
     glPollTimers(_timers.size(), _timers.data());
   }
 
-  void Similarities::weightSimilarities(float weight, GLuint selectedBufferHandle) {
+  void Similarities::weighSimilarities(float weight, GLuint selectedBufferHandle) {
     auto &program = _programs(ProgramType::eWeightSimilaritiesComp);
     program.bind();
 
@@ -461,7 +461,7 @@ namespace dh::sne {
     glAssert();
   }
 
-  void Similarities::weightSimilaritiesInter(float weight, GLuint selectedBufferHandle) {
+  void Similarities::weighSimilaritiesInter(float weight, GLuint selectedBufferHandle) {
     auto &program = _programs(ProgramType::eWeightSimilaritiesInterComp);
     program.bind();
 
@@ -480,7 +480,7 @@ namespace dh::sne {
     glAssert();
   }
 
-  void Similarities::weightAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
+  void Similarities::weighAttributes(std::set<uint> selectedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
     if(selectedAttributeIndices.size() == 0) { return; }
     
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());

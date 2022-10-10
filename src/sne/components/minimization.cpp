@@ -313,7 +313,8 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::restartMinimization() {
     if(_iteration < 100) { return; }
-    initializeEmbeddingRandomly(_iteration);
+    if(_embeddingRenderTask->getReinitializeRandomly()) { initializeEmbeddingRandomly(_iteration); }
+    else { initializeEmbeddingRandomly(_params.seed); }
     _iteration = 0;
     const std::vector<vec> zerovecs(_params.n, vec(0));
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
@@ -366,6 +367,51 @@ namespace dh::sne {
       }
     }
     glAssert();
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::brushAttributes(uint attributeIndex, int radius, float weight) {
+    // Create kernel
+    std::vector<float> kernel(1, 1.f);
+    for(int i = 1; i < 1 + radius * 2; ++i) {
+      std::vector<float> kernelNext(i+1);
+      kernelNext[0] = kernel[0];
+      for(int j = 1; j < i; ++j) {
+        kernelNext[j] = kernel[j-1] + kernel[j];
+      }
+      kernelNext[i] = kernel[i-1];
+      kernel = kernelNext;
+    }
+    int max = *std::max_element(kernel.begin(), kernel.end());
+    for(uint i = 0; i < kernel.size(); ++i) { kernel[i] /= max; } // Normalize kernel
+
+    for(int i = -radius; i <= radius; ++i) {
+      int x = attributeIndex / _params.imgWidth;
+      if(x + i < 0 || x + i >= _params.imgHeight) { continue; }
+      for(int j = -radius; j <= radius; ++j) {
+        int y = attributeIndex % _params.imgWidth;
+        if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
+        uint texelIndex = attributeIndex + i * _params.imgWidth + j;
+        float texelWeightPrev;
+        glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * sizeof(float), sizeof(float), &texelWeightPrev);
+        float texelWeight = texelWeightPrev - (texelWeightPrev - weight) * kernel[i + radius] * kernel[j + radius];
+        weighAttribute(texelIndex, texelWeight, true);
+      }
+    }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::eraseAttributes(uint attributeIndex, int radius) {
+    for(int i = -radius; i <= radius; ++i) {
+      int x = attributeIndex / _params.imgWidth;
+      if(x + i < 0 || x + i >= _params.imgHeight) { continue; }
+      for(int j = -radius; j <= radius; ++j) {
+        int y = attributeIndex % _params.imgWidth;
+        if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
+        uint texelIndex = attributeIndex + i * _params.imgWidth + j;
+        weighAttribute(texelIndex, 1.f, false);
+      }
+    }
   }
 
   template <uint D, uint DD>
@@ -474,10 +520,10 @@ namespace dh::sne {
       _draggedAttribute = _selectionRenderTask->getDraggedAttribute();
       if(_draggedAttribute >= 0 && _draggedAttribute != _draggedAttributePrev) {
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          weighAttribute(_draggedAttribute, _selectionRenderTask->getAttributeWeight(), true);
+          brushAttributes(_draggedAttribute, _selectionRenderTask->getAttributeBrushRadius(), _selectionRenderTask->getAttributeWeight());
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          weighAttribute(_draggedAttribute, 1.f, false);
+          eraseAttributes(_draggedAttribute, _selectionRenderTask->getAttributeBrushRadius());
         }
         _draggedAttributePrev = _draggedAttribute;
       }
@@ -486,16 +532,16 @@ namespace dh::sne {
       _button = _selectionRenderTask->getButtonPressed();
       if(_button > 0 && _button != _buttonPrev) {
         if(_button == 1) { // Apply similarity weight
-          _similarities->weightSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+          _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
         }
         if(_button == 10) { // Apply similarity weight to intersimilarities between selections
-          _similarities->weightSimilaritiesInter(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+          _similarities->weighSimilaritiesInter(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
         }
         if(_button == 15) { // Autoweigh/autoselect top % of attributes
           autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
-          _similarities->weightAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+          _similarities->weighAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities
           _similarities->reset();
