@@ -40,7 +40,8 @@ namespace dh::util {
                    std::vector<int> &labels, 
                    uint n,
                    uint d,
-                   bool withLabels = false);
+                   bool withLabels = false,
+                   int nClasses = -1);
   
   /**
    * writeBinFile(...)

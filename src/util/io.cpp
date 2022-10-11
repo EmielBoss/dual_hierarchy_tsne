@@ -33,7 +33,8 @@ namespace dh::util {
                    std::vector<int> &labels,
                    uint n,
                    uint d,
-                   bool withLabels)
+                   bool withLabels,
+                   int nClasses)
   {
     std::ifstream ifs(fileName, std::ios::in | std::ios::binary);
     if (!ifs) {
@@ -48,9 +49,29 @@ namespace dh::util {
 
     // Read data, either in a single call (no labels) or intermittently (to extract labels)
     if (withLabels) {
-      for (uint i = 0; i < n; ++i) {
-        ifs.read((char *) &labels[i], sizeof(int));
-        ifs.read((char *) &data[d * i], d * sizeof(float));
+      if(nClasses == -1) {
+        for (uint i = 0; i < n; ++i) {
+          ifs.read((char *) &labels[i], sizeof(int));
+          ifs.read((char *) &data[d * i], d * sizeof(float));
+        }
+      } else {
+        int count = 0;
+        for (uint i = 0; i < n; ++i) {
+          int label = ifs.peek();
+          if(label < nClasses) {
+            ifs.read((char *) &labels[count], sizeof(int));
+            ifs.read((char *) &data[d * count], d * sizeof(float));
+            count++;
+          } else {
+            ifs.ignore(sizeof(int) + d * sizeof(float));
+          }
+        }
+        std::cout << labels.size() << "\n";
+        std::cout << data.size() << "\n";
+        labels.resize(count);
+        data.resize(d * count);
+        std::cout << labels.size() << "\n";
+        std::cout << data.size() << "\n";
       }
     } else {
       ifs.read((char *) data.data(), data.size() * sizeof(float));

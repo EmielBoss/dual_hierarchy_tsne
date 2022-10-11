@@ -74,6 +74,8 @@ void cli(int argc, char** argv) {
     ("images", "Input data are images", cxxopts::value<bool>())
     ("imgWidth", "Image resolution width (default: 28)", cxxopts::value<uint>())
     ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
+    ("nClasses", "Use only the first n classes (default: -1 = all classes)", cxxopts::value<int>())
+    ("nClusters", "An estimate of the number of t-SNE clusters, used for fixed datapoint force weighting", cxxopts::value<int>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
@@ -117,6 +119,8 @@ void cli(int argc, char** argv) {
   if (result.count("images")) { params.imageDataset = true; }
   if (result.count("imgWidth")) { params.imgWidth = result["imgWidth"].as<uint>(); }
   if (result.count("imgHeight")) { params.imgHeight = result["imgHeight"].as<uint>(); }
+  if (result.count("nClasses")) { params.nClasses = result["nClasses"].as<int>(); }
+  if (result.count("nClusters")) { params.nClusters = result["nClusters"].as<int>(); }
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }
@@ -127,6 +131,7 @@ void cli(int argc, char** argv) {
   if (result.count("lbl")) { progDoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
+  if (params.nClasses > 0) { params.nClusters = params.nClasses; }
 }
 
 void sne() {
@@ -136,7 +141,8 @@ void sne() {
   // Load dataset
   std::vector<float> data;
   std::vector<int> labels;
-  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels);
+  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses);
+  if(params.nClasses > 0) { params.n = data.size() / params.nHighDims; }
 
   // Create OpenGL context (and accompanying invisible window)
   dh::util::GLWindowInfo info;

@@ -90,7 +90,7 @@ void main() {
   const int label = labels[gl_InstanceID];
   if(colorMapping == 1) { // Labels
     int colorIndex = canDrawLabels && label >= 0 ? label : 9;
-    color = colors[colorIndex];
+    color = colors[colorIndex % 11];
   } else
   if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
