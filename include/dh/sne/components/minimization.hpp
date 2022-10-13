@@ -69,8 +69,9 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void setTexelValue(int texelIndex, int component, float texelVal = 1.f);
-    void fillTextureComponent(uint component, float value, GLuint buffer = 0);
+    void setTexel(GLuint texture, int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
+    void clearTextures();
+    void mirrorWeightsToOverlay();
     void brushAttributes(uint attributeIndex, int radius, float weight);
     void eraseAttributes(uint attributeIndex, int radius);
     void weighAttribute(uint attributeIndex, float weight, bool insertOrErase);
@@ -125,6 +126,7 @@ namespace dh::sne {
       eVarianceSecondary,
       eAverageDifference,
       eVarianceDifference,
+      eOverlay,
 
       Length
     };

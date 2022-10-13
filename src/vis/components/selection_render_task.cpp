@@ -48,7 +48,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 6> textures, std::array<GLuint, 6> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> textures, std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _textures(textures),
@@ -243,9 +243,10 @@ namespace dh::vis {
 
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
-    if(_draggedAttribute >= 0) { return; }
+    // ImGui::ImageButton((void*)(intptr_t)_textures[6], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures[6], ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
       _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;

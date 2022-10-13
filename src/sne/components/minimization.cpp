@@ -168,7 +168,7 @@ namespace dh::sne {
       const std::vector<vec> unitvecs(_params.n, vec(1));
       const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params.n, 1.0f);
-      const std::vector<float> zeros(_params.n, 0.0f);
+      std::vector<float> zeros(_params.n, 0.0f);
       std::vector<uint> labeled(_params.n, 0);
       // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
@@ -207,13 +207,19 @@ namespace dh::sne {
       if(_params.imageDataset) {
         glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
         glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
-        for(uint i = 0; i < _textures.size(); ++i) {
+        for(uint i = 0; i < _textures.size()-1; ++i) {
           glNamedBufferStorage(_buffersTextureData[i], 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
           
           glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-          glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight); 
+          glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight);
         }
+
+        glNamedBufferStorage(_buffersTextureData(TextureType::eOverlay), 4 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
+        mirrorWeightsToOverlay();
+        glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
       }
     }
 
@@ -331,7 +337,7 @@ namespace dh::sne {
     } else
     if(_axisMapping[2] == 'a') {
       for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _dataPtr[i*_params.nHighDims + _axisIndex]; }
-      if(_params.imageDataset) { setTexelValue(_axisIndex, 1); }
+      if(_params.imageDataset) { setTexel(_buffersTextureData(TextureType::eOverlay), _axisIndex, {0.f, 1.f, 0.f, 1.f}); }
     }
     auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
     float min = *minIt;
@@ -345,28 +351,28 @@ namespace dh::sne {
     glAssert();
   }
 
-  // Sets a specified texel in both texture buffers to the specified value
+  // Sets a specified texel in the specified texture to the specified color
   template <uint D, uint DD>
-  void Minimization<D, DD>::setTexelValue(int texelIndex, int component, float texelVal) {
-    for(uint i = 0; i < _buffersTextureData.size(); ++i) {
-      glNamedBufferSubData(_buffersTextureData[i], (texelIndex * 3 + component) * sizeof(float), sizeof(float), &texelVal);
-      glAssert();
+  void Minimization<D, DD>::setTexel(GLuint texture, int texelIndex, std::vector<float> color) {
+    glNamedBufferSubData(texture, texelIndex * 4 * sizeof(float), 4 * sizeof(float), color.data());
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::clearTextures() {
+    for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
+      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
     }
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::fillTextureComponent(uint component, float value, GLuint buffer) {
-    for(uint i = 0; i < _buffersTextureData.size(); ++i) {
-      for(uint t = 0; t < _params.nHighDims; ++t) {
-        if(buffer > 0) {
-          glGetNamedBufferSubData(buffer, t * sizeof(float), sizeof(float), &value);
-          value /= _params.maxAttributeWeight; // Only using this for writing weights [0, maxAttributeWeight] to texture [0, 1]
-        }
-        uint offset = (t * 3 + component);
-        glNamedBufferSubData(_buffersTextureData[i], (t * 3 + component) * sizeof(float), sizeof(float), &value);
-      }
+  void Minimization<D, DD>::mirrorWeightsToOverlay() {
+    glEnable(GL_BLEND);
+    std::vector<float> weights(_params.nHighDims);
+    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params.nHighDims * sizeof(float), weights.data());
+    for(uint i = 0; i < _params.nHighDims; ++i) {
+      float weight = weights[i] / _params.maxAttributeWeight;
+      setTexel(_buffersTextureData(TextureType::eOverlay), i, {0.25f, 0.25f, 1.f, weight / 1.5f});
     }
-    glAssert();
   }
 
   template <uint D, uint DD>
@@ -419,6 +425,7 @@ namespace dh::sne {
     glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attributeIndex * sizeof(float), sizeof(float), &weight);
     if(insertOrErase) { _selectedAttributeIndices.insert(attributeIndex); }
     else { _selectedAttributeIndices.erase(attributeIndex); }
+    mirrorWeightsToOverlay();
   }
 
   template <uint D, uint DD>
@@ -493,7 +500,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
       _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      if(_params.imageDataset) { fillTextureComponent(0, 0.f); }
+      if(_params.imageDataset) { clearTextures(); }
     }
     
     // Clear translations if not translating
@@ -549,6 +556,7 @@ namespace dh::sne {
         if(_button == 4) { // Clear selection
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+          mirrorWeightsToOverlay();
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
@@ -559,34 +567,30 @@ namespace dh::sne {
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
     if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params.n) {
       uint sn = _input.s + 1; // Selection number
-      glAssert();
       glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
-      glAssert();
       compIterationSelection();
       _selectedDatapointPrev = selectedDatapoint;
     }
 
     // Reset some stuff upon axis change
-    _axisMapping = _axesRenderTask->getAxisMapping();
-    _axisIndex = _axesRenderTask->getSelectedIndex();
-    if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-      if(_params.imageDataset) { fillTextureComponent(1, 0.f); }
-      reconfigureZAxis();
-      _axisMappingPrev = _axisMapping;
-      _axisIndexPrev = _axisIndex;
-    }
-
-    // Write attribute weights to blue component if hovering texture
-    bool hovering = _selectionRenderTask->getHoveringTexture();
-    if( hovering) { fillTextureComponent(2, -1.f, _similaritiesBuffers.attributeWeights); } else
-    if(!hovering) { fillTextureComponent(2, 0.f); }
+    // _axisMapping = _axesRenderTask->getAxisMapping();
+    // _axisIndex = _axesRenderTask->getSelectedIndex();
+    // if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
+    //   if(_params.imageDataset) { # unset groene pixel # }
+    //   reconfigureZAxis();
+    //   _axisMappingPrev = _axisMapping;
+    //   _axisIndexPrev = _axisIndex;
+    // }
 
     // Copy texture data to textures
-    if(_params.imageDataset) {
-      for(uint i = 0; i < _textures.size() && _iteration > 1; ++i) {
+    if(_params.imageDataset && _iteration > 1) {
+      for(uint i = 0; i < _textures.size()-1; ++i) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
         glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
       }
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
+      writeBuffer<float>(_buffersTextureData(TextureType::eOverlay), _params.nHighDims, 4, "tex");
+      glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
 
     // Reconstruct this Minimization if adding subtracting a t-SNE dimension
