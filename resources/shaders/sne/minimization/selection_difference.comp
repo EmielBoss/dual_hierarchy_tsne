@@ -39,5 +39,5 @@ void main() {
 
   if (i >= nHighDims) { return; }
 
-  selectionDifference[i * 3] = abs(selectionSecondary[i * 3] - selectionPrimary[i * 3]);
+  selectionDifference[i * 3] = abs(selectionSecondary[i * 4] - selectionPrimary[i * 4]);
 }

@@ -207,19 +207,15 @@ namespace dh::sne {
       if(_params.imageDataset) {
         glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
         glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
-        for(uint i = 0; i < _textures.size()-1; ++i) {
-          glNamedBufferStorage(_buffersTextureData[i], 3 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
+        for(uint i = 0; i < _textures.size(); ++i) {
+          for(uint i = 0; i < _params.nHighDims; ++i) { zeros[i * 4 + 3] = 1.f; }
+          glNamedBufferStorage(_buffersTextureData[i], 4 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
           
           glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
           glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-          glTextureStorage2D(_textures[i], 1, GL_RGB8, _params.imgWidth, _params.imgHeight);
+          glTextureStorage2D(_textures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
         }
-
-        glNamedBufferStorage(_buffersTextureData(TextureType::eOverlay), 4 * _params.nHighDims * sizeof(float), zeros.data(), GL_DYNAMIC_STORAGE_BIT);
         mirrorWeightsToOverlay();
-        glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
       }
     }
 
@@ -360,7 +356,10 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::clearTextures() {
     for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
-      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
+      // Slower version of glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr); but this conveniently sets alphas to 1
+      for(uint t = 0; t < _params.nHighDims; ++t) {
+        setTexel(_buffersTextureData[i], t, {0.f, 0.f, 0.f, 1.f});
+      }
     }
   }
 
@@ -430,10 +429,10 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::autoselectAttributes(uint textureType, float percentage) {
-    std::vector<float> buffer(_params.nHighDims * 3);
-    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _params.nHighDims * 3 * sizeof(float), buffer.data());
+    std::vector<float> buffer(_params.nHighDims * 4);
+    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _params.nHighDims * 4 * sizeof(float), buffer.data());
     std::vector<float> textureData(_params.nHighDims);
-    for(uint i = 0; i < _params.nHighDims; ++i) { textureData[i] = buffer[i * 3]; }
+    for(uint i = 0; i < _params.nHighDims; ++i) { textureData[i] = buffer[i * 4]; }
 
     std::vector<size_t> indices(textureData.size());
     std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
@@ -584,13 +583,10 @@ namespace dh::sne {
 
     // Copy texture data to textures
     if(_params.imageDataset && _iteration > 1) {
-      for(uint i = 0; i < _textures.size()-1; ++i) {
+      for(uint i = 0; i < _textures.size(); ++i) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGB, GL_FLOAT, 0);
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
       }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
-      writeBuffer<float>(_buffersTextureData(TextureType::eOverlay), _params.nHighDims, 4, "tex");
-      glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
 
     // Reconstruct this Minimization if adding subtracting a t-SNE dimension
