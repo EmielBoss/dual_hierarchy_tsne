@@ -74,12 +74,14 @@ void cli(int argc, char** argv) {
     ("images", "Input data are images", cxxopts::value<bool>())
     ("imgWidth", "Image resolution width (default: 28)", cxxopts::value<uint>())
     ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
+    ("imgDepth", "Image number of components (default: 1)", cxxopts::value<uint>())
     ("nClasses", "Use only the first n classes (default: -1 = all classes)", cxxopts::value<int>())
     ("nClusters", "An estimate of the number of t-SNE clusters, used for fixed datapoint force weighting", cxxopts::value<int>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
+    ("disablePCA", "Disable PCA, which can be slow on some datasets", cxxopts::value<bool>())
     ("h,help", "Print this help message and exit")
 
     // Optional axis specifiers
@@ -119,6 +121,7 @@ void cli(int argc, char** argv) {
   if (result.count("images")) { params.imageDataset = true; }
   if (result.count("imgWidth")) { params.imgWidth = result["imgWidth"].as<uint>(); }
   if (result.count("imgHeight")) { params.imgHeight = result["imgHeight"].as<uint>(); }
+  if (result.count("imgDepth")) { params.imgDepth = result["imgDepth"].as<uint>(); }
   if (result.count("nClasses")) { params.nClasses = result["nClasses"].as<int>(); }
   if (result.count("nClusters")) { params.nClusters = result["nClusters"].as<int>(); }
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
@@ -131,6 +134,7 @@ void cli(int argc, char** argv) {
   if (result.count("lbl")) { progDoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
+  if (result.count("disablePCA")) { params.disablePCA = true; }
   if (params.nClasses > 0) { params.nClusters = params.nClasses; }
 }
 

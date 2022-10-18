@@ -174,22 +174,24 @@ namespace dh::vis {
 
   template <uint D>
   void AxesRenderTask<D>::drawImGuiComponent() {
-    const char* axistypes[] = {"t-sne", "PCA", "Attribute"};
-    const char axistypesAbbr[3] = {'t', 'p', 'a'};
+    const char* axistypes[3] = {"t-SNE", "Attribute", "PCA"};
+    const char axistypesAbbr[3] = {'t', 'a', 'p'};
+    const char* axistypesNoPCA[2] = {"t-SNE", "Attribute"};
     if(ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
       if(D == 3) {
         ImGui::Text("Z");
-        ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes));
+        if(!_params.disablePCA) { ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes)); }
+        else {                    ImGui::Combo("Axis type", &_selectedAxistype, axistypesNoPCA, IM_ARRAYSIZE(axistypes)); }
         _axisMapping[2] = axistypesAbbr[_selectedAxistype];
         if(_axisMapping != _axisMappingPrev) {
           _selectedIndex = 0;
           _axisMappingPrev = _axisMapping;
         }
-        if(_axisMapping[2] == 'p') {
+        if(_axisMapping[2] == 'p' && !_params.disablePCA) {
           ImGui::SliderInt("Principal component", &_selectedIndex, 0, _params.nPCs-1);
         } else
-        if (_axisMapping[2] == 'a') {
+        if(_axisMapping[2] == 'a') {
           ImGui::SliderInt("Attribute", &_selectedIndex, 0, _params.nHighDims-1);
         }
         ImGui::Spacing();

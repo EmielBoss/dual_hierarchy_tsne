@@ -69,12 +69,12 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void setTexel(GLuint texture, int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
+    void setTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
     void clearTextures();
     void mirrorWeightsToOverlay();
-    void brushAttributes(uint attributeIndex, int radius, float weight);
-    void eraseAttributes(uint attributeIndex, int radius);
-    void weighAttribute(uint attributeIndex, float weight, bool insertOrErase);
+    void brushTexels(uint attributeIndex, int radius, float weight);
+    void eraseTexels(uint attributeIndex, int radius);
+    void weighTexel(uint attributeIndex, float weight, bool insertOrErase);
     void autoselectAttributes(uint textureType, float percentage);
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
@@ -164,6 +164,7 @@ namespace dh::sne {
     bool _isInit;
     bool _loggedNewline;
     Params _params;
+    uint _nTexels;
     std::vector<char> _axisMapping;
     std::vector<char> _axisMappingPrev;
     int _axisIndex;
@@ -192,8 +193,8 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    int _draggedAttribute;
-    int _draggedAttributePrev;
+    int _draggedTexel;
+    int _draggedTexelPrev;
     uint _button;
     uint _buttonPrev;
     std::set<uint> _selectedAttributeIndices;
@@ -236,6 +237,7 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
+      swap(a._nTexels, b._nTexels);
       swap(a._axisMapping, b._axisMapping);
       swap(a._axisMappingPrev, b._axisMappingPrev);
       swap(a._axisIndex, b._axisIndex);
@@ -244,8 +246,8 @@ namespace dh::sne {
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
-      swap(a._draggedAttribute, b._draggedAttribute);
-      swap(a._draggedAttributePrev, b._draggedAttributePrev);
+      swap(a._draggedTexel, b._draggedTexel);
+      swap(a._draggedTexelPrev, b._draggedTexelPrev);
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);

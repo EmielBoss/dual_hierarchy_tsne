@@ -75,6 +75,7 @@ namespace dh::sne {
     uint resWidth = 1536;
     uint resHeight = 1024;
     int nPCs = 10;
+    bool disablePCA = false;
     float maxAttributeWeight = 3.f;
     float maxSimilarityWeight = 3.f;
 
@@ -82,5 +83,6 @@ namespace dh::sne {
     bool imageDataset = false;
     uint imgWidth = 28;
     uint imgHeight = 28;
+    uint imgDepth = 1;
   };
 } // dh::sne

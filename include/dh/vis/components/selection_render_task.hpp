@@ -76,10 +76,10 @@ namespace dh::vis {
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
     std::vector<uint> _selectionCounts;
-    int _draggedAttribute;
+    int _draggedTexel;
     float _similarityWeight;
     float _attributeWeight;
-    int _attributeBrushRadius;
+    int _texelBrushRadius;
     float _autoselectPercentage;
     uint _buttonPressed;
     int _selectedDatapoint;
@@ -105,11 +105,11 @@ namespace dh::vis {
     int getSelectionMode() { return _selectLabeledOnly; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
-    int getDraggedAttribute() { return _draggedAttribute; }
+    int getDraggedTexel() { return _draggedTexel; }
     uint getButtonPressed() { return _buttonPressed; }
     bool getSelectAll() { return _selectAll; }
     float getAttributeWeight() { return _attributeWeight; }
-    int getAttributeBrushRadius() { return _attributeBrushRadius; }
+    int getTexelBrushRadius() { return _texelBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
     float getTextureTabOpened() { return _textureTabOpened; }
@@ -126,12 +126,12 @@ namespace dh::vis {
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._mousePosScreen, b._mousePosScreen);
-      swap(a._draggedAttribute, b._draggedAttribute);
+      swap(a._draggedTexel, b._draggedTexel);
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._selectAll, b._selectAll);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._attributeWeight, b._attributeWeight);
-      swap(a._attributeBrushRadius, b._attributeBrushRadius);
+      swap(a._texelBrushRadius, b._texelBrushRadius);
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._perplexity, b._perplexity);

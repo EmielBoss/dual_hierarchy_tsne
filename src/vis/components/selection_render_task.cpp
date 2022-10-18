@@ -59,12 +59,12 @@ namespace dh::vis {
     _selectionRadiusRel(0.03),
     _selectionCounts(2, 0),
     _mousePosScreen({0.0, 0.0}),
-    _draggedAttribute(-1),
+    _draggedTexel(-1),
     _buttonPressed(0),
     _selectAll(false),
     _selectedDatapoint(0),
     _attributeWeight(0.f),
-    _attributeBrushRadius(1),
+    _texelBrushRadius(1),
     _similarityWeight(2.f),
     _autoselectPercentage(0.1f),
     _textureTabOpened(0),
@@ -183,7 +183,7 @@ namespace dh::vis {
     ImGui::Spacing();
 
     if(_params.imageDataset) {
-      _draggedAttribute = -1;
+      _draggedTexel = -1;
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Avg")) {
             drawImGuiImageButton(0);
@@ -250,26 +250,26 @@ namespace dh::vis {
       _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
-      uint hoveredAttribute = teYel * _params.imgWidth + teXel;
+      uint hoveredTexel = teYel * _params.imgWidth + teXel;
 
       ImGui::BeginTooltip();
-      ImGui::Text("Attribute: #%d", hoveredAttribute);
-      ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredAttribute));
+      ImGui::Text("Attribute: #%d", hoveredTexel);
+      ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
       std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
-      ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredAttribute * 3));
+      ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredTexel * 4));
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) {
-        _draggedAttribute = hoveredAttribute;
+        _draggedTexel = hoveredTexel;
       } else {
-        _draggedAttribute = -1;
+        _draggedTexel = -1;
       }
     } else {
       _hoveringTexture = false;
-      _draggedAttribute = -1;
+      _draggedTexel = -1;
     }
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params.maxAttributeWeight, "Attr\nWght\n%.2f");
-    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_attributeBrushRadius, 0, 10, "Brsh\nSize\n%i");
+    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
   }
 
 } // dh::vis
