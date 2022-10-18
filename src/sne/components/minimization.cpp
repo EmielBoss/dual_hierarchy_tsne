@@ -1033,7 +1033,7 @@ namespace dh::sne {
         program.bind();
 
         // Set uniforms
-        program.template uniform<uint>("nHighDims", _params.nHighDims);
+        program.template uniform<uint>("nTexels", _nTexels);
 
         // Set buffer bindings
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTextureData[i]);
@@ -1041,7 +1041,7 @@ namespace dh::sne {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData[i+4]);
         glAssert();
 
-        glDispatchCompute(ceilDiv(_params.nHighDims * 3, 256u), 1, 1);
+        glDispatchCompute(ceilDiv(_nTexels * 3, 256u), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         glAssert();
       }
