@@ -93,6 +93,8 @@ namespace dh::sne {
       eDistanceSums,
       eDifferenceSums,
       eSelectedNeighborCounts,
+      eSimilarityOriginalSums,
+      eSimilarityDifferenceSums,
 
       Length
     };
@@ -109,6 +111,7 @@ namespace dh::sne {
       eWeightSimilaritiesInterComp,
       eWeightAttributesPreprocessComp,
       eWeightAttributesComp,
+      eRenormalizeSimilaritiesComp,
       
       Length
     };

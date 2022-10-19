@@ -42,12 +42,14 @@ layout(binding = 0, std430) restrict readonly buffer SelD { uint selectedBuffer[
 layout(binding = 1, std430) restrict readonly buffer SelA { uint selectedAttributeIndicesBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 6, std430) restrict buffer Diff { float differencesBuffer[]; };
-layout(binding = 7, std430) restrict writeonly buffer DisSums { float distanceSums[]; };
-layout(binding = 8, std430) restrict writeonly buffer DifSums { float differenceSums[]; };
-layout(binding = 9, std430) restrict writeonly buffer SelCnts { uint selectedNeighborCountsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 7, std430) restrict buffer SSum { float similarityOrigSumsBuffer[]; };
+layout(binding = 8, std430) restrict buffer Diff { float differencesBuffer[]; };
+layout(binding = 9, std430) restrict writeonly buffer DisSums { float distanceSums[]; };
+layout(binding = 10, std430) restrict writeonly buffer DifSums { float differenceSums[]; };
+layout(binding = 11, std430) restrict writeonly buffer SelCnts { uint selectedNeighborCountsBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -79,24 +81,29 @@ void main() {
       }
     }
   } else {
+    float simSum = 0.f;
     float distSum = 0.f;
     float diffSum = 0.f;
     uint nSelectedNeighbors = 0;
     for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
       uint j = neighborsBuffer[ij];
+      float sim = similaritiesBuffer[ij];
       float dist = distancesBuffer[ij];
       float diff = differencesBuffer[ij];
       if(selectedBuffer[j] == 1) {
+        simSum += sim;
         distSum += dist;
         diffSum += diff;
         nSelectedNeighbors++;
       }
     }
+    simSum = subgroupAdd(simSum);
     distSum = subgroupAdd(distSum);
     diffSum = subgroupAdd(diffSum);
     nSelectedNeighbors = subgroupAdd(nSelectedNeighbors);
 
     if (thread < 1 && nSelectedNeighbors > 0) {
+      similarityOrigSumsBuffer[i] = simSum;
       distanceSums[i] = distSum;
       differenceSums[i] = diffSum;
       selectedNeighborCountsBuffer[i] = nSelectedNeighbors;

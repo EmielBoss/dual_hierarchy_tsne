@@ -25,6 +25,7 @@
 #version 460 core
 
 #extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 struct Layout {
   uint offset;
@@ -42,8 +43,9 @@ layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeigh
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 7, std430) restrict readonly buffer Diff { float differencesBuffer[]; };
-layout(binding = 8, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 9, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 8, std430) restrict buffer DSum { float similarityDiffSumsBuffer[]; };
+layout(binding = 9, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 10, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -60,64 +62,49 @@ layout(location = 8) uniform uint batchEnd;
 const uint thread = gl_SubgroupInvocationID;
 const uint nThreads = gl_SubgroupSize;
 
-// // Returns index of neighbor j in i's neighbor set
-// uint search_ij(uint i, uint j) {
-//   Layout l = layoutBuffer[i];
-
-//   // The list is likely sorted, unless I change this down the line. Let's keep linear search to be sure
-//   for (uint ij = l.offset; ij < l.offset + l.size; ij++) {
-//     if (neighborsBuffer[ij] == j) {
-//       return ij;
-//     }
-//   }
-//   return 99999;
-// }
-
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
   if (i >= nPoints || selectedBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
+  float similaritySum = 0.f;
+  float similarityDiffSum = 0.f;
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
     float dist = useDistAverage ? distAverage : distancesBuffer[ij];
 
-    if(selectedBuffer[j] == 1) {
-      float multiplier = 1.f;
-      if(useDiffMultiplier) {
-        float x = (differencesBuffer[ij] - diffMin) / (diffMax - diffMin); // Get distAttrRatio between 0 and 1 (not really but hey)
-        x = max(x, 0.f);
-        multiplier = 1.f / (1.f + pow(x/(1-x), -4.f)) * 3.f; // Multiply with simDif
-      }
+    if(selectedBuffer[j] != 1) { continue; }
 
-      for(uint a = batchBegin; a < batchEnd; a++) {
-        uint attr = selectedAttributeIndicesBuffer[a];
-        float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
-        float distAttrRatio = distAttr / dist;
+    float multiplier = 1.f;
+    if(useDiffMultiplier) {
+      float x = (differencesBuffer[ij] - diffMin) / (diffMax - diffMin); // Get distAttrRatio between 0 and 1 (not really but hey)
+      x = max(x, 0.f);
+      multiplier = 1.f / (1.f + pow(x/(1-x), -4.f)) * 3.f; // Multiply with simDif
+    }
+
+    for(uint a = batchBegin; a < batchEnd; a++) {
+      uint attr = selectedAttributeIndicesBuffer[a];
+      float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
+      float distAttrRatio = distAttr / dist;
 
 
-        float simOld = similaritiesBackup[ij];
-        float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
-        float simDif = simNew - simOld;
+      float simOld = similaritiesBackup[ij];
+      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
+      float simDif = simNew - simOld;
 
-        similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier, 0.f);
-      }
+      float similarityBefore = similaritiesBuffer[ij];
+      similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier, 0.f);
+      float similarityAfter = similaritiesBuffer[ij];
+
+      // similaritySum += similaritiesBuffer[ij];
+      similarityDiffSum += similarityAfter - similarityBefore;
     }
   }
 
-  // if(symmetrizationPhase) {
-  //   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
-  //     uint j = neighborsBuffer[ij];
-  //     float sim_ij = similaritiesBuffer[ij];
-  //     if(i < j) {
-  //       uint ji = search_ij(j, i);
-  //       float sim_ji = similaritiesBuffer[ji];
-  //       float sim = 0.5 * (sim_ij + sim_ji);
-  //       similaritiesBuffer[ij] = sim;
-  //       similaritiesBuffer[ji] = sim;
-  //     }
-  //   }
-  // }
+  similarityDiffSum = subgroupAdd(similarityDiffSum);
+  if (thread < 1) {
+    similarityDiffSumsBuffer[i] += similarityDiffSum;
+  }
 }

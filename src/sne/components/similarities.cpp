@@ -142,7 +142,7 @@ namespace dh::sne {
   : _isInit(false), _dataPtr(dataPtr), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 
-    // Initialize shader programs
+    // Initialize shader programse
     {
       _programs(ProgramType::eReduceFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/reduce_float.comp"));
       _programs(ProgramType::eReduceUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/reduce_uint.comp"));
@@ -155,6 +155,7 @@ namespace dh::sne {
       _programs(ProgramType::eWeightSimilaritiesInterComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities_inter.comp"));
       _programs(ProgramType::eWeightAttributesPreprocessComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes_preprocess.comp"));
       _programs(ProgramType::eWeightAttributesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes.comp"));
+      _programs(ProgramType::eRenormalizeSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/renormalize_similarities.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -492,6 +493,8 @@ namespace dh::sne {
     glNamedBufferStorage(_buffersTemp(BufferTempType::eDistanceSums), _params.n * sizeof(float), zerosF.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eDifferenceSums), _params.n * sizeof(float), zerosF.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedNeighborCounts), _params.n * sizeof(uint), zerosU.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityOriginalSums), _params.n * sizeof(float), zerosF.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityDifferenceSums), _params.n * sizeof(float), zerosF.data(), 0);
 
     // Preprocessing pass over all similarities
     {
@@ -506,12 +509,14 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSelectedAttributeIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistances));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffersTemp(BufferTempType::eDifferences));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eDistanceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eDifferenceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eSelectedNeighborCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarityOriginalSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eDifferences));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eDistanceSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffersTemp(BufferTempType::eDifferenceSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, _buffersTemp(BufferTempType::eSelectedNeighborCounts));
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       program.template uniform<bool>("phaseOneOrTwo", true);
@@ -535,7 +540,7 @@ namespace dh::sne {
     float differenceVariance = reduce<float>(_buffersTemp(BufferTempType::eDifferenceSums), differenceAverage) / (float) selectedNeighborsCount;
     float differenceStdDev = std::sqrt(differenceVariance);
 
-    // Recalculating the similarities
+    // Weighting the similarities
     {
       auto &program = _programs(ProgramType::eWeightAttributesComp);
       program.bind();
@@ -557,8 +562,9 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eDifferences));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilaritiesOriginal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eSimilarityDifferenceSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       uint batchSize = 10;
@@ -569,6 +575,31 @@ namespace dh::sne {
         glFinish();
         glAssert();
       }
+    }
+
+    // Renormalizing the similarities
+    {
+      float simOriginalSum = reduce<float>(_buffersTemp(BufferTempType::eSimilarityOriginalSums));
+      float simDifferenceSum = reduce<float>(_buffersTemp(BufferTempType::eSimilarityDifferenceSums));
+      float simSum = simOriginalSum + simDifferenceSum;
+      float factor = 1.f - simDifferenceSum / simSum;
+
+      auto &program = _programs(ProgramType::eRenormalizeSimilaritiesComp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<float>("factor", factor);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
     }
 
     //// DEBUGGING
@@ -607,6 +638,8 @@ namespace dh::sne {
         uint j = neig[ij];
         if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
 
+        totalDist += dist[ij];
+
         float distAttrSum = 0.f;
         float distAttrRatioSum = 0.f;
         for (const uint &attr : selectedAttributeIndices) {
@@ -641,7 +674,6 @@ namespace dh::sne {
           intraRatios.push_back(x);
           intraMults.push_back(multiplier);
         }
-        totalDist += dist[ij];
       }
     }
     std::cout << "Inter: " << average(interDeltas) << "\n";
@@ -650,7 +682,13 @@ namespace dh::sne {
     std::cout << "Intra: " << average(intraDeltas) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
     std::cout << "Inter: x = " << average(interRatios) << " | mult = " << average(interMults) << "\n";
     std::cout << "Intra: x = " << average(intraRatios) << " | mult = " << average(intraMults) << "\n";
-    
+
+    float sumSims = 0.f; float sumSimsPrev = 0.f;
+    for(uint ij = 0; ij < sims.size(); ++ij) {
+      sumSims += sims[ij]; sumSimsPrev += simsO[ij];
+    }
+    std::cout << "simSum diff: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
+
     // displayGraph(interDistsAttrRatios, intraDistsAttrRatios);
     
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
