@@ -394,7 +394,7 @@ namespace dh::sne {
         float texelWeightPrev;
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * sizeof(float), sizeof(float), &texelWeightPrev);
         float texelWeight = texelWeightPrev - (texelWeightPrev - weight) * kernel[i + radius] * kernel[j + radius];
-        weighTexel(texelIndex, texelWeight);
+        setTexelWeight(texelIndex, texelWeight);
       }
     }
   }
@@ -408,13 +408,13 @@ namespace dh::sne {
         int y = centerTexelIndex % _params.imgWidth;
         if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
         uint texelIndex = centerTexelIndex + i * _params.imgWidth + j;
-        weighTexel(texelIndex, 1.f);
+        setTexelWeight(texelIndex, 1.f);
       }
     }
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::weighTexel(uint texelIndex, float weight) {
+  void Minimization<D, DD>::setTexelWeight(uint texelIndex, float weight) {
     for(uint i = 0; i < _params.imgDepth; ++i) {
       uint attr = texelIndex * _params.imgDepth + i;
       glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attr * sizeof(float), sizeof(float), &weight);
@@ -424,13 +424,18 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  float Minimization<D, DD>::getTexelWeight(uint texelIndex) {
+    std::vector<float> weights(_params.imgDepth);
+    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * _params.imgDepth * sizeof(float), _params.imgDepth * sizeof(float), weights.data());
+    float weight = 0.f;
+    for(uint c = 0; c < _params.imgDepth; ++c) { weight += weights[c]; }
+    return weight / _params.imgDepth;
+  }
+
+  template <uint D, uint DD>
   void Minimization<D, DD>::mirrorWeightsToOverlay() {
-    std::vector<float> weights(_params.nHighDims);
-    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params.nHighDims * sizeof(float), weights.data());
     for(uint i = 0; i < _nTexels; ++i) {
-      float weight = 0.f;
-      for(uint c = 0; c < _params.imgDepth; ++c) { weight += weights[i * _params.imgDepth + c] / _params.maxAttributeWeight; }
-      weight /= _params.imgDepth;
+      float weight = getTexelWeight(i) / _params.maxAttributeWeight;
       setTexel(i, {0.25f, 0.25f, 1.f, weight / 1.5f});
     }
   }
@@ -456,7 +461,18 @@ namespace dh::sne {
                       }); // Gives the nSelected indices of the largest values in textureData as nSelected first elements of indices
     
     for(uint i = 0; i < nSelected; ++i) {
-      weighTexel(indices[i], _selectionRenderTask->getAttributeWeight());
+      setTexelWeight(indices[i], _selectionRenderTask->getAttributeWeight());
+    }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::invertAttributeWeights() {
+    for(uint i = 0; i < _nTexels; ++i) {
+      float weightTexel = getTexelWeight(i);
+      float weightCurrent = _selectionRenderTask->getAttributeWeight();
+      float weight = 1.f + weightCurrent - weightTexel;
+      weight = std::clamp(weight, 0.f, _params.maxAttributeWeight);
+      setTexelWeight(i, weight);
     }
   }
 
@@ -569,6 +585,9 @@ namespace dh::sne {
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
           mirrorWeightsToOverlay();
+        }
+        if(_button == 5) { // Invert selection
+          invertAttributeWeights();
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
