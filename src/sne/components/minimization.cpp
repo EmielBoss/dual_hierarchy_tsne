@@ -394,7 +394,7 @@ namespace dh::sne {
         float texelWeightPrev;
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * sizeof(float), sizeof(float), &texelWeightPrev);
         float texelWeight = texelWeightPrev - (texelWeightPrev - weight) * kernel[i + radius] * kernel[j + radius];
-        weighTexel(texelIndex, texelWeight, true);
+        weighTexel(texelIndex, texelWeight);
       }
     }
   }
@@ -408,17 +408,17 @@ namespace dh::sne {
         int y = centerTexelIndex % _params.imgWidth;
         if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
         uint texelIndex = centerTexelIndex + i * _params.imgWidth + j;
-        weighTexel(texelIndex, 1.f, false);
+        weighTexel(texelIndex, 1.f);
       }
     }
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::weighTexel(uint texelIndex, float weight, bool insertOrErase) {
+  void Minimization<D, DD>::weighTexel(uint texelIndex, float weight) {
     for(uint i = 0; i < _params.imgDepth; ++i) {
       uint attr = texelIndex * _params.imgDepth + i;
       glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attr * sizeof(float), sizeof(float), &weight);
-      if(insertOrErase) { _selectedAttributeIndices.insert(attr); } else { _selectedAttributeIndices.erase(attr); }
+      if(weight != 1.f) { _selectedAttributeIndices.insert(attr); } else { _selectedAttributeIndices.erase(attr); }
     }
     setTexel(texelIndex, {0.25f, 0.25f, 1.f, weight / _params.maxAttributeWeight / 1.5f});
   }
@@ -456,7 +456,7 @@ namespace dh::sne {
                       }); // Gives the nSelected indices of the largest values in textureData as nSelected first elements of indices
     
     for(uint i = 0; i < nSelected; ++i) {
-      weighTexel(indices[i], _selectionRenderTask->getAttributeWeight(), true);
+      weighTexel(indices[i], _selectionRenderTask->getAttributeWeight());
     }
   }
 
@@ -554,7 +554,7 @@ namespace dh::sne {
           _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
         }
         if(_button == 10) { // Apply similarity weight to intersimilarities between selections
-          _similarities->weighSimilaritiesInter(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+          _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         }
         if(_button == 15) { // Autoweigh/autoselect top % of attributes
           autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());

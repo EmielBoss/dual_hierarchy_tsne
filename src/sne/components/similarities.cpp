@@ -152,10 +152,8 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
       _programs(ProgramType::eWeightSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities.comp"));
-      _programs(ProgramType::eWeightSimilaritiesInterComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_similarities_inter.comp"));
       _programs(ProgramType::eWeightAttributesPreprocessComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes_preprocess.comp"));
       _programs(ProgramType::eWeightAttributesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weight_attributes.comp"));
-      _programs(ProgramType::eRenormalizeSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/renormalize_similarities.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -443,31 +441,13 @@ namespace dh::sne {
     glPollTimers(_timers.size(), _timers.data());
   }
 
-  void Similarities::weighSimilarities(float weight, GLuint selectedBufferHandle) {
+  void Similarities::weighSimilarities(float weight, GLuint selectedBufferHandle, bool interOnly) {
     auto &program = _programs(ProgramType::eWeightSimilaritiesComp);
     program.bind();
 
     program.template uniform<uint>("nPoints", _params.n);
     program.template uniform<float>("weight", weight);
-
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
-
-    // Dispatch shader
-    glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    glAssert();
-  }
-
-  void Similarities::weighSimilaritiesInter(float weight, GLuint selectedBufferHandle) {
-    auto &program = _programs(ProgramType::eWeightSimilaritiesInterComp);
-    program.bind();
-
-    program.template uniform<uint>("nPoints", _params.n);
-    program.template uniform<float>("weight", weight);
+    program.template uniform<bool>("interOnly", interOnly);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
@@ -583,23 +563,7 @@ namespace dh::sne {
       float simDifferenceSum = reduce<float>(_buffersTemp(BufferTempType::eSimilarityDifferenceSums));
       float simSum = simOriginalSum + simDifferenceSum;
       float factor = 1.f - simDifferenceSum / simSum;
-
-      auto &program = _programs(ProgramType::eRenormalizeSimilaritiesComp);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float>("factor", factor);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectedBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
+      weighSimilarities(factor, selectedBufferHandle);
     }
 
     //// DEBUGGING

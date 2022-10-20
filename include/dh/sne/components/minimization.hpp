@@ -74,7 +74,7 @@ namespace dh::sne {
     void mirrorWeightsToOverlay();
     void brushTexels(uint attributeIndex, int radius, float weight);
     void eraseTexels(uint attributeIndex, int radius);
-    void weighTexel(uint attributeIndex, float weight, bool insertOrErase);
+    void weighTexel(uint attributeIndex, float weight);
     void autoselectAttributes(uint textureType, float percentage);
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }

@@ -160,8 +160,8 @@ namespace dh::vis {
     // Time-based effect for the secondary selection
     int ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     int looper = (ms / 2) % 510;
-    float divisor = looper - std::max(0, looper * 2 - 510);
-    
+    float divisor = std::max(0, looper * 2 - 510) - looper;
+
     _program.bind();
 
     std::vector<uint> labeled(_params.n);
