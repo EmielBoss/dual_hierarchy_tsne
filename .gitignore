@@ -2,6 +2,7 @@
 build*/
 .DS_Store
 .vscode/
+.vs/
 imgui.ini
 vcpkg_installed/
 buffer_dumps/

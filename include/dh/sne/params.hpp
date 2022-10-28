@@ -72,8 +72,8 @@ namespace dh::sne {
     // float exaggerationFactor = 12.0f;
 
     // Program params
-    uint resWidth = 1536;
-    uint resHeight = 1024;
+    uint resWidth = 1920;
+    uint resHeight = 920;
     int nPCs = 10;
     bool disablePCA = false;
     float maxAttributeWeight = 3.f;
