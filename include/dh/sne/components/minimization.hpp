@@ -76,8 +76,10 @@ namespace dh::sne {
     void eraseTexels(uint attributeIndex, int radius);
     void setTexelWeight(uint attributeIndex, float weight);
     float getTexelWeight(uint texelIndex);
+    float getTexelValue(uint texelIndex, GLuint buffer);
     void autoselectAttributes(uint textureType, float percentage);
     void invertAttributeWeights();
+    void refineAttributeWeights();
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
 

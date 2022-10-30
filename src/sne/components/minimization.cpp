@@ -427,9 +427,16 @@ namespace dh::sne {
   float Minimization<D, DD>::getTexelWeight(uint texelIndex) {
     std::vector<float> weights(_params.imgDepth);
     glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * _params.imgDepth * sizeof(float), _params.imgDepth * sizeof(float), weights.data());
-    float weight = 0.f;
-    for(uint c = 0; c < _params.imgDepth; ++c) { weight += weights[c]; }
+    float weight = std::reduce(weights.begin(), weights.end());
     return weight / _params.imgDepth;
+  }
+
+  template <uint D, uint DD>
+  float Minimization<D, DD>::getTexelValue(uint texelIndex, GLuint buffer) {
+    std::vector<float> values(_params.imgDepth);
+    glGetNamedBufferSubData(buffer, texelIndex * 4 * sizeof(float), _params.imgDepth * sizeof(float), values.data());
+    float value = std::reduce(values.begin(), values.end());
+    return value / _params.imgDepth;
   }
 
   template <uint D, uint DD>
@@ -471,6 +478,34 @@ namespace dh::sne {
       float weightTexel = getTexelWeight(i);
       float weightCurrent = _selectionRenderTask->getAttributeWeight();
       float weight = 1.f + weightCurrent - weightTexel;
+      weight = std::clamp(weight, 0.f, _params.maxAttributeWeight);
+      setTexelWeight(i, weight);
+    }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::refineAttributeWeights() {
+    std::vector<uint> attributeIndices(_selectedAttributeIndices.begin(), _selectedAttributeIndices.end());
+    std::vector<uint> texelIndices;
+    std::vector<float> values;
+    GLuint buffer = _buffersTextureData[_selectionRenderTask->getTextureTabOpened()];
+    for(uint i = 0; i < attributeIndices.size(); i = i + _params.imgDepth) {
+      uint texelIndex = attributeIndices[i] / _params.imgDepth;
+      float value = getTexelValue(texelIndex, buffer);
+      values.push_back(value);
+      texelIndices.push_back(texelIndex);
+    }
+    auto [minIt, maxIt] = std::minmax_element(values.begin(), values.end());
+    float min = *minIt;
+    float range = *maxIt - *minIt;
+
+    for(uint i : texelIndices) {
+      float value = getTexelValue(i, buffer);
+      float ratio = (value - min) / range;
+
+      float weightTexel = getTexelWeight(i);
+      float weightCurrent = _selectionRenderTask->getAttributeWeight();
+      float weight = 1.f - (1.f - weightCurrent) * ratio;
       weight = std::clamp(weight, 0.f, _params.maxAttributeWeight);
       setTexelWeight(i, weight);
     }
@@ -588,6 +623,9 @@ namespace dh::sne {
         }
         if(_button == 5) { // Invert selection
           invertAttributeWeights();
+        }
+        if(_button == 6) { // Refine selection
+          refineAttributeWeights();
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers

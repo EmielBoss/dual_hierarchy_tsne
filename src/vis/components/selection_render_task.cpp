@@ -225,6 +225,8 @@ namespace dh::vis {
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute selection."); ImGui::EndTooltip(); }
       if(ImGui::SameLine(); ImGui::Button("Invert selection")) { _buttonPressed = 5; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute selection."); ImGui::EndTooltip(); }
+      if(ImGui::SameLine(); ImGui::Button("Refine selection")) { _buttonPressed = 6; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute selection."); ImGui::EndTooltip(); }
       // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }

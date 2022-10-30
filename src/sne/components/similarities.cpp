@@ -653,7 +653,7 @@ namespace dh::sne {
     }
     std::cout << "simSum diff: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
 
-    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios);
+    displayGraph(interDistsAttrRatios, intraDistsAttrRatios);
     
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
