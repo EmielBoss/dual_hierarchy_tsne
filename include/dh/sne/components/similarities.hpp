@@ -53,7 +53,7 @@ namespace dh::sne {
     Similarities& operator=(Similarities&&) noexcept;
 
     float average(std::vector<float> vec);
-    void displayGraph(std::vector<float> inter, std::vector<float> intra);
+    void displayGraph(std::vector<float> inter, std::vector<float> intra, bool relative);
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
     template <typename T> T reduce(GLuint bufferToReduce, T subtractor = 0);
 

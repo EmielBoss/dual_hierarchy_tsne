@@ -48,8 +48,9 @@ namespace dh::sne {
   }
 
   // Auxiliary function to create a window and display a scatterplot
-  void Similarities::displayGraph(std::vector<float> inter, std::vector<float> intra) {
-    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
+  void Similarities::displayGraph(std::vector<float> inter, std::vector<float> intra, bool relative) {
+    std::vector<float> concat = intra;
+    concat.insert(concat.end(), inter.begin(), inter.end());
 
     dh::util::GLWindowInfo info;
     {
@@ -63,6 +64,7 @@ namespace dh::sne {
     }
     dh::util::GLWindow window(info);
 
+    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
     IMGUI_CHECKVERSION();
     ImGuiContext* ctx = ImGui::CreateContext();
     ImGui::SetCurrentContext(ctx);
@@ -97,11 +99,16 @@ namespace dh::sne {
 
       ImGui::SliderInt("No. of bins", &nBins, 1, 1000);
 
-      if (ImPlot::BeginPlot("Histogram 1")) {
+      if (ImPlot::BeginPlot("Inter/intra")) {
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, true, range);
+        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, relative, range);
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, true, range);
+        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, relative, range);
+        ImPlot::EndPlot();
+      }
+
+      if (ImPlot::BeginPlot("Combined")) {
+        ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, false, relative, range);
         ImPlot::EndPlot();
       }
 
@@ -116,6 +123,7 @@ namespace dh::sne {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     ImGui::SetCurrentContext(ctxMain);
+    glAssert();
   }
 
   // Auxiliary function purely for debugging; will be removed
@@ -652,11 +660,9 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "simSum diff: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-
-    displayGraph(interDistsAttrRatios, intraDistsAttrRatios);
-    
-    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
     glAssert();
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
   void Similarities::reset() {
