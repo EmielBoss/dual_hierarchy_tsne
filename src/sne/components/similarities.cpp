@@ -660,7 +660,7 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "simSum diff: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
+    displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }

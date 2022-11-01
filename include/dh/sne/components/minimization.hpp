@@ -82,6 +82,9 @@ namespace dh::sne {
     void refineAttributeWeights();
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
+    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
+
+    void deleteDatapoints();
 
     // Computation
     void comp();                                            // Compute full minimization (i.e. params.iterations)
@@ -89,7 +92,6 @@ namespace dh::sne {
     void compIterationMinimization();                       // Compute the minimization part of a single iteration
     void compIterationSelection();                          // Compute the selection part of a single iteration
     void compIterationTranslation();                        // Compute the translation part of a single iteration
-    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
   private:
     enum class BufferType {
