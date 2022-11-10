@@ -28,7 +28,8 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer Pos { vec3 positionsRel[]; };
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
-layout(binding = 2, std430) restrict writeonly buffer Sel { uint selected[]; };
+layout(binding = 2, std430) restrict readonly buffer Dis { uint disabled[]; };
+layout(binding = 3, std430) restrict writeonly buffer Sel { uint selected[]; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec2 mousePosClip;
@@ -39,7 +40,7 @@ layout(location = 5) uniform mat4 proj;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) { return; }
+  if (i >= nPoints || disabled[i] == 1) { return; }
 
   vec4 posClip = proj * model_view * vec4(positionsRel[i], 1);
   vec3 posNDC = posClip.xyz / posClip.w;

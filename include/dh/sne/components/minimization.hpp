@@ -84,14 +84,13 @@ namespace dh::sne {
     std::vector<char> getAxisMapping() { return _axisMapping; }
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
-    void deleteDatapoints();
-
     // Computation
-    void comp();                                            // Compute full minimization (i.e. params.iterations)
-    bool compIteration();                                   // Compute a single iteration: minimization + selection + translation
-    void compIterationMinimization();                       // Compute the minimization part of a single iteration
-    void compIterationSelection();                          // Compute the selection part of a single iteration
-    void compIterationTranslation();                        // Compute the translation part of a single iteration
+    void comp();                                                                // Compute full minimization (i.e. params.iterations)
+    bool compIteration();                                                       // Compute a single iteration: minimization + selection + translation
+    void compIterationMinimize();                                               // Compute the minimization part of a single iteration
+    void compIterationSelect(bool skipEval = false);                            // Compute the selection part of a single iteration
+    void compIterationTranslate();                                              // Compute the translation part of a single iteration
+    void compIterationDisable();
 
   private:
     enum class BufferType {
@@ -120,7 +119,7 @@ namespace dh::sne {
       eLabeled,
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
-      eTest,
+      eDisabled,
 
       Length
     };
@@ -151,6 +150,7 @@ namespace dh::sne {
       eSelectionVarianceComp,
       eSelectionDifferenceComp,
       eTranslationComp,
+      eDisableComp,
 
       Length
     };
@@ -231,6 +231,7 @@ namespace dh::sne {
         _buffers(BufferType::eLabeled),
         _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),
+        _buffers(BufferType::eDisabled),
         _buffers(BufferType::eNeighborhoodPreservation),
         _textures(TextureType::eAveragePrimary),
         _textures(TextureType::eVariancePrimary)

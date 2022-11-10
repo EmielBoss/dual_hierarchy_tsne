@@ -55,7 +55,7 @@ namespace dh::sne {
   void Minimization<D, DD>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
-    std::ofstream file("../buffer_dumps/" + filename + ".txt");
+    std::ofstream file("./buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
         T val = buffer[i * d + j];
@@ -127,6 +127,7 @@ namespace dh::sne {
       _programs(ProgramType::eSelectionAverageComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_average.comp"));
       _programs(ProgramType::eSelectionVarianceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_variance.comp"));
       _programs(ProgramType::eSelectionDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_difference.comp"));
+      _programs(ProgramType::eDisableComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/disable.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -199,6 +200,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
       glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
@@ -577,9 +579,12 @@ namespace dh::sne {
     }
 
     if(_input.r) { restartMinimization(); } // Restart
-    if(!_input.space) { compIterationMinimization(); } // Compute iteration, or pause if space is pressed
-    if(_input.mouseLeft || _selectionRenderTask->getSelectAll()) { compIterationSelection(); } // Select
-    if(_input.mouseRight || _mouseRightPrev) { compIterationTranslation(); } // Translate
+    if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
+    if(_input.mouseLeft) { compIterationSelect(); } // Select
+    if(_selectionRenderTask->getSelectAll()) { compIterationSelect(true); } // Select all
+    if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
+    if(_input.del) { compIterationDisable(); } // Disable
+    if(_input.ins) { glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
 
     _mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;
@@ -637,7 +642,7 @@ namespace dh::sne {
     if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params.n) {
       uint sn = _input.s + 1; // Selection number
       glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
-      compIterationSelection();
+      compIterationSelect(true);
       _selectedDatapointPrev = selectedDatapoint;
     }
 
@@ -671,7 +676,7 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationMinimization() {
+  void Minimization<D, DD>::compIterationMinimize() {
 
     // 1.
     // Compute embedding bounds
@@ -739,8 +744,9 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eField));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eZReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eZ));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eZReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eZ));
 
       // Dispatch shader
       program.template uniform<uint>("iter", 0);
@@ -771,11 +777,12 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eWeights));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.similarities); // Corresponding similarities
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eAttractive));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDisabled));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eWeights));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _similaritiesBuffers.similarities); // Corresponding similarities
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/sub21ee1group per datapoint
@@ -959,17 +966,13 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationSelection() {
+  void Minimization<D, DD>::compIterationSelect(bool skipEval) {
     uint si = _input.s; // Selection index
     uint sn = si + 1; // Selection number
 
     // 1.
     // Compute selection (or select all)
-    if(_selectionRenderTask->getSelectAll()) {
-      const std::vector<uint> data(_params.n, sn);
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, data.data());
-    } else
-    {
+    if(!skipEval) {
       auto& program = _programs(ProgramType::eSelectionComp);
       program.bind();
 
@@ -985,13 +988,18 @@ namespace dh::sne {
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbeddingRelative));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelection));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDisabled));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelection));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       glAssert();
+    } else
+    if(_selectionRenderTask->getSelectAll()) {
+      const std::vector<uint> allSelected(_params.n, sn);
+      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, allSelected.data());
     }
 
     // 2.
@@ -1106,46 +1114,62 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationTranslation() {
+  void Minimization<D, DD>::compIterationTranslate() {
 
-    // Compute translation
-    {
-      glm::vec4 mousePosRel = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_input.mousePosClip, 0.9998, 1);
-      glm::vec4 mousePosRelPrev = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_mousePosClipPrev, 0.9998, 1);
-      vec shiftRel = mousePosRel - mousePosRelPrev;
-      if constexpr (D == 3) {
-        shiftRel = _trackballInputTask->changeOfBaseToCam() * shiftRel;
-        shiftRel.y = -shiftRel.y;
-      }
-
-      auto& program = _programs(ProgramType::eTranslationComp);
-      program.bind();
-
-      // Set uniform
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float, D>("shiftRel", shiftRel);
-      program.template uniform<bool>("translationStarted", !_mouseRightPrev);
-      program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
-      program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
-      program.template uniform<float>("weightFixed", _embeddingRenderTask->getWeightFixed());
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eTranslating));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eWeights));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-      glAssert();
+    glm::vec4 mousePosRel = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_input.mousePosClip, 0.9998, 1);
+    glm::vec4 mousePosRelPrev = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_mousePosClipPrev, 0.9998, 1);
+    vec shiftRel = mousePosRel - mousePosRelPrev;
+    if constexpr (D == 3) {
+      shiftRel = _trackballInputTask->changeOfBaseToCam() * shiftRel;
+      shiftRel.y = -shiftRel.y;
     }
 
+    auto& program = _programs(ProgramType::eTranslationComp);
+    program.bind();
+
+    // Set uniform
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<float, D>("shiftRel", shiftRel);
+    program.template uniform<bool>("translationStarted", !_mouseRightPrev);
+    program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
+    program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
+    program.template uniform<float>("weightFixed", _embeddingRenderTask->getWeightFixed());
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbedding));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eEmbeddingRelative));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eFixed));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eTranslating));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eWeights));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::compIterationDisable() {
+
+    auto& program = _programs(ProgramType::eDisableComp);
+    program.bind();
+
+    // Set uniform
+    program.template uniform<uint>("nPoints", _params.n);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+
+    compIterationSelect(true);
   }
 
   // Template instantiations for 2/3 dimensions

@@ -60,8 +60,9 @@ layout(location = 3) out float multiplier;
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
-layout(binding = 3, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
-layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
+layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
+layout(binding = 5, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -74,6 +75,7 @@ layout(location = 6) uniform bool selectLabeledOnly;
 layout(location = 7) uniform float divisor;
 
 void main() {
+
   multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 2.f : 1.f;
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
 
@@ -84,6 +86,7 @@ void main() {
 
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
+  if(disabled[gl_InstanceID] == 1) { gl_Position = vec4(1000.f, 1000.f, 1000.f, 1.f); }
 
   // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
   vec3 color;

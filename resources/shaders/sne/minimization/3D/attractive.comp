@@ -37,11 +37,12 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Posi { vec3 positionsBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Fixd { uint fixedBuffer[]; };
-layout(binding = 2, std430) restrict buffer Wght { float weightsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 6, std430) restrict writeonly buffer Att { vec3 attrForcesBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Dsbl { uint disabledBuffer[]; };
+layout(binding = 3, std430) restrict buffer Wght { float weightsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 5, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 7, std430) restrict writeonly buffer Att { vec3 attrForcesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPos;
@@ -66,9 +67,9 @@ void main() {
   Layout l = layoutsBuffer[i];
   vec3 attrForce = vec3(0);
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
-    // Calculate difference between the two positions
     uint j = neighborsBuffer[ij];
-    const vec3 diff = position - positionsBuffer[j];
+    if(disabledBuffer[j] == 1) { continue; }
+    const vec3 diff = position - positionsBuffer[j]; // Calculate difference between the two positions
 
     // High/low dimensional similarity measures of i and j
     const float p_ij = similaritiesBuffer[ij];

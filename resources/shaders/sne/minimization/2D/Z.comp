@@ -27,8 +27,9 @@
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer Value { vec3 Values[]; };
-layout(binding = 1, std430) restrict buffer SumReduce { float SumReduceAdd[128]; };
-layout(binding = 2, std430) restrict writeonly buffer Sum { 
+layout(binding = 1, std430) restrict readonly buffer Dsbl { uint Disabled[]; };
+layout(binding = 2, std430) restrict buffer SumReduce { float SumReduceAdd[128]; };
+layout(binding = 3, std430) restrict writeonly buffer Sum { 
   float sumQ;
   float invSumQ;
 };
@@ -48,7 +49,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      sum += max(Values[i].x - 1.f, 0f);
+      if(Disabled[i] == 0) { sum += max(Values[i].x - 1.f, 0f); }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values

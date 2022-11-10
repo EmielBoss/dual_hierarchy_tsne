@@ -77,11 +77,15 @@ namespace dh::sne {
     window.setVsync(true);
     window.setVisible(true);
 
-    auto [minInter, maxInter] = std::minmax_element(inter.begin(), inter.end());
-    auto [minIntra, maxIntra] = std::minmax_element(intra.begin(), intra.end());
-    ImPlotRange range = ImPlotRange(std::min(*minInter, *minIntra), std::max(*maxInter, *maxIntra));
     std::cout << "Inter count: " << inter.size() << "\n";
     std::cout << "Intra count: " << intra.size() << "\n";
+
+    ImPlotRange range = ImPlotRange(0, 1);
+    if(inter.size() > 0 && intra.size() > 0) {
+      auto [minInter, maxInter] = std::minmax_element(inter.begin(), inter.end());
+      auto [minIntra, maxIntra] = std::minmax_element(intra.begin(), intra.end());
+      ImPlotRange range = ImPlotRange(std::min(*minInter, *minIntra), std::max(*maxInter, *maxIntra));
+    }
 
     int nBins = 100;
 
@@ -101,14 +105,14 @@ namespace dh::sne {
 
       if (ImPlot::BeginPlot("Inter/intra")) {
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, relative, range);
+        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, relative, range); }
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, relative, range);
+        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, relative, range); }
         ImPlot::EndPlot();
       }
 
       if (ImPlot::BeginPlot("Combined")) {
-        ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, false, relative, range);
+        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, false, relative, range); }
         ImPlot::EndPlot();
       }
 
