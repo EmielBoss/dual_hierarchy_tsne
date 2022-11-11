@@ -75,7 +75,7 @@ void cli(int argc, char** argv) {
     ("imgWidth", "Image resolution width (default: 28)", cxxopts::value<uint>())
     ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
     ("imgDepth", "Image number of components (default: 1)", cxxopts::value<uint>())
-    ("nClasses", "Use only the first n classes (default: -1 = all classes)", cxxopts::value<int>())
+    ("nClasses", "Use only the first n classes (default: number of distinct labels)", cxxopts::value<int>())
     ("nClusters", "An estimate of the number of t-SNE clusters, used for fixed datapoint force weighting", cxxopts::value<int>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
@@ -135,7 +135,6 @@ void cli(int argc, char** argv) {
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
   if (result.count("disablePCA")) { params.disablePCA = true; }
-  if (params.nClasses > 0) { params.nClusters = params.nClasses; }
 }
 
 void sne() {
@@ -145,8 +144,12 @@ void sne() {
   // Load dataset
   std::vector<float> data;
   std::vector<int> labels;
-  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses);
-  if(params.nClasses > 0) { params.n = data.size() / params.nHighDims; }
+  bool includeAllClasses = params.nClasses < 0;
+  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
+  if(!includeAllClasses) {
+    params.n = data.size() / params.nHighDims;
+    params.nClusters = params.nClasses;  
+  }
 
   // Create OpenGL context (and accompanying invisible window)
   dh::util::GLWindowInfo info;

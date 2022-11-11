@@ -22,9 +22,10 @@
  * SOFTWARE.
  */
 
-#include <iostream> 
+#include <iostream>
 #include <fstream>
 #include <stdexcept>
+#include <set>
 #include "dh/util/io.hpp"
 
 namespace dh::util {
@@ -34,7 +35,8 @@ namespace dh::util {
                    uint n,
                    uint d,
                    bool withLabels,
-                   int nClasses)
+                   int& nClasses,
+                   bool includeAllClasses)
   {
     std::ifstream ifs(fileName, std::ios::in | std::ios::binary);
     if (!ifs) {
@@ -49,11 +51,14 @@ namespace dh::util {
 
     // Read data, either in a single call (no labels) or intermittently (to extract labels)
     if (withLabels) {
-      if(nClasses == -1) {
+      if(includeAllClasses) {
+        std::set<int> classes;
         for (uint i = 0; i < n; ++i) {
           ifs.read((char *) &labels[i], sizeof(int));
           ifs.read((char *) &data[d * i], d * sizeof(float));
+          classes.insert(labels[i]);
         }
+        nClasses = classes.size();
       } else {
         int count = 0;
         for (uint i = 0; i < n; ++i) {
@@ -66,12 +71,8 @@ namespace dh::util {
             ifs.ignore(sizeof(int) + d * sizeof(float));
           }
         }
-        std::cout << labels.size() << "\n";
-        std::cout << data.size() << "\n";
         labels.resize(count);
         data.resize(d * count);
-        std::cout << labels.size() << "\n";
-        std::cout << data.size() << "\n";
       }
     } else {
       ifs.read((char *) data.data(), data.size() * sizeof(float));
