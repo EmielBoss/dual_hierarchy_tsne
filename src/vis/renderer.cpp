@@ -85,7 +85,9 @@ namespace dh::vis {
     glCreateFramebuffers(1, &_fboHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboColorTextureHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboDepthTextureHandle);
+    _labeledData = false;
     if (labels.size() > 0) {
+      _labeledData = true;
       glCreateBuffers(1, &_labelsHandle);
       glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(int), labels.data(), 0);    
     }
@@ -252,6 +254,20 @@ namespace dh::vis {
 
     // End body of main ImGui window
     ImGui::End();
+
+    // Legend ImGui window
+    if(_labeledData) {
+      ImGui::SetNextWindowPos(ImVec2(_windowHandle->size().x - 200, 16), ImGuiCond_Appearing);
+      if (!ImGui::Begin("Secondary", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
+        ImGui::End();
+        return;
+      }
+
+      auto& queue = vis::RenderQueue::instance();
+      if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
+
+      ImGui::End();
+    }
   }
 
   void Renderer::drawImGuiComponents() {

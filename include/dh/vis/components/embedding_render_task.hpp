@@ -53,6 +53,9 @@ namespace dh::vis {
 
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    void drawImGuiComponentSecondary() override;
+    
+    void generateClassColors();
     uint getColorMapping() { return _colorMapping; }
     void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
     bool getWeighForces() { return _weighForces; }
@@ -72,7 +75,6 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::MinimizationBuffers _minimizationBuffers;
     sne::Params _params;
 
     // ImGui state
@@ -87,9 +89,12 @@ namespace dh::vis {
     float _pointRadius;
     float _pointOpacity;
     bool _reinitializeRandomly;
+    std::vector<glm::vec4> _colors;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    sne::MinimizationBuffers _minimizationBuffers;
+    GLuint _colorBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
 
@@ -108,6 +113,7 @@ namespace dh::vis {
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
       swap(a._minimizationBuffers, b._minimizationBuffers);
+      swap(a._colorBuffer, b._colorBuffer);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);
       swap(a._weighForces, b._weighForces);
@@ -119,6 +125,7 @@ namespace dh::vis {
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
       swap(a._reinitializeRandomly, b._reinitializeRandomly);
+      swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

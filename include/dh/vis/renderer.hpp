@@ -63,6 +63,7 @@ namespace dh::vis {
     char* _axisMapping;
     const util::GLWindow * _windowHandle;
     glm::ivec2 _fboSize;
+    bool _labeledData;
 
     // OpenGL object handles
     GLuint _labelsHandle;

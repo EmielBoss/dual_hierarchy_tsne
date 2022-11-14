@@ -125,6 +125,7 @@ namespace dh::vis {
       glAssert();
     }
 
+    generateClassColors();
     _isInit = true;
   }
 
@@ -148,6 +149,35 @@ namespace dh::vis {
   }
 
   template <uint D>
+  void EmbeddingRenderTask<D>::generateClassColors() {
+    
+    _colors = {
+      glm::vec4(16, 78, 139, 255),
+      glm::vec4(0, 128, 0, 255),
+      glm::vec4(139, 90, 43, 255),
+      glm::vec4(138, 43, 226, 255),
+      glm::vec4(255, 150, 0, 255),
+      glm::vec4(204, 40, 40, 255),
+      glm::vec4(131, 139, 131, 255),
+      glm::vec4(20, 20, 20, 255),
+      glm::vec4(0, 205, 0, 255),
+      glm::vec4(0, 150, 255, 255),
+      glm::vec4(220, 220, 220, 255)
+    };
+
+    int nColorsToAdd = _params.nClasses - _colors.size();
+    for(uint i = 0; i < nColorsToAdd; ++i) {
+      glm::vec4 newColor = _colors[i] + _colors[i+1];
+      newColor /= 2.f;
+      _colors.push_back(newColor);
+    }
+
+    glCreateBuffers(1, &_colorBuffer);
+    glNamedBufferStorage(_colorBuffer, _params.nClasses * sizeof(glm::vec4), _colors.data(), GL_DYNAMIC_STORAGE_BIT);
+    glAssert();
+  }
+
+  template <uint D>
   void EmbeddingRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
 
     if (!enable) {
@@ -163,9 +193,6 @@ namespace dh::vis {
     float divisor = std::max(0, looper * 2 - 510) - looper;
 
     _program.bind();
-
-    std::vector<uint> labeled(_params.n);
-    glGetNamedBufferSubData(_minimizationBuffers.labeled, 0, _params.n * sizeof(uint), labeled.data());
 
     // Set uniforms
     _program.template uniform<float, 4, 4>("model_view", model_view);
@@ -184,6 +211,7 @@ namespace dh::vis {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.disabled);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.selection);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.neighborhoodPreservation);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _colorBuffer);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
@@ -219,6 +247,22 @@ namespace dh::vis {
       ImGui::Text("or set the number of clusters you see:");
       ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
+    }
+  }
+
+  // Draws the class list
+  template <uint D>
+  void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
+    if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
+      for(uint i = 0; i < _params.nClasses; ++i) {
+        ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
+        if(ImGui::ColorEdit3(std::to_string(i).c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs)) {
+          glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
+          _colors[i] = colorUpdated;
+          glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
+        }
+        // ImGui::SameLine(); ImGui::Text("%i", i);
+      }
     }
   }
 

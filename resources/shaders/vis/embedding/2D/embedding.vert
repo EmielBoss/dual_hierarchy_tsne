@@ -31,21 +31,6 @@ struct Bounds {
   vec2 invRange;
 };
 
-// 11 distinguishable label colors (incl. white)
-const vec3 colors[11] = vec3[11](
-  vec3(16, 78, 139),
-  vec3(0, 128, 0),
-  vec3(139, 90, 43),
-  vec3(138, 43, 226),
-  vec3(255, 150, 0),
-  vec3(204, 40, 40),
-  vec3(131, 139, 131),
-  vec3(20, 20, 20),
-  vec3(0, 205, 0),
-  vec3(0, 150, 255),
-  vec3(235, 235, 235)
-);
-
 // Input attributes
 layout(location = 0) in vec2 positionIn;
 layout(location = 1) in vec2 embeddingRelIn;
@@ -63,6 +48,7 @@ layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labele
 layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
 layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
 layout(binding = 5, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 6, std430) restrict readonly buffer ColorBuffer { vec3 colors[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -93,7 +79,7 @@ void main() {
   const int label = labels[gl_InstanceID];
   if(colorMapping == 1) { // Labels
     int colorIndex = canDrawLabels && label >= 0 ? label : 9;
-    color = colors[colorIndex % 11];
+    color = colors[colorIndex];
   } else
   if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
