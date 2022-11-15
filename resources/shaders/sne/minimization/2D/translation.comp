@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Selected { uint selectedBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Selection { int selectionBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Positions { vec2 positionsBuffer[]; };
 layout(binding = 2, std430) restrict buffer PosRel { vec2 positionsRelativeBuffer[]; };
 layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsRelativeBeforeTranslationBuffer[]; };
@@ -49,7 +49,7 @@ layout(location = 5) uniform float weightFixed;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints || selectedBuffer[i] == 0) { return; }
+  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
 
   if (translationStarted || translationFinished) {
     vec2 positionRelative = (positionsBuffer[i] - minBounds) * invRange;

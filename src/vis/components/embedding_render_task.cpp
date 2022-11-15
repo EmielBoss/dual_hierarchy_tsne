@@ -58,10 +58,11 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority)
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, int priority)
   : RenderTask(priority, "EmbeddingRenderTask"), 
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
+    _classTextures(classTextures),
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
@@ -166,7 +167,7 @@ namespace dh::vis {
     };
 
     int nColorsToAdd = _params.nClasses - _colors.size();
-    for(uint i = 0; i < nColorsToAdd; ++i) {
+    for(int i = 0; i < nColorsToAdd; ++i) {
       glm::vec4 newColor = _colors[i] + _colors[i+1];
       newColor /= 2.f;
       _colors.push_back(newColor);
@@ -190,7 +191,7 @@ namespace dh::vis {
     // Time-based effect for the secondary selection
     int ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     int looper = (ms / 2) % 510;
-    float divisor = std::max(0, looper * 2 - 510) - looper;
+    float divisor = looper - std::max(0, looper * 2 - 510);
 
     _program.bind();
 
@@ -255,13 +256,13 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params.nClasses; ++i) {
+        ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0);
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
-        if(ImGui::ColorEdit3(std::to_string(i).c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs)) {
+        if(ImGui::SameLine(); ImGui::ColorEdit3(std::to_string(i).c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
           glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
           _colors[i] = colorUpdated;
           glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
         }
-        // ImGui::SameLine(); ImGui::Text("%i", i);
       }
     }
   }

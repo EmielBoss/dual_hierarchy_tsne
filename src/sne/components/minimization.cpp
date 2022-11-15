@@ -66,6 +66,37 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  void Minimization<D, DD>::average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance, GLuint subtractorBuffer) {
+    auto& program = _programs(ProgramType::eAverageComp);
+    program.bind();
+
+    // Set uniforms
+    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPointsMasked", maskCount);
+    program.template uniform<uint>("imgSize", _params.nHighDims);
+    program.template uniform<uint>("imgDepth", _params.imgDepth);
+    program.template uniform<uint>("maskNumber", maskNumber);
+    program.template uniform<bool>("calcVariance", calcVariance);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, maskBuffer);
+    if(calcVariance) {
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, subtractorBuffer); }
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eTextureDataReduce));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, averageBuffer);
+    glAssert();
+
+    program.template uniform<uint>("iter", 0);
+    glDispatchCompute(128, _params.nHighDims, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    program.template uniform<uint>("iter", 1);
+    glDispatchCompute(1, _params.nHighDims, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
+  template <uint D, uint DD>
   std::vector<float> Minimization<D, DD>::normalizeDataset(const float* dataPtr) {
     std::vector<float> mins(_params.nHighDims,  FLT_MAX);
     std::vector<float> maxs(_params.nHighDims, -FLT_MAX);
@@ -124,9 +155,8 @@ namespace dh::sne {
     {
       _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
       _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_count.comp"));
-      _programs(ProgramType::eSelectionAverageComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_average.comp"));
-      _programs(ProgramType::eSelectionVarianceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_variance.comp"));
-      _programs(ProgramType::eSelectionDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_difference.comp"));
+      _programs(ProgramType::eAverageComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/average.comp"));
+      _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/difference.comp"));
       _programs(ProgramType::eDisableComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/disable.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
@@ -164,6 +194,7 @@ namespace dh::sne {
     }
 
     // Initialize buffer objects
+    std::vector<GLuint> classTextures(_params.nClasses);
     {
       const std::vector<vec> zerovecs(_params.n, vec(0));
       const std::vector<vec> unitvecs(_params.n, vec(1));
@@ -192,7 +223,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
@@ -220,6 +251,24 @@ namespace dh::sne {
           glTextureStorage2D(_textures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
         }
         mirrorWeightsToOverlay();
+
+        // Create class texture
+        std::vector<GLuint> classTextureBuffers(_params.nClasses);
+        glCreateBuffers(classTextureBuffers.size(), classTextureBuffers.data());
+        glCreateTextures(GL_TEXTURE_2D, classTextures.size(), classTextures.data());
+        for(uint i = 0; i < _params.nClasses; ++i) {
+          glNamedBufferStorage(classTextureBuffers[i], 4 * _nTexels * sizeof(float), blacks.data(), GL_DYNAMIC_STORAGE_BIT);
+
+          glTextureParameteri(classTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+          glTextureParameteri(classTextures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTextureStorage2D(classTextures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
+          
+          uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
+          average(_buffers(BufferType::eLabels), i, classCount, classTextureBuffers[i]);
+          glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
+          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
+        }
+        glDeleteBuffers(classTextureBuffers.size(), classTextureBuffers.data());
       }
     }
 
@@ -250,7 +299,7 @@ namespace dh::sne {
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, 0));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, classTextures, 0));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_textures, _buffersTextureData, _similaritiesBuffers.attributeWeights, _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
@@ -564,7 +613,7 @@ namespace dh::sne {
       std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
       _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
       if(_params.imageDataset) { clearTextures(); }
     }
     
@@ -641,7 +690,7 @@ namespace dh::sne {
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
     if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params.n) {
       uint sn = _input.s + 1; // Selection number
-      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
+      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(int), sizeof(int), &sn);
       compIterationSelect(true);
       _selectedDatapointPrev = selectedDatapoint;
     }
@@ -967,8 +1016,8 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::compIterationSelect(bool skipEval) {
-    uint si = _input.s; // Selection index
-    uint sn = si + 1; // Selection number
+    int si = _input.s; // Selection index
+    int sn = si + 1; // Selection number
 
     // 1.
     // Compute selection (or select all)
@@ -978,7 +1027,7 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("selectionNumber", sn);
+      program.template uniform<int>("selectionNumber", sn);
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
@@ -998,8 +1047,8 @@ namespace dh::sne {
       glAssert();
     } else
     if(_selectionRenderTask->getSelectAll()) {
-      const std::vector<uint> allSelected(_params.n, sn);
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, allSelected.data());
+      const std::vector<int> allSelected(_params.n, sn);
+      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, allSelected.data());
     }
 
     // 2.
@@ -1039,62 +1088,13 @@ namespace dh::sne {
     // Calculate selection average and/or variance per attribute
     if(_params.imageDataset) {
       for(uint i = 0; i < 2; ++i) {
-        auto& program = _programs(ProgramType::eSelectionAverageComp);
-        program.bind();
-
-        // Set uniforms
-        program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("nSelected", _selectionCounts[i]);
-        program.template uniform<uint>("imgSize", _params.nHighDims);
-        program.template uniform<uint>("imgDepth", _params.imgDepth);
-        program.template uniform<uint>("selectionNumber", i + 1);
-
-        // Set buffer bindings
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTextureDataReduce));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTextureData[i * 2]);
-        glAssert();
-
-        program.template uniform<uint>("iter", 0);
-        glDispatchCompute(128, _params.nHighDims, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        program.template uniform<uint>("iter", 1);
-        glDispatchCompute(1,_params.nHighDims, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        glAssert();
+        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
       }
-
       for(uint i = 0; i < 2; ++i) {
-        auto& program = _programs(ProgramType::eSelectionVarianceComp);
-        program.bind();
-
-        // Set uniforms
-        program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("nSelected", _selectionCounts[i]);
-        program.template uniform<uint>("imgSize", _params.nHighDims);
-        program.template uniform<uint>("imgDepth", _params.imgDepth);
-        program.template uniform<uint>("selectionNumber", i + 1);
-
-        // Set buffer bindings
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelection));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData[i * 2]);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eTextureDataReduce));
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersTextureData[i * 2 + 1]);
-        glAssert();
-
-        program.template uniform<uint>("iter", 0);
-        glDispatchCompute(128, _params.nHighDims, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        program.template uniform<uint>("iter", 1);
-        glDispatchCompute(1,_params.nHighDims, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        glAssert();
+        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]);
       }
-
       for(uint i = 0; i < 2; ++i) {
-        auto& program = _programs(ProgramType::eSelectionDifferenceComp);
+        auto& program = _programs(ProgramType::eDifferenceComp);
         program.bind();
 
         // Set uniforms

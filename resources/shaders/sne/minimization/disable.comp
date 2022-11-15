@@ -26,7 +26,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict buffer Sel { uint selected[]; };
+layout(binding = 0, std430) restrict buffer Sel { int selection[]; };
 layout(binding = 1, std430) restrict writeonly buffer Dis { uint disabled[]; };
 
 layout(location = 0) uniform uint nPoints;
@@ -35,8 +35,8 @@ void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  if(selected[i] == 1) {
+  if(selection[i] == 1) {
     disabled[i] = int(true);
-    selected[i] = int(false);
+    selection[i] = int(false);
   }
 }

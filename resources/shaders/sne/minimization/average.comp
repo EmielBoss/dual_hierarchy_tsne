@@ -27,16 +27,18 @@
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer Dataset { float data[]; };
-layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
-layout(binding = 2, std430) restrict buffer SelectionAverageReduce { float selectionAverageReduce[]; };
-layout(binding = 3, std430) restrict writeonly buffer SelectionAverage { float selectionAverage[]; };
+layout(binding = 1, std430) restrict readonly buffer Mask { uint mask[]; };
+layout(binding = 2, std430) restrict readonly buffer Subtractor { float subtractor[]; };
+layout(binding = 3, std430) restrict buffer AverageReduce { float averageReduce[]; };
+layout(binding = 4, std430) restrict writeonly buffer Average { float average[]; };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint nSelected;
+layout(location = 1) uniform uint nPointsMasked;
 layout(location = 2) uniform uint imgSize;
 layout(location = 3) uniform uint imgDepth;
-layout(location = 4) uniform uint selectionNumber;
-layout(location = 5) uniform uint iter;
+layout(location = 4) uniform uint maskNumber;
+layout(location = 5) uniform bool calcVariance;
+layout(location = 6) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared float reduction_array[halfGroupSize];
@@ -51,11 +53,12 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
               i < nPoints;
               i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(selection[i] == selectionNumber) { sum += data[i * imgSize + dim]; }
+      if(!calcVariance && mask[i] == maskNumber) { sum +=     data[i * imgSize + dim]; } else
+      if( calcVariance && mask[i] == maskNumber) { sum += pow(data[i * imgSize + dim] - subtractor[dim * 4], 2) ; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
-    sum = selectionAverageReduce[lid * imgSize + dim];
+    sum = averageReduce[lid * imgSize + dim];
   }
 
   // Reduce add to a single value
@@ -75,11 +78,11 @@ void main() {
   barrier();
   if (lid < 1) {
     if (iter == 0) {
-      selectionAverageReduce[gl_WorkGroupID.x * imgSize + dim] = reduction_array[0] + reduction_array[1];
+      averageReduce[gl_WorkGroupID.x * imgSize + dim] = reduction_array[0] + reduction_array[1];
     } else if (iter == 1) {
       uint texel = dim / imgDepth;
       uint component = dim % imgDepth;
-      selectionAverage[texel * 4 + component] = (reduction_array[0] + reduction_array[1]) / float(nSelected);
+      average[texel * 4 + component] = (reduction_array[0] + reduction_array[1]) / float(nPointsMasked);
     }
   }
 }

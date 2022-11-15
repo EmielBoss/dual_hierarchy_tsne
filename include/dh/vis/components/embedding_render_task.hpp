@@ -40,7 +40,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, int priority);
+    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, int priority);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -94,6 +94,7 @@ namespace dh::vis {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     sne::MinimizationBuffers _minimizationBuffers;
+    std::vector<GLuint> _classTextures;
     GLuint _colorBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
@@ -113,6 +114,7 @@ namespace dh::vis {
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
       swap(a._minimizationBuffers, b._minimizationBuffers);
+      swap(a._classTextures, b._classTextures);
       swap(a._colorBuffer, b._colorBuffer);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);

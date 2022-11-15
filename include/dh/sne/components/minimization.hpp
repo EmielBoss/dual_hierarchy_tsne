@@ -65,6 +65,7 @@ namespace dh::sne {
     Minimization(Minimization&&) noexcept;
     Minimization& operator=(Minimization&&) noexcept;
 
+    void average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance = false, GLuint subtractorBuffer = 0);
     std::vector<float> normalizeDataset(const float* dataPtr);
     std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
@@ -146,9 +147,8 @@ namespace dh::sne {
       eNeighborhoodPreservationComp,
       eSelectionComp,
       eCountSelectedComp,
-      eSelectionAverageComp,
-      eSelectionVarianceComp,
-      eSelectionDifferenceComp,
+      eAverageComp,
+      eDifferenceComp,
       eTranslationComp,
       eDisableComp,
 

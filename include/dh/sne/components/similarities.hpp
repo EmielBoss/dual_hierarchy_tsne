@@ -106,9 +106,9 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
       eNeighborsSortComp,
-      eWeightSimilaritiesComp,
-      eWeightAttributesPreprocessComp,
-      eWeightAttributesComp,
+      eWeighSimilaritiesComp,
+      eWeighAttributesPreprocessComp,
+      eWeighAttributesComp,
       
       Length
     };

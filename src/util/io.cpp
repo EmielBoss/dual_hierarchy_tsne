@@ -59,6 +59,9 @@ namespace dh::util {
           classes.insert(labels[i]);
         }
         nClasses = classes.size();
+        if(classes.find(0) == classes.end()) { // No 0 in classes means the first class is 1
+          for (uint i = 0; i < n; ++i) { labels[i]--; }
+        }
       } else {
         int count = 0;
         for (uint i = 0; i < n; ++i) {
