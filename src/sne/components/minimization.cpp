@@ -195,6 +195,7 @@ namespace dh::sne {
 
     // Initialize buffer objects
     std::vector<GLuint> classTextures(_params.nClasses);
+    std::vector<uint> classCounts(_params.nClasses);
     {
       const std::vector<vec> zerovecs(_params.n, vec(0));
       const std::vector<vec> unitvecs(_params.n, vec(1));
@@ -264,6 +265,7 @@ namespace dh::sne {
           glTextureStorage2D(classTextures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
           
           uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
+          classCounts[i] = classCount;
           average(_buffers(BufferType::eLabels), i, classCount, classTextureBuffers[i]);
           glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
           glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
@@ -299,7 +301,7 @@ namespace dh::sne {
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, classTextures, 0));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, classTextures, classCounts, 0));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_textures, _buffersTextureData, _similaritiesBuffers.attributeWeights, _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING

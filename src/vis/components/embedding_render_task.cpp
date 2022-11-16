@@ -58,11 +58,13 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, int priority)
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params,
+                                              std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority)
   : RenderTask(priority, "EmbeddingRenderTask"), 
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
     _classTextures(classTextures),
+    _classCounts(classCounts),
     _params(params),
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
@@ -135,6 +137,8 @@ namespace dh::vis {
     if (_isInit) {
       glDeleteVertexArrays(1, &_vaoHandle);
       glDeleteBuffers(_buffers.size(), _buffers.data());
+      glDeleteBuffers(_classTextures.size(), _classTextures.data());
+      glDeleteBuffers(1, &_colorBuffer);
     }
   }
 
@@ -160,7 +164,6 @@ namespace dh::vis {
       glm::vec4(255, 150, 0, 255),
       glm::vec4(204, 40, 40, 255),
       glm::vec4(131, 139, 131, 255),
-      glm::vec4(20, 20, 20, 255),
       glm::vec4(0, 205, 0, 255),
       glm::vec4(0, 150, 255, 255),
       glm::vec4(220, 220, 220, 255)
@@ -258,7 +261,9 @@ namespace dh::vis {
       for(uint i = 0; i < _params.nClasses; ++i) {
         ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0);
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
-        if(ImGui::SameLine(); ImGui::ColorEdit3(std::to_string(i).c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
+        std::string leadingZeros = i < 10 ? "0" : "";
+        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]);
+        if(ImGui::SameLine(); ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
           glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
           _colors[i] = colorUpdated;
           glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);

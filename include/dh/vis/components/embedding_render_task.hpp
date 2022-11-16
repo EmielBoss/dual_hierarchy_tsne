@@ -40,7 +40,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, int priority);
+    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -90,6 +90,7 @@ namespace dh::vis {
     float _pointOpacity;
     bool _reinitializeRandomly;
     std::vector<glm::vec4> _colors;
+    std::vector<uint> _classCounts;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -114,8 +115,6 @@ namespace dh::vis {
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
       swap(a._minimizationBuffers, b._minimizationBuffers);
-      swap(a._classTextures, b._classTextures);
-      swap(a._colorBuffer, b._colorBuffer);
       swap(a._params, b._params);
       swap(a._canDrawLabels, b._canDrawLabels);
       swap(a._weighForces, b._weighForces);
@@ -129,6 +128,9 @@ namespace dh::vis {
       swap(a._reinitializeRandomly, b._reinitializeRandomly);
       swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
+      swap(a._classTextures, b._classTextures);
+      swap(a._classCounts, b._classCounts);
+      swap(a._colorBuffer, b._colorBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
     }
