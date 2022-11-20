@@ -89,7 +89,6 @@ void main() {
       float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
       float distAttrRatio = distAttr / dist;
 
-
       float simOld = similaritiesBackup[ij];
       float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
       float simDif = simNew - simOld;

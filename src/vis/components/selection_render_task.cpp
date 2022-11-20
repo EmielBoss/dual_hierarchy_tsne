@@ -260,20 +260,38 @@ namespace dh::vis {
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
       std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
-      ImGui::Text(prompts[index], getBufferValue(_texturedataBuffers[index], hoveredTexel * 4));
+      bool isVariance = index % 2 == 1;
+      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * 4);
+      if(isVariance) { texelValue /= 2.f; } // Remove the texture boosting in order to print actual variance
+      ImGui::Text(prompts[index], texelValue);
+      if(isVariance) { ImGui::Text("Texture color value is x2'ed for better visibility."); }
       ImGui::EndTooltip();
 
-      if(ImGui::IsAnyMouseDown()) {
-        _draggedTexel = hoveredTexel;
-      } else {
-        _draggedTexel = -1;
-      }
+      if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
+      else { _draggedTexel = -1; }
     } else {
       _hoveringTexture = false;
       _draggedTexel = -1;
     }
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params.maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
+  }
+
+  // Draws key command list
+  void SelectionRenderTask::drawImGuiComponentSecondary() {
+    if (ImGui::CollapsingHeader("Hotkeys", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::Text("Scroll: brush size");
+      ImGui::Text("Left mouse button (hold): move and fix selection"); if(_input.mouseLeft) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Right mouse button (hold): select datapoints"); if(_input.mouseRight) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("S (hold): secondary select"); if(_input.s) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("D (press): deselect"); if(_input.d) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("F (press): unfix datapoints"); if(_input.f) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("R (press): reinitialize (fixed seed)"); if(_input.r) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Alt + R (press): reinitialize (random)"); if(_input.r && _input.alt) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Space (hold): pause minimization"); if(_input.space) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Delete (press): remove selected datapoints"); if(_input.del) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Insert (press): restore removed datapoints"); if(_input.ins) { ImGui::SameLine(); ImGui::Text(" <"); }
+    }
   }
 
 } // dh::vis

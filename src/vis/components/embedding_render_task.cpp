@@ -257,6 +257,7 @@ namespace dh::vis {
   // Draws the class list
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
+    if(!_canDrawLabels) { return; }
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params.nClasses; ++i) {
         ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0);

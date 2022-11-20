@@ -255,19 +255,17 @@ namespace dh::vis {
     // End body of main ImGui window
     ImGui::End();
 
-    // Legend ImGui window
-    if(_labeledData) {
-      ImGui::SetNextWindowPos(ImVec2(_windowHandle->size().x - 200, 16), ImGuiCond_Appearing);
-      if (!ImGui::Begin("Secondary", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
-        ImGui::End();
-        return;
-      }
-
-      auto& queue = vis::RenderQueue::instance();
-      if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
-
+    // Secondary ImGui window
+    ImGui::SetNextWindowPos(ImVec2(_windowHandle->size().x - 450, 16), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(400, 1000));
+    if (!ImGui::Begin("Secondary", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
       ImGui::End();
+      return;
     }
+    if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
+    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
+
+    ImGui::End();
   }
 
   void Renderer::drawImGuiComponents() {

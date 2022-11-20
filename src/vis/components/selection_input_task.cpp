@@ -44,6 +44,7 @@ namespace dh::vis {
     _zPressed(false),
     _shiftPressed(false),
     _ctrlPressed(false),
+    _altPressed(false),
     _deletePressed(false),
     _insertPressed(false),
     _numPressed(1),
@@ -124,6 +125,9 @@ namespace dh::vis {
 
     if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS) { _shiftPressed = true; }
     else if (button == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE) { _shiftPressed = false; }
+
+    if (button == GLFW_KEY_LEFT_ALT && action == GLFW_PRESS) { _altPressed = true; }
+    else if (button == GLFW_KEY_LEFT_ALT && action == GLFW_RELEASE) { _altPressed = false; }
 
     if (button == GLFW_KEY_DELETE && action == GLFW_PRESS) { _deletePressed = true; }
     else if (button == GLFW_KEY_DELETE && action == GLFW_RELEASE) { _deletePressed = false; }

@@ -42,6 +42,8 @@ namespace dh::vis {
     bool d;
     bool space;
     bool ctrl;
+    bool shift;
+    bool alt;
     bool del;
     bool ins;
     int num;
@@ -74,6 +76,8 @@ namespace dh::vis {
         _dPressed,
         _spacePressed,
         _ctrlPressed,
+        _shiftPressed,
+        _altPressed,
         _deletePressed,
         _insertPressed,
         _numPressed
@@ -96,6 +100,7 @@ namespace dh::vis {
     bool _spacePressed;
     bool _ctrlPressed;
     bool _shiftPressed;
+    bool _altPressed;
     bool _deletePressed;
     bool _insertPressed;
     bool _mouseLeftPressed;

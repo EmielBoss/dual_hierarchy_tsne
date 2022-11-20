@@ -372,7 +372,7 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::restartMinimization() {
     if(_iteration < 100) { return; }
-    if(_embeddingRenderTask->getReinitializeRandomly()) { initializeEmbeddingRandomly(_iteration); }
+    if(_embeddingRenderTask->getReinitializeRandomly() || _input.alt) { initializeEmbeddingRandomly(_iteration); }
     else { initializeEmbeddingRandomly(_params.seed); }
     _iteration = 0;
     const std::vector<vec> zerovecs(_params.n, vec(0));
@@ -578,6 +578,8 @@ namespace dh::sne {
 
     // Ugly synchronization work; I blame the existing software architecture
     {
+      _selectionRenderTask->setInput(_input);
+
       // Synchronizing color mapping between GUI and input
       _colorMappingPrev = _colorMapping;
       _colorMapping = _input.num;

@@ -31,6 +31,7 @@
 #include "dh/sne/params.hpp"
 #include "dh/sne/components/buffers.hpp"
 #include "dh/vis/render_queue.hpp"
+#include "dh/vis/components/selection_input_task.hpp"
 
 namespace dh::vis {
   class SelectionRenderTask : public RenderTask {
@@ -52,8 +53,11 @@ namespace dh::vis {
     void clearSelection(bool imageDataset);
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
+    void drawImGuiComponentSecondary() override;
     void drawImGuiImageButton(GLuint textureHandle);
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
+    void setInput(dh::vis::Input input) { _input = input; }
+
     float getBufferValue(GLuint buffer, int index);
     bool getHoveringTexture() { return _hoveringTexture; }
     int getSelectedDatapoint() { return _selectedDatapoint; }
@@ -70,6 +74,7 @@ namespace dh::vis {
     bool _isInit;
     sne::Params _params;
     glm::vec2 _mousePosScreen;
+    dh::vis::Input _input;
 
     // ImGui state
     bool _canDrawLabels;
@@ -122,6 +127,7 @@ namespace dh::vis {
       swap(static_cast<RenderTask&>(a), static_cast<RenderTask&>(b));
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
+      swap(a._input, b._input);
       swap(a._selectionRadiusRel, b._selectionRadiusRel);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._selectionCounts, b._selectionCounts);

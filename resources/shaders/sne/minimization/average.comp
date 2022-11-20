@@ -82,7 +82,9 @@ void main() {
     } else if (iter == 1) {
       uint texel = dim / imgDepth;
       uint component = dim % imgDepth;
-      average[texel * 4 + component] = (reduction_array[0] + reduction_array[1]) / float(nPointsMasked);
+      float avg = (reduction_array[0] + reduction_array[1]) / float(nPointsMasked);
+      if(calcVariance) { avg *= 2.f; } // Boost variance for better visibility in texture
+      average[texel * 4 + component] = avg;
     }
   }
 }
