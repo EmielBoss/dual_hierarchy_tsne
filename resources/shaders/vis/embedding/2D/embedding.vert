@@ -91,7 +91,7 @@ void main() {
 
   // Determine whether to output unselected color or selected color
   if(selection[gl_InstanceID] == 1) {
-    if(colorMapping == 1) { colorOut = vec4(color / 100.0f, pointOpacity); } // Selected label color should be inverted and lighter
+    if(colorMapping == 1) { colorOut = vec4(color / 200.0f, pointOpacity); } // Selected label color should be lighter
     else { colorOut = vec4(color / 355.0f, pointOpacity); } // Selected color should be made darker
   } else
   if(selection[gl_InstanceID] == 2) {
