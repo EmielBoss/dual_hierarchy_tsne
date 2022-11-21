@@ -372,7 +372,8 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::restartMinimization() {
     if(_iteration < 100) { return; }
-    if(_embeddingRenderTask->getReinitializeRandomly() || _input.alt) { initializeEmbeddingRandomly(_iteration); }
+    if(_input.alt) { initializeEmbeddingRandomly(_iteration); } else
+    if(_input.num >= 0) { initializeEmbeddingRandomly(_input.num); }
     else { initializeEmbeddingRandomly(_params.seed); }
     _iteration = 0;
     const std::vector<vec> zerovecs(_params.n, vec(0));
@@ -580,19 +581,9 @@ namespace dh::sne {
     {
       _selectionRenderTask->setInput(_input);
 
-      // Synchronizing color mapping between GUI and input
-      _colorMappingPrev = _colorMapping;
-      _colorMapping = _input.num;
-      if(_colorMapping != _colorMappingPrev) { _embeddingRenderTask->setColorMapping(_colorMapping); }
-      _colorMapping = _embeddingRenderTask->getColorMapping();
-      if (_colorMapping != _colorMappingPrev) { _selectionInputTask->setNumPressed(_colorMapping); }
-
-      // Synchronizing selection radius between GUI and input
-      float selectionRadiusRelPrev = _selectionRadiusRel;
-      _selectionRadiusRel = _selectionRenderTask->getSelectionRadiusRel();
-      if (_selectionRadiusRel != selectionRadiusRelPrev) { _selectionInputTask->setMouseScroll(_selectionRadiusRel * 100); }
+      // Send selection radius to selection render task
       _selectionRadiusRel = _input.mouseScroll / 100.f;
-      if(_selectionRadiusRel != selectionRadiusRelPrev) { _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel); }
+      _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel);
 
       _selectionRenderTask->setMousePosScreen(_input.mousePosScreen); // Send screen position to GUI
 
@@ -956,7 +947,7 @@ namespace dh::sne {
 
     // 8.
     // Compute neighborhood preservation per datapoint
-
+    _colorMapping = _embeddingRenderTask->getColorMapping();
     if(_colorMapping == 2 && _colorMappingPrev != 2) {
       // Compute approximate KNN of each point in embedding, delegated to FAISS
       std::vector<vec> embedding(_params.n);
@@ -991,6 +982,7 @@ namespace dh::sne {
         
         glAssert();
       }
+      _colorMappingPrev = _colorMapping;
     }
 
     // Log progress; spawn progressbar on the current (new on first iter) line

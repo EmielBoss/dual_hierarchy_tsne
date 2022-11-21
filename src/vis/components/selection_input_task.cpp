@@ -47,7 +47,7 @@ namespace dh::vis {
     _altPressed(false),
     _deletePressed(false),
     _insertPressed(false),
-    _numPressed(1),
+    _numPressed(-1),
     _mouseLeftPressed(false),
     _mouseRightPressed(false),
     _mouseMiddlePressed(false),
@@ -140,6 +140,13 @@ namespace dh::vis {
     else if (button == GLFW_KEY_2 && action == GLFW_PRESS) { _numPressed = 2; }
     else if (button == GLFW_KEY_3 && action == GLFW_PRESS) { _numPressed = 3; }
     else if (button == GLFW_KEY_4 && action == GLFW_PRESS) { _numPressed = 4; }
+    else if (button == GLFW_KEY_5 && action == GLFW_PRESS) { _numPressed = 5; }
+    else if (button == GLFW_KEY_6 && action == GLFW_PRESS) { _numPressed = 6; }
+    else if (button == GLFW_KEY_7 && action == GLFW_PRESS) { _numPressed = 7; }
+    else if (button == GLFW_KEY_8 && action == GLFW_PRESS) { _numPressed = 8; }
+    else if (button == GLFW_KEY_9 && action == GLFW_PRESS) { _numPressed = 9; }
+    else if ((button == GLFW_KEY_0 || button == GLFW_KEY_1 || button == GLFW_KEY_2 || button == GLFW_KEY_3 || button == GLFW_KEY_4 || button == GLFW_KEY_5 || button == GLFW_KEY_6 || button == GLFW_KEY_7 || button == GLFW_KEY_8 || button == GLFW_KEY_9)
+                                  && action == GLFW_RELEASE) { _numPressed = -1; }
   }
 
 } // dh::vis

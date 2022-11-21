@@ -57,13 +57,11 @@ namespace dh::vis {
     
     void generateClassColors();
     uint getColorMapping() { return _colorMapping; }
-    void setColorMapping(uint colorMapping) { _colorMapping = colorMapping; }
     bool getWeighForces() { return _weighForces; }
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
-    bool getReinitializeRandomly() { return _reinitializeRandomly; }
 
   private:
     enum class BufferType {
@@ -88,7 +86,6 @@ namespace dh::vis {
     uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;
-    bool _reinitializeRandomly;
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
 
@@ -125,7 +122,6 @@ namespace dh::vis {
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
-      swap(a._reinitializeRandomly, b._reinitializeRandomly);
       swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
       swap(a._classTextures, b._classTextures);

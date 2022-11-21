@@ -85,7 +85,6 @@ namespace dh::vis {
     }
 
     void setNumPressed(int num) { _numPressed = num; }
-    void setMouseScroll(float mouseScroll) { _mouseScroll = mouseScroll; }
 
   private:
     // State

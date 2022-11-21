@@ -105,7 +105,6 @@ namespace dh::vis {
   public:
     bool isInit() const { return _isInit; }
 
-    float getSelectionRadiusRel() { return _selectionRadiusRel; }
     void setSelectionRadiusRel(float selectionRadiusRel) { _selectionRadiusRel = selectionRadiusRel; }
     int getSelectionMode() { return _selectLabeledOnly; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }

@@ -148,41 +148,38 @@ namespace dh::vis {
 
   void SelectionRenderTask::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+      if (_canDrawLabels) {
+        ImGui::Text("Selection mode:");
+        if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
+      }
+
+      ImGui::InputInt("Select individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
+
+      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+      ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
+
+      ImGui::Text("No. of sel. points: %i", _selectionCounts[0]);
+      if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
+      else { _selectAll = false; }
+      _buttonPressed = 0;
+      if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 1; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
       ImGui::Spacing();
-      ImGui::SliderFloat("Selection radius", &_selectionRadiusRel, 0.0f, 0.5f);
-      ImGui::Spacing();
+
+      if(_selectionCounts[1] > 0) {
+        ImGui::Text("No. of sel. points (secondary): %i", _selectionCounts[1]);
+        if(ImGui::SameLine(); ImGui::Button("Apply  weight")) { _buttonPressed = 10; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
+      } else {
+        ImGui::Dummy(ImVec2(0.0f, 19.0f));
+      }
     }
 
-    if (_canDrawLabels) {
-      ImGui::Text("Selection mode:");
-      if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
-    }
+    if(!_params.imageDataset) { return; }
 
-    ImGui::InputInt("Selection individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
-
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
-
-    ImGui::Text("No. of sel. points: %i", _selectionCounts[0]);
-    if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
-    else { _selectAll = false; }
-    _buttonPressed = 0;
-    if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 1; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
-    ImGui::Spacing();
-
-    if(_selectionCounts[1] > 0) {
-      ImGui::Text("No. of sel. points (secondary): %i", _selectionCounts[1]);
-      if(ImGui::SameLine(); ImGui::Button("Apply  weight")) { _buttonPressed = 10; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
-    } else {
-      ImGui::Dummy(ImVec2(0.0f, 19.0f));
-    }
-    ImGui::Spacing();
-
-    if(_params.imageDataset) {
+    if (ImGui::CollapsingHeader("Attribute weighing settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       _draggedTexel = -1;
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Avg")) {
@@ -288,9 +285,11 @@ namespace dh::vis {
       ImGui::Text("F (press): unfix datapoints"); if(_input.f) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("R (press): reinitialize (fixed seed)"); if(_input.r) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Alt + R (press): reinitialize (random)"); if(_input.r && _input.alt) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Alt + Num (press): reinitialize (num seed)"); if(_input.r && _input.num >= 0) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Space (hold): pause minimization"); if(_input.space) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Delete (press): remove selected datapoints"); if(_input.del) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Insert (press): restore removed datapoints"); if(_input.ins) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Num: undefined"); if(_input.num >= 0) { ImGui::SameLine(); ImGui::Text("%i", _input.num); }
     }
   }
 
