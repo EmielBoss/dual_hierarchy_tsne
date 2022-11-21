@@ -483,9 +483,7 @@ namespace dh::sne {
     const std::vector<uint> zerosU(_symmetricSize, 0);
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eDifferences), _symmetricSize * sizeof(float), zerosF.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eDistanceSums), _params.n * sizeof(float), zerosF.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eDifferenceSums), _params.n * sizeof(float), zerosF.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedNeighborCounts), _params.n * sizeof(uint), zerosU.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityOriginalSums), _params.n * sizeof(float), zerosF.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityDifferenceSums), _params.n * sizeof(float), zerosF.data(), 0);
@@ -496,7 +494,6 @@ namespace dh::sne {
       program.bind();
 
       program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("nHighDims", _params.nHighDims);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -507,22 +504,10 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarityOriginalSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eDifferences));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eDistanceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffersTemp(BufferTempType::eDifferenceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, _buffersTemp(BufferTempType::eSelectedNeighborCounts));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eDistanceSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eSelectedNeighborCounts));
 
-      // Dispatch shader in batches of batchSize (selected) attriibutes
-      program.template uniform<bool>("phaseOneOrTwo", true);
-      uint batchSize = 10;
-      for(uint b = 0; b * batchSize < weightedAttributeIndices.size(); ++b) {
-        program.template uniform<uint>("batchBegin", b * batchSize);
-        program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) weightedAttributeIndices.size()));
-        glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-        glFinish();
-        glAssert();
-      }
-      program.template uniform<bool>("phaseOneOrTwo", false);
+      // Dispatch shader
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
       glAssert();
     }
@@ -530,8 +515,6 @@ namespace dh::sne {
     // Reduction
     uint selectedNeighborsCount = reduce<uint>(_buffersTemp(BufferTempType::eSelectedNeighborCounts));
     float distanceAverage = reduce<float>(_buffersTemp(BufferTempType::eDistanceSums)) / (float) selectedNeighborsCount;
-    float differenceAverage = reduce<float>(_buffersTemp(BufferTempType::eDifferenceSums)) / (float) selectedNeighborsCount;
-    float differenceVariance = reduce<float>(_buffersTemp(BufferTempType::eDifferenceSums), differenceAverage) / (float) selectedNeighborsCount;
 
     // Weighting the similarities
     {
@@ -540,11 +523,8 @@ namespace dh::sne {
 
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<uint>("nHighDims", _params.nHighDims);
-      program.template uniform<uint>("useDistAverage", true);
+      program.template uniform<uint>("useDistAverage", false);
       program.template uniform<float>("distAverage", distanceAverage);
-      program.template uniform<uint>("useDiffMultiplier", true);
-      program.template uniform<float>("diffMin", differenceAverage - differenceVariance);
-      program.template uniform<float>("diffMax", differenceAverage + differenceVariance);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -554,10 +534,9 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eDifferences));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eSimilarityDifferenceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilaritiesOriginal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarityDifferenceSums));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       uint batchSize = 10;
@@ -588,8 +567,6 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), 0, _symmetricSize * sizeof(float), simsO.data());
     std::vector<float> dist(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eDistances), 0, _symmetricSize * sizeof(float), dist.data());
-    std::vector<float> diff(_symmetricSize);
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eDifferences), 0, _symmetricSize * sizeof(float), diff.data());
     std::vector<uint> layo(_params.n * 2);
     glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layo.data());
     std::vector<uint> selc(_params.n);
@@ -605,8 +582,6 @@ namespace dh::sne {
     std::vector<float> interDists; std::vector<float> intraDists;
     std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
     std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
-    std::vector<float> interRatios; std::vector<float> intraRatios;
-    std::vector<float> interMults; std::vector<float> intraMults;
     float totalDist = 0.f;
 
     for(uint i = 0; i < _params.n; ++i) {
@@ -626,12 +601,6 @@ namespace dh::sne {
           distAttrRatioSum += distAttrRatio;
         }
 
-        float diffMin = differenceAverage - differenceVariance;
-        float diffMax = differenceAverage + differenceVariance;
-        float x = (diff[ij] - diffMin) / (diffMax - diffMin);
-        x = std::max(x, 0.f);
-        float multiplier = 1.f / (1.f + pow(x/(1-x), -4.f)) * 3.f;
-
         float simDelta = sims[ij] / simsO[ij];
         if(labl[i] != labl[j]) {
           interNeighbs.emplace_back(i, j);
@@ -639,8 +608,6 @@ namespace dh::sne {
           interDists.push_back(dist[ij]);
           interDistsAttr.push_back(distAttrSum);
           interDistsAttrRatios.push_back(distAttrRatioSum);
-          interRatios.push_back(x);
-          interMults.push_back(multiplier);
         }
         else {
           intraNeighbs.emplace_back(i, j);
@@ -648,17 +615,14 @@ namespace dh::sne {
           intraDists.push_back(dist[ij]);
           intraDistsAttr.push_back(distAttrSum);
           intraDistsAttrRatios.push_back(distAttrRatioSum);
-          intraRatios.push_back(x);
-          intraMults.push_back(multiplier);
         }
       }
     }
+    std::cout << "\n\n";
     std::cout << "Inter: " << average(interDeltas) << "\n";
     std::cout << "Intra: " << average(intraDeltas) << "\n";
     std::cout << "Inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
     std::cout << "Intra: " << average(intraDeltas) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
-    std::cout << "Inter: x = " << average(interRatios) << " | mult = " << average(interMults) << "\n";
-    std::cout << "Intra: x = " << average(intraRatios) << " | mult = " << average(intraMults) << "\n";
 
     float sumSims = 0.f; float sumSimsPrev = 0.f;
     for(uint ij = 0; ij < sims.size(); ++ij) {

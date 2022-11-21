@@ -42,21 +42,17 @@ layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffe
 layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
 layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer Diff { float differencesBuffer[]; };
-layout(binding = 8, std430) restrict buffer DSum { float similarityDiffSumsBuffer[]; };
-layout(binding = 9, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 10, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 7, std430) restrict buffer DSum { float similarityDiffSumsBuffer[]; };
+layout(binding = 8, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 9, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform bool useDistAverage;
 layout(location = 3) uniform float distAverage;
-layout(location = 4) uniform bool useDiffMultiplier;
-layout(location = 5) uniform float diffMin;
-layout(location = 6) uniform float diffMax;
-layout(location = 7) uniform uint batchBegin;
-layout(location = 8) uniform uint batchEnd;
+layout(location = 4) uniform uint batchBegin;
+layout(location = 5) uniform uint batchEnd;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -77,24 +73,17 @@ void main() {
 
     if(selectionBuffer[j] != 1) { continue; }
 
-    float multiplier = 1.f;
-    if(useDiffMultiplier) {
-      float x = (differencesBuffer[ij] - diffMin) / (diffMax - diffMin); // Get distAttrRatio between 0 and 1 (not really but hey)
-      x = max(x, 0.f);
-      multiplier = 1.f / (1.f + pow(x/(1-x), -4.f)) * 3.f; // Multiply with simDif
-    }
-
     for(uint a = batchBegin; a < batchEnd; a++) {
       uint attr = weightedAttributeIndicesBuffer[a];
       float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
       float distAttrRatio = distAttr / dist;
 
       float simOld = similaritiesBackup[ij];
-      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
+      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], sqrt(distAttrRatio));
       float simDif = simNew - simOld;
 
       float similarityBefore = similaritiesBuffer[ij];
-      similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif * multiplier, 0.f);
+      similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif, 0.f);
       float similarityAfter = similaritiesBuffer[ij];
 
       // similaritySum += similaritiesBuffer[ij];
