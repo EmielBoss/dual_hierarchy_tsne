@@ -203,7 +203,7 @@ namespace dh::sne {
     int _draggedTexelPrev;
     uint _button;
     uint _buttonPrev;
-    std::set<uint> _selectedAttributeIndices;
+    std::set<uint> _weightedAttributeIndices;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

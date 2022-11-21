@@ -39,7 +39,7 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer SelD { int selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer SelA { uint selectedAttributeIndicesBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Sims { float similaritiesBuffer[]; };
@@ -69,12 +69,12 @@ void main() {
   
   Layout l = layoutBuffer[i];
 
-  if(phaseOneOrTwo) {
+  if(phaseOneOrTwo) { // Phase one calculates the distance over the 
     for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
       uint j = neighborsBuffer[ij];
       if(selectionBuffer[j] == 1) {
         for(uint a = batchBegin; a < batchEnd; a++) {
-          uint attr = selectedAttributeIndicesBuffer[a];
+          uint attr = weightedAttributeIndicesBuffer[a];
           float diffAttr = abs(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr]);
           differencesBuffer[ij] += diffAttr;
         }

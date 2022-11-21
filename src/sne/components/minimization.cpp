@@ -472,7 +472,7 @@ namespace dh::sne {
     for(uint i = 0; i < _params.imgDepth; ++i) {
       uint attr = texelIndex * _params.imgDepth + i;
       glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attr * sizeof(float), sizeof(float), &weight);
-      if(weight != 1.f) { _selectedAttributeIndices.insert(attr); } else { _selectedAttributeIndices.erase(attr); }
+      if(weight != 1.f) { _weightedAttributeIndices.insert(attr); } else { _weightedAttributeIndices.erase(attr); }
     }
     setTexel(texelIndex, {0.25f, 0.25f, 1.f, weight / _params.maxAttributeWeight / 1.5f});
   }
@@ -539,7 +539,7 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::refineAttributeWeights() {
-    std::vector<uint> attributeIndices(_selectedAttributeIndices.begin(), _selectedAttributeIndices.end());
+    std::vector<uint> attributeIndices(_weightedAttributeIndices.begin(), _weightedAttributeIndices.end());
     std::vector<uint> texelIndices;
     std::vector<float> values;
     GLuint buffer = _buffersTextureData[_selectionRenderTask->getTextureTabOpened()];
@@ -660,7 +660,7 @@ namespace dh::sne {
           autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
-          _similarities->weighAttributes(_selectedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+          _similarities->weighSimilaritiesPerAttribute(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities
           _similarities->reset();
