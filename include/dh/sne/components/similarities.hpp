@@ -55,7 +55,7 @@ namespace dh::sne {
     float average(std::vector<float> vec);
     void displayGraph(std::vector<float> inter, std::vector<float> intra, bool relative);
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
-    template <typename T> T reduce(GLuint bufferToReduce, T subtractor = 0);
+    template <typename T> T reduce(GLuint bufferToReduce, bool largeBuffer = false, GLuint selectionBufferHandle = 0);
 
     // Compute similarities
     void comp();
@@ -85,17 +85,21 @@ namespace dh::sne {
       eSizes,
       eCounts,
       eWeightedAttributeIndices,
+
+      Length
+    };
+
+    enum class BufferReduceType {
       eReduce,
       eReduced,
-      eDistanceSums,
-      eSelectedNeighborCounts,
-      eSimilarityOriginalSums,
-      eSimilarityDifferenceSums,
+      eAccumulationPerDatapoint,
 
       Length
     };
 
     enum class ProgramType {
+      eAccumulatePerDatapointFloatComp,
+      eAccumulatePerDatapointUintComp,
       eReduceFloatComp,
       eReduceUintComp,
       eSimilaritiesComp,
@@ -104,7 +108,6 @@ namespace dh::sne {
       eNeighborsComp,
       eNeighborsSortComp,
       eWeighSimilaritiesComp,
-      eWeighSimilaritiesPerAttributePreprocessComp,
       eWeighSimilaritiesPerAttributeComp,
       
       Length
@@ -129,6 +132,7 @@ namespace dh::sne {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
+    util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
     util::CUTimer _knnTimer;

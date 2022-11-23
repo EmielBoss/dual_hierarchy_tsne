@@ -27,9 +27,6 @@
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
-#define FLT_MAX 3.402823466e+38F
-#define FLT_MIN 1.175494351e-38F
-
 struct Layout {
   uint offset;
   uint size;
@@ -38,19 +35,15 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer SelD { int selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Sims { float similaritiesBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict buffer SSum { float similarityOrigSumsBuffer[]; };
-layout(binding = 8, std430) restrict writeonly buffer DisSums { float distanceSums[]; };
-layout(binding = 10, std430) restrict writeonly buffer SelCnts { uint selectedNeighborCountsBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Selc { int selectionBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer TRed { uint bufferToReduce[]; };
+layout(binding = 4, std430) restrict writeonly buffer Acc { uint accumulationPerDatapointBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform bool selectedOnly;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -59,31 +52,19 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if (i >= nPoints || (selectedOnly && selectionBuffer[i] == 0)) { return; }
   
   Layout l = layoutBuffer[i];
 
-  float simSum = 0.f;
-  float distSum = 0.f;
-  uint nSelectedNeighbors = 0;
+  uint sum = 0;
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    float sim = similaritiesBuffer[ij];
-    float dist = distancesBuffer[ij];
-    if(selectionBuffer[j] == 1) {
-      simSum += sim;
-      distSum += dist;
-      nSelectedNeighbors++;
-    }
+    if(!selectedOnly || selectionBuffer[j] == 1) { sum += bufferToReduce[ij]; }
   }
-  simSum = subgroupAdd(simSum);
-  distSum = subgroupAdd(distSum);
-  nSelectedNeighbors = subgroupAdd(nSelectedNeighbors);
+  sum = subgroupAdd(sum);
 
-  if (thread < 1 && nSelectedNeighbors > 0) {
-    similarityOrigSumsBuffer[i] = simSum;
-    distanceSums[i] = distSum;
-    selectedNeighborCountsBuffer[i] = nSelectedNeighbors;
+  if (thread < 1) {
+    accumulationPerDatapointBuffer[i] = sum;
   }
 
 }

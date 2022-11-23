@@ -25,6 +25,7 @@
 #version 460 core
 
 #extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 struct Layout {
   uint offset;
@@ -34,21 +35,15 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Sele { int selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Selc { int selectionBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer TRed { float bufferToReduce[]; };
+layout(binding = 4, std430) restrict writeonly buffer Acc { float accumulationPerDatapointBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform uint batchBegin;
-layout(location = 3) uniform uint batchEnd;
+layout(location = 1) uniform bool selectedOnly;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -60,26 +55,16 @@ void main() {
   if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
-  float similaritySum = 0.f;
-  float similarityDiffSum = 0.f;
 
+  float sum = 0.f;
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    float dist = distancesBuffer[ij];
+    if(!selectedOnly || selectionBuffer[j] == 1) { sum += bufferToReduce[ij]; }
+  }
+  sum = subgroupAdd(sum);
 
-    if(selectionBuffer[j] != 1) { continue; }
-
-    for(uint a = batchBegin; a < batchEnd; a++) {
-      uint attr = weightedAttributeIndicesBuffer[a];
-      float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
-      float distAttrRatio = distAttr / dist;
-
-      float simOld = similaritiesBackup[ij];
-      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], sqrt(distAttrRatio));
-      float simDif = simNew - simOld;
-
-      similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif, 0.f);
-    }
+  if (thread < 1) {
+    accumulationPerDatapointBuffer[i] = sum;
   }
 
 }

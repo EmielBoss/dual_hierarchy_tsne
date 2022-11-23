@@ -156,6 +156,8 @@ namespace dh::sne {
 
     // Initialize shader programse
     {
+      _programs(ProgramType::eAccumulatePerDatapointFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/accumulate_per_datapoint_float.comp"));
+      _programs(ProgramType::eAccumulatePerDatapointUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/accumulate_per_datapoint_uint.comp"));
       _programs(ProgramType::eReduceFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/reduce_float.comp"));
       _programs(ProgramType::eReduceUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/reduce_uint.comp"));
       _programs(ProgramType::eSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/similarities.comp"));
@@ -164,7 +166,6 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors.comp"));
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
       _programs(ProgramType::eWeighSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities.comp"));
-      _programs(ProgramType::eWeighSimilaritiesPerAttributePreprocessComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_pre.comp"));
       _programs(ProgramType::eWeighSimilaritiesPerAttributeComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr.comp"));
 
       for (auto& program : _programs) {
@@ -203,24 +204,48 @@ namespace dh::sne {
     return *this;
   }
 
-  // Sum reduction on a buffer of size n (with an optional subtraction buffer)
+  // Sum reduction on a buffer. largeBuffer means larger than _params.n, in which case its contents are first accumulated per (selected) datapoint
   template<typename T>
-  T Similarities::reduce(GLuint bufferToReduce, T subtractor) {
-    glDeleteBuffers(2, &_buffersTemp(BufferTempType::eReduce));
-    glCreateBuffers(2, &_buffersTemp(BufferTempType::eReduce));
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eReduce), 128 * sizeof(T), nullptr, 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eReduced), sizeof(T), nullptr, 0);
+  T Similarities::reduce(GLuint bufferToReduce, bool largeBuffer, GLuint selectionBufferHandle) {
+    uint nBuffers = largeBuffer ? 3 : 2;
+    glCreateBuffers(nBuffers, &_buffersReduce(BufferReduceType::eReduce));
+    glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * sizeof(T), nullptr, 0);
+    glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
+
+    if(largeBuffer) {
+      glNamedBufferStorage(_buffersReduce(BufferReduceType::eAccumulationPerDatapoint), _params.n * sizeof(T), nullptr, 0);
+
+      dh::util::GLProgram& program = std::is_same<T, float>::value
+                                    ? _programs(ProgramType::eAccumulatePerDatapointFloatComp)
+                                    : _programs(ProgramType::eAccumulatePerDatapointUintComp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<bool>("selectedOnly", selectionBufferHandle > 0);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferToReduce);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glAssert();
+      std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
+      writeBuffer<T>(bufferToReduce, _params.n, 1, "eAccumulationPerDatapoint");
+    }
 
     dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceFloatComp) : _programs(ProgramType::eReduceUintComp);
     program.bind();
-
+  
     program.template uniform<uint>("nPoints", _params.n);
-    program.template uniform<T>("subtractor", subtractor);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToReduce);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eReduce));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eReduced));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersReduce(BufferReduceType::eReduce));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersReduce(BufferReduceType::eReduced));
 
     // Dispatch shader
     program.template uniform<uint>("iter", 0);
@@ -230,8 +255,10 @@ namespace dh::sne {
     glDispatchCompute(1, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    T reducedValue;
-    glGetNamedBufferSubData(_buffersTemp(BufferTempType::eReduced), 0, sizeof(T), &reducedValue);
+    T reducedValue = 0;
+    glGetNamedBufferSubData(_buffersReduce(BufferReduceType::eReduced), 0, sizeof(T), &reducedValue);
+    if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint)); }
+    glDeleteBuffers(nBuffers, &_buffersReduce(BufferReduceType::eReduce));
     glAssert();
     return reducedValue;
   }
@@ -479,42 +506,8 @@ namespace dh::sne {
     
     // Create and initialize temp buffers. "...Sums" buffers aggregate link values per datapoint (i.e. each datapoint sums the values of its incident edges) 
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
-    const std::vector<float> zerosF(_symmetricSize, 0.f);
-    const std::vector<uint> zerosU(_symmetricSize, 0);
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eDistanceSums), _params.n * sizeof(float), zerosF.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eSelectedNeighborCounts), _params.n * sizeof(uint), zerosU.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityOriginalSums), _params.n * sizeof(float), zerosF.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarityDifferenceSums), _params.n * sizeof(float), zerosF.data(), 0);
-
-    // Preprocessing pass over all similarities
-    {
-      auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributePreprocessComp);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", _params.n);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistances));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eSimilaritiesOriginal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarityOriginalSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersTemp(BufferTempType::eDistanceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersTemp(BufferTempType::eSelectedNeighborCounts));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-      glAssert();
-    }
-
-    // Reduction
-    uint selectedNeighborsCount = reduce<uint>(_buffersTemp(BufferTempType::eSelectedNeighborCounts));
-    float distanceAverage = reduce<float>(_buffersTemp(BufferTempType::eDistanceSums)) / (float) selectedNeighborsCount;
 
     // Weighting the similarities
     {
@@ -523,8 +516,6 @@ namespace dh::sne {
 
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<uint>("nHighDims", _params.nHighDims);
-      program.template uniform<uint>("useDistAverage", false);
-      program.template uniform<float>("distAverage", distanceAverage);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -534,9 +525,8 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSimilarityDifferenceSums));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilaritiesOriginal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffers(BufferType::eSimilarities));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       uint batchSize = 10;
@@ -551,10 +541,9 @@ namespace dh::sne {
 
     // Renormalizing the similarities
     {
-      float simOriginalSum = reduce<float>(_buffersTemp(BufferTempType::eSimilarityOriginalSums));
-      float simDifferenceSum = reduce<float>(_buffersTemp(BufferTempType::eSimilarityDifferenceSums));
-      float simSum = simOriginalSum + simDifferenceSum;
-      float factor = 1.f - simDifferenceSum / simSum;
+      float simSumOrg = reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), true, selectionBufferHandle);
+      float simSumNew = reduce<float>(_buffers(BufferType::eSimilarities), true, selectionBufferHandle);
+      float factor = simSumOrg / simSumNew;
       weighSimilarities(factor, selectionBufferHandle);
     }
 
