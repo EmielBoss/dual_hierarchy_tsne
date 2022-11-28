@@ -49,7 +49,7 @@ const uint groupSize = gl_WorkGroupSize.x;
 const uint halfGroupSize = groupSize / 2;
 shared vec3 reductionArray[halfGroupSize];
 
-// Shared memory for pixel positiovn
+// Shared memory for pixel position
 shared uvec2 px;
 
 void main() {
@@ -61,15 +61,13 @@ void main() {
   }
   barrier();
 
-  // Compute pixel position in [0, 1]
-  // Then map pixel position to domain bounds
-  vec2 pos = (vec2(px) + 0.5) / vec2(textureSize);
-  pos = pos * bounds.range + bounds.min;
+  vec2 pos = (vec2(px) + 0.5) / vec2(textureSize); // Compute pixel position in [0, 1]
+  pos = pos * bounds.range + bounds.min; // Map pixel position to domain bounds
 
-    // Iterate over points to obtain density/gradient field values
+  // Iterate over points to obtain density/gradient field values
   vec3 field = vec3(0);
   for (uint j = li; j < nPoints; j += groupSize) {
-    // Field layout is: S, V.x, V.y,
+    // Field layout is: S, V.x, V.y
     vec2 t = pos - posBuffer[j];
     float tStud = 1.f / (1.f + dot(t, t));
     field += vec3(tStud, t * (tStud * tStud));

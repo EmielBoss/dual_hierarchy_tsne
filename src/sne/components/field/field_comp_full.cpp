@@ -41,8 +41,8 @@ namespace dh::sne {
       GL_R32UI, 0, sizeof(uint), GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
     // 1.
-    // Determine active pixels by splatting embedding points into a texture
-    // * 2D approach: splat into a simple stencil texture
+    // Determine active pixels by splatting embedding points into a texture (0 is inactive, 1 is active)
+    // * 2D approach: splat into a simple stencil texture. Vertex shader converts embedding pos to clip space; fragment shader outputs 1 to stencil buffer in _stencilFBOHandle, which is _textures(TextureType::eStencil)
     // * 3D approach: splat into a compact voxel grid:
     //     "Single-Pass GPU Solid Voxelization for Real-Time Applications",
     //     Eisemann and Decoret, 2008. Src: https://dl.acm.org/doi/10.5555/1375714.1375728
@@ -70,7 +70,7 @@ namespace dh::sne {
       glPointSize(stencilPointSize);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.bounds);
 
-      // Draw a point at each embedding position
+      // Draw a point at each embedding position (_stencilVAOHandle contains the minimization.embedding)
       glBindVertexArray(_stencilVAOHandle);
       glDrawArrays(GL_POINTS, 0, _params.n);
       
@@ -83,7 +83,7 @@ namespace dh::sne {
     }
 
     // 2.
-    // Query the splatted texture and record "active" pixels in the pixel queue
+    // Query the splatted texture and record "active" pixel coordinates in the pixel queue
     {
       auto& program = _programs(ProgramType::eFullCompactComp);
       program.bind();
@@ -98,8 +98,8 @@ namespace dh::sne {
       // Bind texture units (stencil texture is now input)
       glBindTextureUnit(0, _textures(TextureType::eStencil));
 
-      // Bind buffers (pixel queue is output)
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::ePixelQueue));
+      // Bind buffers (pixel queue is output, head maintains insertion pointer coherently, i.e. queueBuffer[atomicAdd(queueHead, 1)] = pixelCoord;)
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::ePixelQueue)); // Stores active pixel coordinates
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::ePixelQueueHead));
 
       // Dispatch compute shader
@@ -138,7 +138,7 @@ namespace dh::sne {
     // Dispatch shader
     glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, _buffers(BufferType::ePixelQueueHead));
     glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
-    glDispatchComputeIndirect(0);
+    glDispatchComputeIndirect(0); // Dispatches a work group per active pixel (number is stored in _buffers(BufferType::ePixelQueueHead))
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 
     timer.tock();

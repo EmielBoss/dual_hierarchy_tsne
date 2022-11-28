@@ -56,7 +56,7 @@ namespace dh::sne {
 
   template <uint D>
   void Field<D>::comp(uvec size, uint iteration) {
-    // Resize field if necessary
+    // Resize field if size > _size, i.e. recreates field and stencil textures
     resizeField(size);
 
     // Build embedding hierarchy if necessary
@@ -64,7 +64,7 @@ namespace dh::sne {
       _embeddingHierarchy.comp(_hierarchyRebuildIterations == 0);
     }
 
-    // Generate work queue with pixels in the field texture requiring computation
+    // Generate work queue (aka "compact", aka _buffers(BufferType::ePixelQueue)) with pixels in the field texture requiring computation
     if (_useEmbeddingHierarchy) {
       compSingleHierarchyCompact();
     } else {
