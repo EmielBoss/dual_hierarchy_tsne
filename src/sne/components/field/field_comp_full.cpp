@@ -129,8 +129,9 @@ namespace dh::sne {
 
     // Bind buffers
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimization.bounds);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::ePixelQueue));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimization.disabled);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.bounds);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::ePixelQueue));
 
     // Bind output texture
     glBindImageTexture(0, _textures(TextureType::eField), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
