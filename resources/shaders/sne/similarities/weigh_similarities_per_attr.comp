@@ -72,10 +72,10 @@ void main() {
     for(uint a = batchBegin; a < batchEnd; a++) {
       uint attr = weightedAttributeIndicesBuffer[a];
       float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
-      float distAttrRatio = distAttr / dist;
+      float distAttrRatio = sqrt(distAttr / dist);
 
       float simOld = similaritiesBackup[ij];
-      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], sqrt(distAttrRatio));
+      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
       float simDif = simNew - simOld;
 
       similaritiesBuffer[ij] = max(similaritiesBuffer[ij] + simDif, 0.f);
