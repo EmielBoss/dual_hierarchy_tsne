@@ -502,20 +502,20 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::autoselectAttributes(uint textureType, float percentage) {
-    std::vector<float> buffer(_nTexels * 4);
-    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _nTexels * 4 * sizeof(float), buffer.data());
+  void Minimization<D, DD>::autoweighAttributes(uint textureType, float percentage) {
+    std::vector<float> textureBuffer(_nTexels * 4);
+    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _nTexels * 4 * sizeof(float), textureBuffer.data());
     std::vector<float> textureData(_nTexels, 0.f);
     for(uint i = 0; i < _nTexels; ++i) {
       for(uint c = 0; c < _params.imgDepth; ++c) {
-        textureData[i] += buffer[i * 4 + c];
+        textureData[i] += textureBuffer[i * 4 + c];
       }
       textureData[i] /= _params.imgDepth;
     }
 
     std::vector<size_t> indices(textureData.size());
     std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
-    uint nSelected = _params.nHighDims * percentage;
+    uint nSelected = _nTexels * percentage;
     std::partial_sort(indices.begin(), indices.begin() + nSelected, indices.end(),
                       [&](size_t A, size_t B) {
                         return textureData[A] > textureData[B];
@@ -656,8 +656,8 @@ namespace dh::sne {
         if(_button == 10) { // Apply similarity weight to intersimilarities between selections
           _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         }
-        if(_button == 15) { // Autoweigh/autoselect top % of attributes
-          autoselectAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
+        if(_button == 15) { // Autoweigh top % of attributes
+          autoweighAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
           _similarities->weighSimilaritiesPerAttribute(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));

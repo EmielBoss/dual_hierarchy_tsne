@@ -78,7 +78,7 @@ namespace dh::sne {
     void setTexelWeight(uint attributeIndex, float weight);
     float getTexelWeight(uint texelIndex);
     float getTexelValue(uint texelIndex, GLuint buffer);
-    void autoselectAttributes(uint textureType, float percentage);
+    void autoweighAttributes(uint textureType, float percentage);
     void invertAttributeWeights();
     void refineAttributeWeights();
     void reconfigureZAxis();
