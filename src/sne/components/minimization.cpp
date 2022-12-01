@@ -73,7 +73,7 @@ namespace dh::sne {
     // Set uniforms
     program.template uniform<uint>("nPoints", _params.n);
     program.template uniform<uint>("nPointsMasked", maskCount);
-    program.template uniform<uint>("imgSize", _params.nHighDims);
+    program.template uniform<uint>("nHighDims", _params.nHighDims);
     program.template uniform<uint>("imgDepth", _params.imgDepth);
     program.template uniform<uint>("maskNumber", maskNumber);
     program.template uniform<bool>("calcVariance", calcVariance);
@@ -1084,10 +1084,10 @@ namespace dh::sne {
     // Calculate selection average and/or variance per attribute
     if(_params.imageDataset) {
       for(uint i = 0; i < 2; ++i) {
-        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
+        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]); // Average
       }
       for(uint i = 0; i < 2; ++i) {
-        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]);
+        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]); // Variance
       }
       for(uint i = 0; i < 2; ++i) {
         auto& program = _programs(ProgramType::eDifferenceComp);
