@@ -98,6 +98,7 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   std::vector<float> Minimization<D, DD>::normalizeDataset(const float* dataPtr) {
+    // Determine min and max attribute values per attribute
     std::vector<float> mins(_params.nHighDims,  FLT_MAX);
     std::vector<float> maxs(_params.nHighDims, -FLT_MAX);
     for(uint i = 0; i < _params.n; ++i) {
@@ -120,20 +121,16 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  std::vector<float> Minimization<D, DD>::normalizeDatasetUniformScale(const float* dataPtr) {
-    float min = FLT_MAX;
-    float max = FLT_MIN;
-    for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
-      float val = *(dataPtr + i);
-      if(val < min) { min = val; }
-      if(val > max) { max = val; }
-    }
+  std::vector<float> Minimization<D, DD>::normalizeDatasetUniformDims(const float* dataPtr) {
+    // Determine min and max attribute value
+    std::vector<float> data;
+    data.assign(dataPtr, dataPtr + _params.n * _params.nHighDims);
+    auto [minIt, maxIt] = std::minmax_element(data.begin(), data.end());
+    float min = *minIt; float max = *maxIt;
 
-    std::vector<float> data(_params.n * _params.nHighDims);
     for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
-      float val = *(dataPtr + i);
-      data[i] = (val - min) / (max - min);
-      if(data[i] != data[i]) { data[i] = 0; }
+      data[i] = (data[i] - min) / (max - min);
+      if(data[i] != data[i]) { data[i] = 0.f; }
     }
     return data;
   }
@@ -206,7 +203,9 @@ namespace dh::sne {
       // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
-      std::vector<float> data = normalizeDataset(dataPtr);
+      std::vector<float> data;
+      if(_params.uniformDims || _params.imageDataset) { data = normalizeDatasetUniformDims(dataPtr); }
+      else { data = normalizeDataset(dataPtr); }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
@@ -538,29 +537,21 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::refineAttributeWeights() {
-    std::vector<uint> attributeIndices(_weightedAttributeIndices.begin(), _weightedAttributeIndices.end());
-    std::vector<uint> texelIndices;
-    std::vector<float> values;
-    GLuint buffer = _buffersTextureData[_selectionRenderTask->getTextureTabOpened()];
-    for(uint i = 0; i < attributeIndices.size(); i = i + _params.imgDepth) {
-      uint texelIndex = attributeIndices[i] / _params.imgDepth;
-      float value = getTexelValue(texelIndex, buffer);
-      values.push_back(value);
-      texelIndices.push_back(texelIndex);
-    }
-    auto [minIt, maxIt] = std::minmax_element(values.begin(), values.end());
-    float min = *minIt;
-    float range = *maxIt - *minIt;
+  void Minimization<D, DD>::refineAttributeWeights(uint textureType) {
+    float min = 0.f;
+    float max = 1.f;
+    for(uint i = 0; i < _nTexels; i = ++i) {
+      if(_weightedAttributeIndices.find(i) == _weightedAttributeIndices.end()) { continue; } // Attribute isn't weighted
 
-    for(uint i : texelIndices) {
-      float value = getTexelValue(i, buffer);
-      float ratio = (value - min) / range;
+      float value = getTexelValue(i, _buffersTextureData[textureType]);
+      float ratio = (value - min) / (max - min);
 
-      float weightTexel = getTexelWeight(i);
+      float weightOld = getTexelWeight(i);
       float weightCurrent = _selectionRenderTask->getAttributeWeight();
-      float weight = 1.f - (1.f - weightCurrent) * ratio;
-      weight = std::clamp(weight, 0.f, _params.maxAttributeWeight);
+      float weightNew = 1.f - (1.f - weightCurrent) * ratio;
+      float weight = weightOld * 1.f + (1.f - weightOld) * weightNew;
+      if(weight > 1.f - 0.025 && weight < 1.f + 0.025) { weight = 1.f; }
+      if(weight < 0.025) { weight = 0.f; }
       setTexelWeight(i, weight);
     }
   }
@@ -665,16 +656,19 @@ namespace dh::sne {
         if(_button == 3) { // Reset similarities
           _similarities->reset();
         }
-        if(_button == 4) { // Clear selection
+        if(_button == 4) { // Clear attribute weights
           const std::vector<float> ones(_params.nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
           mirrorWeightsToOverlay();
+          _weightedAttributeIndices = std::set<uint>();
+          writeBuffer<float>(_similaritiesBuffers.attributeWeights, _params.nHighDims, 1, "attrWeightsAfterClear");
         }
         if(_button == 5) { // Invert selection
           invertAttributeWeights();
         }
         if(_button == 6) { // Refine selection
-          refineAttributeWeights();
+          refineAttributeWeights(_selectionRenderTask->getTextureTabOpened());
+          writeBuffer<float>(_similaritiesBuffers.attributeWeights, _params.nHighDims, 1, "attrWeightsAfterRefine");
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers

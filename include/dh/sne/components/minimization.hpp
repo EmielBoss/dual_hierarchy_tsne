@@ -67,7 +67,7 @@ namespace dh::sne {
 
     void average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance = false, GLuint subtractorBuffer = 0);
     std::vector<float> normalizeDataset(const float* dataPtr);
-    std::vector<float> normalizeDatasetUniformScale(const float* dataPtr);
+    std::vector<float> normalizeDatasetUniformDims(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
     void setTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
@@ -80,7 +80,7 @@ namespace dh::sne {
     float getTexelValue(uint texelIndex, GLuint buffer);
     void autoweighAttributes(uint textureType, float percentage);
     void invertAttributeWeights();
-    void refineAttributeWeights();
+    void refineAttributeWeights(uint textureType);
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
     template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
@@ -255,6 +255,7 @@ namespace dh::sne {
       swap(a._pcs, b._pcs);
       swap(a._draggedTexel, b._draggedTexel);
       swap(a._draggedTexelPrev, b._draggedTexelPrev);
+      swap(a._weightedAttributeIndices, b._weightedAttributeIndices);
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);

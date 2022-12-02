@@ -34,6 +34,7 @@ namespace dh::sne {
     uint nLowDims = 2; // 2 or 3 only
     int nClusters = 10; // If unsure, leave this at the default 10
     int nClasses = -1; // -1 indicates all classes
+    bool uniformDims = true;
 
     // Basic tSNE parameters
     uint iterations = 10000;

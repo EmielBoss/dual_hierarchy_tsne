@@ -81,6 +81,7 @@ void cli(int argc, char** argv) {
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
+    ("nonUniformDims", "Treat the dimensions/attributes as having different ranges and properties", cxxopts::value<bool>())
     ("disablePCA", "Disable PCA, which can be slow on some datasets", cxxopts::value<bool>())
     ("h,help", "Print this help message and exit")
 
@@ -134,6 +135,7 @@ void cli(int argc, char** argv) {
   if (result.count("lbl")) { progDoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
+  if (result.count("nonUniformDims")) { params.uniformDims = false; }
   if (result.count("disablePCA")) { params.disablePCA = true; }
 }
 
