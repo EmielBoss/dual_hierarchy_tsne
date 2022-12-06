@@ -135,7 +135,7 @@ namespace dh::sne {
   void Similarities::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
-    std::ofstream file("../buffer_dumps/" + filename + ".txt");
+    std::ofstream file("./buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
         T val = buffer[i * d + j];
@@ -571,7 +571,6 @@ namespace dh::sne {
     std::vector<float> interDists; std::vector<float> intraDists;
     std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
     std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
-    float totalDist = 0.f;
 
     for(uint i = 0; i < _params.n; ++i) {
       if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
@@ -579,13 +578,11 @@ namespace dh::sne {
         uint j = neig[ij];
         if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
 
-        totalDist += dist[ij];
-
         float distAttrSum = 0.f;
         float distAttrRatioSum = 0.f;
         for (const uint &attr : weightedAttributeIndices) {
           float distAttr = std::pow(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr], 2);
-          float distAttrRatio = distAttr / dist[ij];
+          float distAttrRatio = std::sqrt(distAttr / dist[ij]);
           distAttrSum += distAttr;
           distAttrRatioSum += distAttrRatio;
         }
@@ -608,18 +605,20 @@ namespace dh::sne {
       }
     }
     std::cout << "\n\n";
-    std::cout << "Inter: " << average(interDeltas) << "\n";
-    std::cout << "Intra: " << average(intraDeltas) << "\n";
-    std::cout << "Inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
-    std::cout << "Intra: " << average(intraDeltas) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
+    std::cout << "Delta inter: " << average(interDeltas) << "\n";
+    std::cout << "Delta intra: " << average(intraDeltas) << "\n";
+    std::cout << "Ratio inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
+    std::cout << "Ratio intra: " << average(intraDeltas) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
 
     float sumSims = 0.f; float sumSimsPrev = 0.f;
     for(uint ij = 0; ij < sims.size(); ++ij) {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
-    std::cout << "simSum diff: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
+    std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
     // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
     glAssert();
+    // writeBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
+    // writeBuffer<float>(_buffers(BufferType::eSimilaritiesOriginal), _symmetricSize, 1, "simsO");
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
