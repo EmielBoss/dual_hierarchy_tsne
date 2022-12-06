@@ -56,7 +56,7 @@ void main() {
               i < nPoints;
               i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
       if(!calcVariance && mask[i] == maskNumber) { sum +=     data[i * nHighDims + dim]; } else
-      if( calcVariance && mask[i] == maskNumber) { sum += pow(data[i * nHighDims + dim] - subtractor[texel * 4 + component], 2) ; }
+      if( calcVariance && mask[i] == maskNumber) { sum += pow(data[i * nHighDims + dim] - subtractor[texel * imgDepth + component], 2) ; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
@@ -84,7 +84,7 @@ void main() {
     } else if (iter == 1) {
       float avg = (reduction_array[0] + reduction_array[1]) / float(nPointsMasked);
       if(calcVariance) { avg *= 2.f; } // Boost variance for better visibility in texture
-      average[texel * 4 + component] = avg;
+      average[texel * imgDepth + component] = avg;
     }
   }
 }

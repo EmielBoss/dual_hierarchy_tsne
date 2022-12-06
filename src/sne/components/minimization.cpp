@@ -82,7 +82,8 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, maskBuffer);
     if(calcVariance) {
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, subtractorBuffer); }
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, subtractorBuffer);
+    }
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eTextureDataReduce));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, averageBuffer);
     glAssert();
@@ -238,12 +239,11 @@ namespace dh::sne {
 
       // Initialize everything required for textures
       if(_params.imageDataset) {
-        std::vector<float> blacks(_params.nTexels * 4, 0.f);
-        for(uint i = 0; i < _params.nTexels; ++i) { blacks[i * 4 + 3] = 1.f; }
         glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
-        for(uint i = 0; i < _buffersSelectionAttributes.size(); ++i) {
-          glNamedBufferStorage(_buffersSelectionAttributes[i], 4 * _params.nTexels * sizeof(float), blacks.data(), GL_DYNAMIC_STORAGE_BIT);
+        for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
+          glNamedBufferStorage(_buffersSelectionAttributes[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, 0);
         }
+        glNamedBufferStorage(_buffersSelectionAttributes(SelectionAttributesType::eOverlay), _params.nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
         mirrorWeightsToOverlay();
 
         // Create class textures for passing to _selectionRenderTask (doing this here because Minimization has the data and average() function)
@@ -251,17 +251,19 @@ namespace dh::sne {
         glCreateBuffers(classTextureBuffers.size(), classTextureBuffers.data());
         glCreateTextures(GL_TEXTURE_2D, classTextures.size(), classTextures.data());
         for(uint i = 0; i < _params.nClasses; ++i) {
-          glNamedBufferStorage(classTextureBuffers[i], 4 * _params.nTexels * sizeof(float), blacks.data(), GL_DYNAMIC_STORAGE_BIT);
+          glNamedBufferStorage(classTextureBuffers[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
 
           glTextureParameteri(classTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
           glTextureParameteri(classTextures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-          glTextureStorage2D(classTextures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
+          GLenum formatInternal = _params.imgDepth == 1 ? GL_R8 : GL_RGB8;
+          glTextureStorage2D(classTextures[i], 1, formatInternal, _params.imgWidth, _params.imgHeight);
           
           uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
           classCounts[i] = classCount;
           average(_buffers(BufferType::eLabels), i, classCount, classTextureBuffers[i]);
           glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
-          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
+          GLenum format = _params.imgDepth == 1 ? GL_RED : GL_RGB;
+          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, format, GL_FLOAT, 0);
         }
         glDeleteBuffers(classTextureBuffers.size(), classTextureBuffers.data());
       }
@@ -407,10 +409,6 @@ namespace dh::sne {
   void Minimization<D, DD>::clearTextures() {
     for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
       glClearNamedBufferData(_buffersSelectionAttributes[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
-      float one = 1.f;
-      for(uint t = 0; t < _params.nTexels; ++t) {
-        glNamedBufferSubData(_buffersSelectionAttributes[i], (t * 4 + 3) * sizeof(float), sizeof(float), &one);
-      }
     }
   }
 
@@ -480,7 +478,7 @@ namespace dh::sne {
   template <uint D, uint DD>
   float Minimization<D, DD>::getTexelValue(uint texelIndex, GLuint buffer) {
     std::vector<float> values(_params.imgDepth);
-    glGetNamedBufferSubData(buffer, texelIndex * 4 * sizeof(float), _params.imgDepth * sizeof(float), values.data());
+    glGetNamedBufferSubData(buffer, texelIndex * _params.imgDepth * sizeof(float), _params.imgDepth * sizeof(float), values.data());
     float value = std::reduce(values.begin(), values.end());
     return value / _params.imgDepth;
   }
@@ -495,12 +493,12 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::autoweighAttributes(uint textureType, float percentage) {
-    std::vector<float> textureBuffer(_params.nTexels * 4);
-    glGetNamedBufferSubData(_buffersSelectionAttributes[textureType], 0, _params.nTexels * 4 * sizeof(float), textureBuffer.data());
+    std::vector<float> textureBuffer(_params.nTexels * _params.imgDepth);
+    glGetNamedBufferSubData(_buffersSelectionAttributes[textureType], 0, _params.nTexels * _params.imgDepth * sizeof(float), textureBuffer.data());
     std::vector<float> textureData(_params.nTexels, 0.f);
     for(uint i = 0; i < _params.nTexels; ++i) {
       for(uint c = 0; c < _params.imgDepth; ++c) {
-        textureData[i] += textureBuffer[i * 4 + c];
+        textureData[i] += textureBuffer[i * _params.imgDepth + c];
       }
       textureData[i] /= _params.imgDepth;
     }

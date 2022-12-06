@@ -109,11 +109,15 @@ namespace dh::vis {
 
     if(_params.imageDataset) {
       glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
-      for(uint i = 0; i < _textures.size(); ++i) {
+      for(uint i = 0; i < _textures.size() - 1; ++i) {
         glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTextureStorage2D(_textures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
+        GLenum formatInternal = _params.imgDepth == 1 ? GL_R8 : GL_RGB8;
+        glTextureStorage2D(_textures[i], 1, formatInternal, _params.imgWidth, _params.imgHeight);
       }
+      glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureStorage2D(_textures[_textures.size()-1], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
     }
 
 
@@ -158,10 +162,13 @@ namespace dh::vis {
   void SelectionRenderTask::drawImGuiComponent() {
     // Copy texture data to textures
     if(_params.imageDataset) {
-      for(uint i = 0; i < _textures.size(); ++i) {
+      for(uint i = 0; i < _textures.size() - 1; ++i) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[i]);
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
+        GLenum format = _params.imgDepth == 1 ? GL_RED : GL_RGB;
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, format, GL_FLOAT, 0);
       }
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_textures.size()-1]);
+      glTextureSubImage2D(_textures[_textures.size()-1], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
 
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -272,10 +279,14 @@ namespace dh::vis {
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
+      glAssert();
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
+      glAssert();
       std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
       bool isVariance = index % 2 == 1;
-      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * 4);
+      glAssert();
+      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params.imgDepth);
+      glAssert();
       if(isVariance) { texelValue /= 2.f; } // Remove the texture boosting in order to print actual variance
       ImGui::Text(prompts[index], texelValue);
       if(isVariance) { ImGui::Text("Texture color value is x2'ed for better visibility."); }
