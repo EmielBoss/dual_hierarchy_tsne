@@ -70,7 +70,7 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformDims(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
-    void setTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
+    void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
     void clearTextures();
     void mirrorWeightsToOverlay();
     void brushTexels(uint attributeIndex, int radius, float weight);
@@ -125,7 +125,7 @@ namespace dh::sne {
       Length
     };
 
-    enum class TextureType {
+    enum class SelectionAttributesType {
       eAveragePrimary,
       eVariancePrimary,
       eAverageSecondary,
@@ -170,7 +170,6 @@ namespace dh::sne {
     bool _isInit;
     bool _loggedNewline;
     Params _params;
-    uint _nTexels;
     std::vector<char> _axisMapping;
     std::vector<char> _axisMappingPrev;
     int _axisIndex;
@@ -207,8 +206,7 @@ namespace dh::sne {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<TextureType, GLuint> _buffersTextureData;
-    util::EnumArray<TextureType, GLuint> _textures;
+    util::EnumArray<SelectionAttributesType, GLuint> _buffersSelectionAttributes;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
 
@@ -232,9 +230,7 @@ namespace dh::sne {
         _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eDisabled),
-        _buffers(BufferType::eNeighborhoodPreservation),
-        _textures(TextureType::eAveragePrimary),
-        _textures(TextureType::eVariancePrimary)
+        _buffers(BufferType::eNeighborhoodPreservation)
       };
     }
     bool isInit() const { return _isInit; }
@@ -244,7 +240,6 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._nTexels, b._nTexels);
       swap(a._axisMapping, b._axisMapping);
       swap(a._axisMappingPrev, b._axisMappingPrev);
       swap(a._axisIndex, b._axisIndex);
@@ -260,8 +255,7 @@ namespace dh::sne {
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
       swap(a._buffers, b._buffers);
-      swap(a._buffersTextureData, b._buffersTextureData);
-      swap(a._textures, b._textures);
+      swap(a._buffersSelectionAttributes, b._buffersSelectionAttributes);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);

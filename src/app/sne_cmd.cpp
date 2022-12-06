@@ -137,6 +137,7 @@ void cli(int argc, char** argv) {
   if (result.count("visAfter")) { progDoVisAfter = true; }
   if (result.count("nonUniformDims")) { params.uniformDims = false; }
   if (result.count("disablePCA")) { params.disablePCA = true; }
+  params.nTexels = params.nHighDims / params.imgDepth;
 }
 
 void sne() {

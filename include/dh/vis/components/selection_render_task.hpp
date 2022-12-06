@@ -38,7 +38,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(std::array<GLuint, 7> textures, std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeights, sne::Params params, int priority, const float* _dataPtr);
+    SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeights, sne::Params params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -70,6 +70,18 @@ namespace dh::vis {
       Length
     };
 
+    enum class SelectionAttributesType {
+      eAveragePrimary,
+      eVariancePrimary,
+      eAverageSecondary,
+      eVarianceSecondary,
+      eAverageDifference,
+      eVarianceDifference,
+      eOverlay,
+
+      Length
+    };
+
     // State
     bool _isInit;
     sne::Params _params;
@@ -96,8 +108,8 @@ namespace dh::vis {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<SelectionAttributesType, GLuint> _textures;
     std::array<GLuint, 7> _texturedataBuffers;
-    std::array<GLuint, 7> _textures;
     GLuint _attributeWeightsBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;

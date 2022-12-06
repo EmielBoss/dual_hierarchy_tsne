@@ -48,10 +48,9 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> textures, std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
-    _textures(textures),
     _texturedataBuffers(texturedataBuffers),
     _attributeWeightsBuffer(attributeWeightsBuffer),
     _params(params),
@@ -108,11 +107,21 @@ namespace dh::vis {
       glAssert();
     }
 
+    if(_params.imageDataset) {
+      glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
+      for(uint i = 0; i < _textures.size(); ++i) {
+        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTextureStorage2D(_textures[i], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
+      }
+    }
+
+
     _isInit = true;
   }
 
   SelectionRenderTask::~SelectionRenderTask() {
-    // ...
+    glDeleteTextures(_textures.size(), _textures.data());
   }
 
   SelectionRenderTask::SelectionRenderTask(SelectionRenderTask&& other) noexcept {
@@ -147,6 +156,14 @@ namespace dh::vis {
   }
 
   void SelectionRenderTask::drawImGuiComponent() {
+    // Copy texture data to textures
+    if(_params.imageDataset) {
+      for(uint i = 0; i < _textures.size(); ++i) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[i]);
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
+      }
+    }
+
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       if (_canDrawLabels) {
         ImGui::Text("Selection mode:");

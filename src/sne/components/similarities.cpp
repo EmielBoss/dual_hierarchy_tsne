@@ -234,7 +234,6 @@ namespace dh::sne {
       glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
       glAssert();
       std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
-      writeBuffer<T>(bufferToReduce, _params.n, 1, "eAccumulationPerDatapoint");
     }
 
     dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceFloatComp) : _programs(ProgramType::eReduceUintComp);
