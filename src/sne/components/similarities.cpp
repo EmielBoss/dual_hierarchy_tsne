@@ -105,14 +105,14 @@ namespace dh::sne {
 
       if (ImPlot::BeginPlot("Inter/intra")) {
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, false, relative, range); }
+        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, false, relative, range); }
+        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::EndPlot();
       }
 
       if (ImPlot::BeginPlot("Combined")) {
-        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, false, relative, range); }
+        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::EndPlot();
       }
 

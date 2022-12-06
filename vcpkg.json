@@ -1,6 +1,7 @@
 {
   "name": "dual-hierarchy-tsne",
   "version-string": "0.1.0",
+  "builtin-baseline":"c64c0fdac572ca43ea5ae018fc408ddced50d5b1",
   "dependencies": [
     "date",
     {
@@ -23,7 +24,10 @@
           "name": "imgui",
           "features": [ "opengl3-binding", "glfw-binding"] 
         },
-        "implot"
+		{
+          "name": "implot",
+          "version>=": "0.14"
+        }
       ]
     },
     "demo": {
