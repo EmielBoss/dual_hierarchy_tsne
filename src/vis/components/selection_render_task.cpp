@@ -23,9 +23,11 @@
  */
 
 #include <cmath>
+#include <numeric>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
+#include <implot.h>
 #include "dh/util/gl/error.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
 
@@ -208,27 +210,33 @@ namespace dh::vis {
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Avg")) {
             drawImGuiImageButton(0);
+            drawImPlotBarPlot(0);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Var")) {
             drawImGuiImageButton(1);
+            drawImPlotBarPlot(0);
             ImGui::EndTabItem();
         }
         if(_selectionCounts[1] > 0) {
           if (ImGui::BeginTabItem("Avg 2")) {
               drawImGuiImageButton(2);
+              drawImPlotBarPlot(1);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Var 2")) {
               drawImGuiImageButton(3);
+              drawImPlotBarPlot(1);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Avg diff")) {
               drawImGuiImageButton(4);
+              drawImPlotBarPlot(2);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Var diff")) {
               drawImGuiImageButton(5);
+              drawImPlotBarPlot(2);
               ImGui::EndTabItem();
           }
         }
@@ -279,17 +287,10 @@ namespace dh::vis {
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
-      glAssert();
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
-      glAssert();
       std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
-      bool isVariance = index % 2 == 1;
-      glAssert();
       float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params.imgDepth);
-      glAssert();
-      if(isVariance) { texelValue /= 2.f; } // Remove the texture boosting in order to print actual variance
       ImGui::Text(prompts[index], texelValue);
-      if(isVariance) { ImGui::Text("Texture color value is x2'ed for better visibility."); }
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -300,6 +301,25 @@ namespace dh::vis {
     }
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params.maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
+    glAssert();
+  }
+
+  void SelectionRenderTask::drawImPlotBarPlot(uint selectionIndex) {
+    if (ImPlot::BeginPlot("##")) {
+      std::vector<float> xs(_params.nHighDims);
+      std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
+      std::vector<float> ys(_params.nHighDims);
+      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2], 0, _params.nHighDims * sizeof(float), ys.data());
+      std::vector<float> errs(_params.nHighDims);
+      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2 + 1], 0, _params.nHighDims * sizeof(float), errs.data());
+
+      // ImPlot::SetupAxis(ImPlot::ImAxis_Y1, NULL, ImPlot::ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
+
+      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
+      ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
+      ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params.nHighDims);
+      ImPlot::EndPlot();
+    }
   }
 
   // Draws key command list

@@ -83,7 +83,6 @@ void main() {
       averageReduce[gl_WorkGroupID.x * nHighDims + dim] = reduction_array[0] + reduction_array[1];
     } else if (iter == 1) {
       float avg = (reduction_array[0] + reduction_array[1]) / float(nPointsMasked);
-      if(calcVariance) { avg *= 2.f; } // Boost variance for better visibility in texture
       average[texel * imgDepth + component] = avg;
     }
   }

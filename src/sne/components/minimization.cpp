@@ -237,16 +237,16 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
       glAssert();
 
-      // Initialize everything required for textures
-      if(_params.imageDataset) {
-        glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
-        for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
-          glNamedBufferStorage(_buffersSelectionAttributes[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, 0);
-        }
-        glNamedBufferStorage(_buffersSelectionAttributes(SelectionAttributesType::eOverlay), _params.nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
-        mirrorWeightsToOverlay();
+      // Initialize buffers for the average/variance of attributes of the selected datapoints
+      glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
+      for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
+        glNamedBufferStorage(_buffersSelectionAttributes[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, 0);
+      }
+      glNamedBufferStorage(_buffersSelectionAttributes(SelectionAttributesType::eOverlay), _params.nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      mirrorWeightsToOverlay();
 
-        // Create class textures for passing to _selectionRenderTask (doing this here because Minimization has the data and average() function)
+      // Create class textures for passing to _selectionRenderTask (doing this here because Minimization has the data and average() function)
+      if(_params.imageDataset) {
         std::vector<GLuint> classTextureBuffers(_params.nClasses);
         glCreateBuffers(classTextureBuffers.size(), classTextureBuffers.data());
         glCreateTextures(GL_TEXTURE_2D, classTextures.size(), classTextures.data());
@@ -677,7 +677,6 @@ namespace dh::sne {
     // _axisMapping = _axesRenderTask->getAxisMapping();
     // _axisIndex = _axesRenderTask->getSelectedIndex();
     // if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-    //   if(_params.imageDataset) { # unset groene pixel # }
     //   reconfigureZAxis();
     //   _axisMappingPrev = _axisMapping;
     //   _axisIndexPrev = _axisIndex;
@@ -1057,30 +1056,28 @@ namespace dh::sne {
 
     // 3.
     // Calculate selection average and/or variance per attribute
-    if(_params.imageDataset) {
-      for(uint i = 0; i < 2; ++i) {
-        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersSelectionAttributes[i * 2]); // Average
-      }
-      for(uint i = 0; i < 2; ++i) {
-        average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersSelectionAttributes[i * 2 + 1], true, _buffersSelectionAttributes[i * 2]); // Variance
-      }
-      for(uint i = 0; i < 2; ++i) {
-        auto& program = _programs(ProgramType::eDifferenceComp);
-        program.bind();
+    for(uint i = 0; i < 2; ++i) {
+      average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersSelectionAttributes[i * 2]); // Average
+    }
+    for(uint i = 0; i < 2; ++i) {
+      average(_buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersSelectionAttributes[i * 2 + 1], true, _buffersSelectionAttributes[i * 2]); // Variance
+    }
+    for(uint i = 0; i < 2; ++i) {
+      auto& program = _programs(ProgramType::eDifferenceComp);
+      program.bind();
 
-        // Set uniforms
-        program.template uniform<uint>("nTexels", _params.nTexels);
+      // Set uniforms
+      program.template uniform<uint>("nTexels", _params.nTexels);
 
-        // Set buffer bindings
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersSelectionAttributes[i]);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersSelectionAttributes[i+2]);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersSelectionAttributes[i+4]);
-        glAssert();
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersSelectionAttributes[i]);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersSelectionAttributes[i+2]);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersSelectionAttributes[i+4]);
+      glAssert();
 
-        glDispatchCompute(ceilDiv(_params.nTexels * 3, 256u), 1, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        glAssert();
-      }
+      glDispatchCompute(ceilDiv(_params.nTexels * 3, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
     }
   }
 

@@ -23,6 +23,7 @@
  */
 
 #include <imgui.h>
+#include <implot.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <glad/glad.h>
@@ -57,6 +58,7 @@ namespace dh::vis {
     // Setup ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGui::StyleColorsDark();
 
     // ImGui platform components

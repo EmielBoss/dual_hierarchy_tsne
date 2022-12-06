@@ -55,6 +55,7 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
     void drawImGuiImageButton(GLuint textureHandle);
+    void drawImPlotBarPlot(uint selectionIndex);
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
 
