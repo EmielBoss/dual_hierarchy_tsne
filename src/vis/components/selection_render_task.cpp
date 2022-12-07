@@ -70,7 +70,8 @@ namespace dh::vis {
     _autoselectPercentage(0.1f),
     _textureTabOpened(0),
     _perplexity(params.perplexity),
-    _k((int) _params.k) {
+    _k((int) _params.k),
+    _plotError(true) {
 
     // Initialize shader program
     {
@@ -209,58 +210,45 @@ namespace dh::vis {
       _draggedTexel = -1;
       if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Avg")) {
-            drawImGuiImageButton(0);
-            drawImPlotBarPlot(0);
+            drawImGuiTexture(0);
+            drawImGuiTextureControls();
+            // drawImPlotBarPlot(0);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Var")) {
-            drawImGuiImageButton(1);
-            drawImPlotBarPlot(0);
+            drawImGuiTexture(1);
+            drawImGuiTextureControls();
+            // drawImPlotBarPlot(0);
             ImGui::EndTabItem();
         }
         if(_selectionCounts[1] > 0) {
           if (ImGui::BeginTabItem("Avg 2")) {
-              drawImGuiImageButton(2);
-              drawImPlotBarPlot(1);
+              drawImGuiTexture(2);
+              drawImGuiTextureControls();
+              // drawImPlotBarPlot(1);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Var 2")) {
-              drawImGuiImageButton(3);
-              drawImPlotBarPlot(1);
+              drawImGuiTexture(3);
+              drawImGuiTextureControls();
+              // drawImPlotBarPlot(1);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Avg diff")) {
-              drawImGuiImageButton(4);
-              drawImPlotBarPlot(2);
+              drawImGuiTexture(4);
+              drawImGuiTextureControls();
+              // drawImPlotBarPlot(2);
               ImGui::EndTabItem();
           }
           if (ImGui::BeginTabItem("Var diff")) {
-              drawImGuiImageButton(5);
-              drawImPlotBarPlot(2);
+              drawImGuiTexture(5);
+              drawImGuiTextureControls();
+              // drawImPlotBarPlot(2);
               ImGui::EndTabItem();
           }
         }
         ImGui::EndTabBar();
       }
-
-      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
-      ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("\% of attribs", &_autoselectPercentage, 0.0f, 1.f);
-      if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
-      if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
-      // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
-      // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
-      // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
-      // ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params.kMax);
-      // ImGui::PopItemWidth();
     }
   }
 
@@ -271,7 +259,7 @@ namespace dh::vis {
     return value;
   }
 
-  void SelectionRenderTask::drawImGuiImageButton(uint index) {
+  void SelectionRenderTask::drawImGuiTexture(uint index) {
     _textureTabOpened = index;
 
     ImGui::Spacing();
@@ -304,7 +292,29 @@ namespace dh::vis {
     glAssert();
   }
 
+  void SelectionRenderTask::drawImGuiTextureControls() {
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+    if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
+    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("\% of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+    if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
+    // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
+    // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
+    // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
+    // ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params.kMax);
+    // ImGui::PopItemWidth();
+  }
+
   void SelectionRenderTask::drawImPlotBarPlot(uint selectionIndex) {
+    ImPlot::SetNextAxesLimits(0.f, (float) _params.nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##")) {
       std::vector<float> xs(_params.nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
@@ -313,13 +323,17 @@ namespace dh::vis {
       std::vector<float> errs(_params.nHighDims);
       glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2 + 1], 0, _params.nHighDims * sizeof(float), errs.data());
 
-      // ImPlot::SetupAxis(ImPlot::ImAxis_Y1, NULL, ImPlot::ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 
       ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
-      ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
-      ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params.nHighDims);
+      if(_plotError) {
+        ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
+        ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params.nHighDims);
+      }
+      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
       ImPlot::EndPlot();
     }
+    ImGui::Checkbox("Plot error bars", &_plotError);
   }
 
   // Draws key command list

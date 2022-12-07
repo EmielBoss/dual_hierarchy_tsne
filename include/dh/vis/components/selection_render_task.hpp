@@ -54,7 +54,8 @@ namespace dh::vis {
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
-    void drawImGuiImageButton(GLuint textureHandle);
+    void drawImGuiTexture(GLuint textureHandle);
+    void drawImGuiTextureControls();
     void drawImPlotBarPlot(uint selectionIndex);
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
@@ -106,6 +107,7 @@ namespace dh::vis {
     uint _textureTabOpened;
     float _perplexity;
     int _k;
+    bool _plotError;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -154,6 +156,7 @@ namespace dh::vis {
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._perplexity, b._perplexity);
       swap(a._k, b._k);
+      swap(a._plotError, b._plotError);
       swap(a._buffers, b._buffers);
       swap(a._texturedataBuffers, b._texturedataBuffers);
       swap(a._textures, b._textures);

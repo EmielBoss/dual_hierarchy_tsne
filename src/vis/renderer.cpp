@@ -58,7 +58,7 @@ namespace dh::vis {
     // Setup ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImPlot::CreateContext();
+    // ImPlot::CreateContext();
     ImGui::StyleColorsDark();
 
     // ImGui platform components

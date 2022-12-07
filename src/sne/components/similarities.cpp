@@ -105,14 +105,14 @@ namespace dh::sne {
 
       if (ImPlot::BeginPlot("Inter/intra")) {
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
+        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
+        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::EndPlot();
       }
 
       if (ImPlot::BeginPlot("Combined")) {
-        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, relative ? ImPlotHistogramFlags_Density : 0); }
+        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
         ImPlot::EndPlot();
       }
 
@@ -546,7 +546,7 @@ namespace dh::sne {
       weighSimilarities(factor, selectionBufferHandle);
     }
 
-    //// DEBUGGING
+    ///////// DEBUGGING /////////
     std::vector<uint> neig(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
     std::vector<float> sims(_symmetricSize);
@@ -564,7 +564,8 @@ namespace dh::sne {
 
     int classA = 1;
     int classB = 7;
-    // Print inter-class and intra-class average similarity change
+
+    //// Stuff for neighbour relations
     std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
     std::vector<float> interDeltas; std::vector<float> intraDeltas;
     std::vector<float> interDists; std::vector<float> intraDists;
@@ -614,10 +615,55 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
-    glAssert();
+    displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
     // writeBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
     // writeBuffer<float>(_buffers(BufferType::eSimilaritiesOriginal), _symmetricSize, 1, "simsO");
+    
+    
+    // //// Stuff for all relations
+    // std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
+    // std::vector<float> interDeltas; std::vector<float> intraDeltas;
+    // std::vector<float> interDists; std::vector<float> intraDists;
+    // std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
+    // std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
+
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
+    //   for(uint j = 0; j < _params.n; ++j) {
+    //     if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
+
+    //     float dist = 0.f;
+    //     for(uint d = 0; d < _params.nHighDims; ++d) {
+    //       dist += std::pow(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d], 2);
+    //     }
+
+    //     float distAttrSum = 0.f;
+    //     float distAttrRatioSum = 0.f;
+    //     for (const uint &attr : weightedAttributeIndices) {
+    //       float distAttr = std::pow(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr], 2);
+    //       float distAttrRatio = std::sqrt(distAttr / dist);
+    //       distAttrSum += distAttr;
+    //       distAttrRatioSum += distAttrRatio;
+    //     }
+
+    //     if(labl[i] != labl[j]) {
+    //       interNeighbs.emplace_back(i, j);
+    //       interDists.push_back(dist);
+    //       interDistsAttr.push_back(distAttrSum);
+    //       interDistsAttrRatios.push_back(distAttrRatioSum);
+    //     }
+    //     else {
+    //       intraNeighbs.emplace_back(i, j);
+    //       intraDists.push_back(dist);
+    //       intraDistsAttr.push_back(distAttrSum);
+    //       intraDistsAttrRatios.push_back(distAttrRatioSum);
+    //     }
+    //   }
+    // }
+    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
+    
+    
+    glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
