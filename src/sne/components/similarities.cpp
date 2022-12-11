@@ -48,7 +48,7 @@ namespace dh::sne {
   }
 
   // Auxiliary function to create a window and display a scatterplot
-  void Similarities::displayGraph(std::vector<float> inter, std::vector<float> intra, bool relative) {
+  void Similarities::displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative) {
     std::vector<float> concat = intra;
     concat.insert(concat.end(), inter.begin(), inter.end());
 
@@ -113,6 +113,61 @@ namespace dh::sne {
 
       if (ImPlot::BeginPlot("Combined")) {
         if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
+        ImPlot::EndPlot();
+      }
+
+      ImGui::End();
+
+      ImGui::Render(); // Finalize and render ImGui components
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+      window.display();
+    }
+  }
+
+    // Auxiliary function to create a window and display a scatterplot
+  void Similarities::displayBarplot(std::vector<float> ys) {
+    std::vector<float> xs(_params.nHighDims);
+    std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
+
+    dh::util::GLWindowInfo info;
+    {
+      using namespace dh::util;
+      info.title = "Graphs";
+      info.width = 1500;
+      info.height = 1000;
+      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
+                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
+                  | GLWindowInfo::bFloating;
+    }
+    dh::util::GLWindow window(info);
+
+    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+    ImPlot::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
+    ImGui_ImplOpenGL3_Init("#version 460");
+    ImGui::StyleColorsDark();
+
+    window.setVsync(true);
+    window.setVisible(true);
+
+    while(window.canDisplay()) {
+      window.processEvents();
+      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
+      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+
+      if (ImPlot::BeginPlot("Barplot")) {
+        ImPlot::PlotBars("Total distance", xs.data(), ys.data(), _params.nHighDims, 1.f);
         ImPlot::EndPlot();
       }
 
@@ -615,26 +670,32 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
+    // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
     // writeBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
     // writeBuffer<float>(_buffers(BufferType::eSimilaritiesOriginal), _symmetricSize, 1, "simsO");
     
     
-    // //// Stuff for all relations
+    //// Stuff for all relations
     // std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
     // std::vector<float> interDeltas; std::vector<float> intraDeltas;
     // std::vector<float> interDists; std::vector<float> intraDists;
     // std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
     // std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
+    // std::vector<float> attributeDists(_params.nHighDims, 0.f);
 
     // for(uint i = 0; i < _params.n; ++i) {
     //   if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
     //   for(uint j = 0; j < _params.n; ++j) {
     //     if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
+    //     if(i == j) { continue; }
 
     //     float dist = 0.f;
     //     for(uint d = 0; d < _params.nHighDims; ++d) {
     //       dist += std::pow(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d], 2);
+    //     }
+
+    //     for(uint d = 0; d < _params.nHighDims; ++d) {
+    //       attributeDists[d] += std::sqrt(std::pow(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d], 2) / dist);
     //     }
 
     //     float distAttrSum = 0.f;
@@ -660,8 +721,11 @@ namespace dh::sne {
     //     }
     //   }
     // }
-    // displayGraph(interDistsAttrRatios, intraDistsAttrRatios, false);
-    
+    // for(uint d = 0; d < _params.nHighDims; ++d) {
+    //   attributeDists[d] /= (interNeighbs.size() + intraNeighbs.size());
+    // }
+    // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
+    // displayBarplot(attributeDists);
     
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());

@@ -54,6 +54,8 @@ namespace dh::vis {
     void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
+
+    void drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text);
     void drawImGuiTexture(GLuint textureHandle);
     void drawImGuiTextureControls();
     void drawImPlotBarPlot(uint selectionIndex);
@@ -108,6 +110,8 @@ namespace dh::vis {
     float _perplexity;
     int _k;
     bool _plotError;
+    uint _currentSelectionTab;
+    uint _currentTypeTab;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -131,7 +135,7 @@ namespace dh::vis {
     int getTexelBrushRadius() { return _texelBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
-    float getTextureTabOpened() { return _textureTabOpened; }
+    float getOpenedTextureIndex() { return _currentSelectionTab * 2 + _currentTypeTab; }
     float getPerplexity() { return _perplexity; }
     uint getK() { return (uint) _k; }
     

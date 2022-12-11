@@ -639,7 +639,7 @@ namespace dh::sne {
           _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         }
         if(_button == 15) { // Autoweigh top % of attributes
-          autoweighAttributes(_selectionRenderTask->getTextureTabOpened(), _selectionRenderTask->getAutoselectPercentage());
+          autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
           _similarities->weighSimilaritiesPerAttribute(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
@@ -657,7 +657,7 @@ namespace dh::sne {
           invertAttributeWeights();
         }
         if(_button == 6) { // Refine selection
-          refineAttributeWeights(_selectionRenderTask->getTextureTabOpened());
+          refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
         }
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
@@ -1067,7 +1067,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nTexels", _params.nTexels);
+      program.template uniform<uint>("nHighDims", _params.nHighDims);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersSelectionAttributes[i]);
@@ -1075,7 +1075,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersSelectionAttributes[i+4]);
       glAssert();
 
-      glDispatchCompute(ceilDiv(_params.nTexels * 3, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params.nHighDims, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }

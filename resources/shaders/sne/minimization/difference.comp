@@ -32,14 +32,12 @@ layout(binding = 1, std430) restrict readonly buffer SelectionSecondary { float 
 layout(binding = 2, std430) restrict writeonly buffer SelectionDifference { float selectionDifference[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nTexels;
+layout(location = 0) uniform uint nHighDims;
 
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if (i >= nTexels * 3) { return; }
+  if (i >= nHighDims) { return; }
 
-  uint texel = i / 3;
-  uint component = i % 3;
-  selectionDifference[texel * 4 + component] = abs(selectionSecondary[texel * 4 + component] - selectionPrimary[texel * 4 + component]);
+  selectionDifference[i] = abs(selectionSecondary[i] - selectionPrimary[i]);
 }

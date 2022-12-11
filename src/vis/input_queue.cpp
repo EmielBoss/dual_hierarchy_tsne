@@ -170,7 +170,7 @@ namespace dh::vis {
     
     // Forward scroll callback to input queue 
     for (auto& ptr : _queue) {
-      ptr->mouseScrollInput(xScroll, yScroll);
+      // ptr->mouseScrollInput(xScroll, yScroll);
     }
   }
 } // dh::vis

@@ -71,7 +71,8 @@ namespace dh::vis {
     _textureTabOpened(0),
     _perplexity(params.perplexity),
     _k((int) _params.k),
-    _plotError(true) {
+    _plotError(true),
+    _currentTypeTab(0) {
 
     // Initialize shader program
     {
@@ -204,51 +205,45 @@ namespace dh::vis {
       }
     }
 
-    if(!_params.imageDataset) { return; }
-
-    if (ImGui::CollapsingHeader("Attribute weighing settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-      _draggedTexel = -1;
-      if (ImGui::BeginTabBar("Selection textures", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("Avg")) {
-            drawImGuiTexture(0);
-            drawImGuiTextureControls();
-            // drawImPlotBarPlot(0);
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Var")) {
-            drawImGuiTexture(1);
-            drawImGuiTextureControls();
-            // drawImPlotBarPlot(0);
-            ImGui::EndTabItem();
-        }
-        if(_selectionCounts[1] > 0) {
-          if (ImGui::BeginTabItem("Avg 2")) {
-              drawImGuiTexture(2);
-              drawImGuiTextureControls();
-              // drawImPlotBarPlot(1);
-              ImGui::EndTabItem();
-          }
-          if (ImGui::BeginTabItem("Var 2")) {
-              drawImGuiTexture(3);
-              drawImGuiTextureControls();
-              // drawImPlotBarPlot(1);
-              ImGui::EndTabItem();
-          }
-          if (ImGui::BeginTabItem("Avg diff")) {
-              drawImGuiTexture(4);
-              drawImGuiTextureControls();
-              // drawImPlotBarPlot(2);
-              ImGui::EndTabItem();
-          }
-          if (ImGui::BeginTabItem("Var diff")) {
-              drawImGuiTexture(5);
-              drawImGuiTextureControls();
-              // drawImPlotBarPlot(2);
-              ImGui::EndTabItem();
-          }
-        }
-        ImGui::EndTabBar();
+    if (ImGui::BeginTabBar("Selection tabs")) {
+      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection primary" : "Selection")) {
+        _currentSelectionTab = 0;
+        ImGui::EndTabItem();
       }
+
+      if(_selectionCounts[1] > 0) {
+        if (ImGui::BeginTabItem("Selection secondary")) {
+          _currentSelectionTab = 1;
+          ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Selection diff")) {
+          _currentSelectionTab = 2;
+          ImGui::EndTabItem();
+        }
+      }
+      ImGui::EndTabBar();
+    }
+
+    _draggedTexel = -1;
+
+    if (ImGui::BeginTabBar("Selection attributes type tabs")) {
+      drawImGuiTab(_currentSelectionTab, 0, "Average");
+      drawImGuiTab(_currentSelectionTab, 1, "Variance");
+      ImGui::EndTabBar();
+    }
+  }
+
+  void SelectionRenderTask::drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text) {
+    if (ImGui::BeginTabItem(text)) {
+      if(_params.imageDataset) {
+        drawImGuiTexture(selectionIndex * 2 + typeIndex);
+        drawImGuiTextureControls();
+      } else {
+        drawImPlotBarPlot(selectionIndex);
+      }
+      _currentTypeTab = typeIndex;
+      ImGui::EndTabItem();
     }
   }
 
@@ -329,8 +324,8 @@ namespace dh::vis {
       if(_plotError) {
         ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
         ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params.nHighDims);
+        ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
       }
-      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
       ImPlot::EndPlot();
     }
     ImGui::Checkbox("Plot error bars", &_plotError);
