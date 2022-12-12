@@ -12,7 +12,8 @@
     "glm",
     {
       "name": "faiss",
-      "features": [ "gpu" ]
+      "features": [ "gpu" ],
+	  "version>=": "1.7.2"
     },
     "indicators"
   ],

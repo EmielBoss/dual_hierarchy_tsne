@@ -28,6 +28,7 @@
 #include <faiss/gpu/GpuIndexIVFFlat.h>
 #include "dh/util/cu/knn.cuh"
 #include "dh/util/cu/error.cuh"
+#include "dh/util/io.hpp"
 
 namespace dh::util {
   // Tuning parameters for FAISS
