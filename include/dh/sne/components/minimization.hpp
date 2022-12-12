@@ -83,7 +83,6 @@ namespace dh::sne {
     void refineAttributeWeights(uint textureType);
     void reconfigureZAxis();
     std::vector<char> getAxisMapping() { return _axisMapping; }
-    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename); ////
 
     // Computation
     void comp();                                                                // Compute full minimization (i.e. params.iterations)

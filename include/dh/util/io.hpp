@@ -64,4 +64,15 @@ namespace dh::util {
    */
   void writeTextValuesFile(const std::string &fileName,
                            const std::vector<std::string> &values);
+  
+  /**
+   * writeGLBuffer
+   * 
+   * Write an OpenGL buffer to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand). Useful for debugging
+   */
+  template<typename T>
+  void writeGLBuffer(const GLuint handle,
+                     uint n,
+                     uint d,
+                     const std::string filename);
 } // dh::util

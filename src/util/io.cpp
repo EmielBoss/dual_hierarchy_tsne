@@ -27,6 +27,8 @@
 #include <stdexcept>
 #include <set>
 #include "dh/util/io.hpp"
+#include "dh/util/gl/error.hpp"
+#include "dh/util/gl/metric.hpp"
 
 namespace dh::util {
   void readBinFile(const std::string &fileName,
@@ -115,4 +117,23 @@ namespace dh::util {
       ofs << v << '\n';
     }
   }
+
+  template<typename T>
+  void writeGLBuffer(const GLuint handle, uint n, uint d, const std::string filename) {
+    std::vector<T> buffer(n * d);
+    glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
+    std::ofstream file("./buffer_dumps/" + filename + ".txt");
+    for(uint i = 0; i < n; i++) {
+      for(uint j = 0; j < d; ++j) {
+        T val = buffer[i * d + j];
+        file << val << "|";
+      }
+      file << "\n";
+    }
+  }
+
+  // Template instantiations for float, int, uint
+  template void writeGLBuffer<float>(const GLuint handle, uint n, uint d, const std::string filename);
+  template void writeGLBuffer<uint>(const GLuint handle, uint n, uint d, const std::string filename);
+  template void writeGLBuffer<int>(const GLuint handle, uint n, uint d, const std::string filename);
 } // dh::util

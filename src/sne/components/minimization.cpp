@@ -38,8 +38,6 @@
 #include <imgui.h>
 #include <implot.h>
 #include <numeric> //
-#include <fstream> //
-#include <filesystem> //
 
 namespace dh::sne {
   // Logging shorthands
@@ -48,22 +46,6 @@ namespace dh::sne {
 
   // Params for field size
   constexpr uint fieldMinSize = 5;
-
-  // Auxiliary function purely for debugging; will be removed
-  template <uint D, uint DD>
-  template<typename T>
-  void Minimization<D, DD>::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
-    std::vector<T> buffer(n * d);
-    glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
-    std::ofstream file("./buffer_dumps/" + filename + ".txt");
-    for(uint i = 0; i < n; i++) {
-      for(uint j = 0; j < d; ++j) {
-        T val = buffer[i * d + j];
-        file << val << "|";
-      }
-      file << "\n";
-    }
-  }
 
   template <uint D, uint DD>
   void Minimization<D, DD>::average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance, GLuint subtractorBuffer) {

@@ -55,7 +55,6 @@ namespace dh::sne {
     float average(std::vector<float> vec);
     void displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative);
     void displayBarplot(std::vector<float> ys);
-    template <typename T> void writeBuffer(GLuint handle, uint n, uint d, std::string filename);
     template <typename T> T reduce(GLuint bufferToReduce, bool largeBuffer = false, GLuint selectionBufferHandle = 0);
 
     // Compute similarities

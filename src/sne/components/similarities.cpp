@@ -27,12 +27,11 @@
 #include "dh/util/logger.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
+#include "dh/util/io.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
 #include <typeinfo> //
 #include <numeric> //
-#include <fstream> //
-#include <filesystem> //
 #include <imgui.h> //
 #include <imgui_impl_glfw.h> //
 #include <imgui_impl_opengl3.h> //
@@ -183,21 +182,6 @@ namespace dh::sne {
     ImGui::DestroyContext();
     ImGui::SetCurrentContext(ctxMain);
     glAssert();
-  }
-
-  // Auxiliary function purely for debugging; will be removed
-  template<typename T>
-  void Similarities::writeBuffer(GLuint handle, uint n, uint d, std::string filename) {
-    std::vector<T> buffer(n * d);
-    glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
-    std::ofstream file("./buffer_dumps/" + filename + ".txt");
-    for(uint i = 0; i < n; i++) {
-      for(uint j = 0; j < d; ++j) {
-        T val = buffer[i * d + j];
-        file << val << "|";
-      }
-      file << "\n";
-    }
   }
   
   Similarities::Similarities()
@@ -671,9 +655,7 @@ namespace dh::sne {
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
     // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
-    // writeBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
-    // writeBuffer<float>(_buffers(BufferType::eSimilaritiesOriginal), _symmetricSize, 1, "simsO");
-    
+    // dh::util::writeGLBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
     
     //// Stuff for all relations
     // std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
