@@ -554,6 +554,7 @@ namespace dh::sne {
 
       program.template uniform<uint>("nPoints", _params.n);
       program.template uniform<uint>("nHighDims", _params.nHighDims);
+      program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -566,15 +567,9 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilaritiesOriginal));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
 
-      // Dispatch shader in batches of batchSize (selected) attriibutes
-      uint batchSize = 10;
-      for(uint b = 0; b * batchSize < weightedAttributeIndices.size(); ++b) {
-        program.template uniform<uint>("batchBegin", b * batchSize);
-        program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) weightedAttributeIndices.size()));
-        glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
-        glFinish();
-        glAssert();
-      }
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glAssert();
     }
 
     // Renormalizing the similarities

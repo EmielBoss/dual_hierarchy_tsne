@@ -47,8 +47,7 @@ layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; }
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform uint batchBegin;
-layout(location = 3) uniform uint batchEnd;
+layout(location = 2) uniform uint nWeightedAttribs;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -60,8 +59,6 @@ void main() {
   if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
-  float similaritySum = 0.f;
-  float similarityDiffSum = 0.f;
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
@@ -69,10 +66,10 @@ void main() {
 
     if(selectionBuffer[j] != 1) { continue; }
 
-    for(uint a = batchBegin; a < batchEnd; a++) {
+    for(uint a = 0; a < nWeightedAttribs; a++) {
       uint attr = weightedAttributeIndicesBuffer[a];
       float distAttr = pow(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr], 2);
-      float distAttrRatio = sqrt(distAttr / dist);
+      float distAttrRatio = distAttr / dist;
 
       float simOld = similaritiesBackup[ij];
       float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
