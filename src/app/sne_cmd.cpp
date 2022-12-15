@@ -225,7 +225,7 @@ void sne() {
 int main(int argc, char** argv) {
   // Disable scientific notation when printing floats
   std::cout << std::fixed;
-  std::cout << std::setprecision(2);
+  std::cout << std::setprecision(10);
 
   try {
     cli(argc, argv);

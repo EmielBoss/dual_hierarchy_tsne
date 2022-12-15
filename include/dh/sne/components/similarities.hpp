@@ -66,7 +66,7 @@ namespace dh::sne {
   private:
     enum class BufferType {
       eDataset,
-      eDistances,
+      eDistancesL1,
       eNeighbors,
       eSimilarities,
       eSimilaritiesOriginal,
@@ -107,6 +107,7 @@ namespace dh::sne {
       eLayoutComp,
       eNeighborsComp,
       eNeighborsSortComp,
+      eL1DistancesComp,
       eWeighSimilaritiesComp,
       eWeighSimilaritiesPerAttributeComp,
       

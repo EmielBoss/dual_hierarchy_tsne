@@ -34,21 +34,16 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Sele { int selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer SimO { float similaritiesBackup[]; };
-layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 3, std430) restrict buffer Dist { float distancesL1Buffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform uint nWeightedAttribs;
-layout(location = 3) uniform float multiplier;
+layout(location = 2) uniform uint batchBegin;
+layout(location = 3) uniform uint batchEnd;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -57,28 +52,16 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if (i >= nPoints) { return; }
   
   Layout l = layoutBuffer[i];
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    float distTotalInv = 1.f / distancesBuffer[ij];
 
-    if(selectionBuffer[j] != 1) { continue; }
-
-    float simDif = 0.f;
-    float simOld = similaritiesBackup[ij];
-    for(uint a = 0; a < nWeightedAttribs; a++) {
-      uint attr = weightedAttributeIndicesBuffer[a];
-      float distAttr = abs(datasetBuffer[i * nHighDims + attr] - datasetBuffer[j * nHighDims + attr]);
-      float distAttrRatio = distAttr * distTotalInv;
-
-      float simNew = mix(simOld, simOld * attributeWeightsBuffer[attr], distAttrRatio);
-      simDif += simNew - simOld;
+    for(uint d = batchBegin; d < batchEnd; d++) {
+      distancesL1Buffer[ij] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
     }
-    
-    similaritiesBuffer[ij] += simDif * multiplier;
-    similaritiesBuffer[ij] = max(similaritiesBuffer[ij], 0.f);
   }
+
 }

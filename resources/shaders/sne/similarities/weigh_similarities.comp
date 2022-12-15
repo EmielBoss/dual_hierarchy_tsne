@@ -60,5 +60,6 @@ void main() {
         interOnly && selectionBuffer[j] >  0 && selectionBuffer[i] != selectionBuffer[j]) {
       similaritiesBuffer[ij] *= weight;
     }
+    similaritiesBuffer[ij] = max(similaritiesBuffer[ij], 0.f);
   }
 }

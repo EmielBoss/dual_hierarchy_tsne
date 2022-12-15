@@ -34,12 +34,10 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer ANei { uint asymmetricNeighborsBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer ASym { float asymmetricSimilaritiesBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer ADis { float asymmetricDistancesBuffer[]; };
-layout(binding = 3, std430) restrict coherent buffer Coun { uint countBuffer[]; }; // Initially zeros, maintains "additional" neighbors
-layout(binding = 4, std430) restrict readonly buffer Layu { Layout layoutBuffer[]; };
-layout(binding = 5, std430) restrict writeonly buffer Nei { uint symmetricNeighborsBuffer[]; };
-layout(binding = 6, std430) restrict writeonly buffer Sym { float symmetricSimilaritiesBuffer[]; };
-layout(binding = 7, std430) restrict writeonly buffer Dis { float symmetricDistancesBuffer[]; };
+layout(binding = 2, std430) restrict coherent buffer Coun { uint countBuffer[]; }; // Initially zeros, maintains "additional" neighbors
+layout(binding = 3, std430) restrict readonly buffer Layu { Layout layoutBuffer[]; };
+layout(binding = 4, std430) restrict writeonly buffer Nei { uint symmetricNeighborsBuffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Sym { float symmetricSimilaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -65,14 +63,12 @@ void main() {
   // Read original asymmetric neighbors
   const uint j = asymmetricNeighborsBuffer[i * kNeighbors + k];
   const float p_ji = asymmetricSimilaritiesBuffer[i * kNeighbors + k];
-  const float dist = asymmetricDistancesBuffer[i * kNeighbors + k];
 
   // Read offsets and sizes
   const Layout li = layoutBuffer[i];
   const Layout lj = layoutBuffer[j];
   
   symmetricNeighborsBuffer[li.offset + k - 1] = j; // Copy over to own neighbor indices
-  symmetricDistancesBuffer[li.offset + k - 1] = dist; // Copy over to own neighbor indices
 
   // Potentially copy self over to neighbor's neighbor indices, if they don't already know it
   uint _k = searchk(j, i);
@@ -80,7 +76,6 @@ void main() {
     // Copy self to neighbor's indices, as they don't have ours yet
     _k = atomicAdd(countBuffer[j], 1); // _k is assigned the old value of countBuffer[j]
     symmetricNeighborsBuffer[lj.offset + kNeighbors - 1 + _k] = i;
-    symmetricDistancesBuffer[lj.offset + kNeighbors - 1 + _k] = dist;
 
     // Symmetrize similarities
     const float v = 0.5 * p_ji;
