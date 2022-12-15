@@ -646,7 +646,6 @@ namespace dh::sne {
         uint jClass = labl[j];
         if(selc[j] != 1 || (jClass != classA && jClass != classB)) { continue; }
 
-
         float distAttrSum = 0.f;
         float distAttrRatioSum = 0.f;
         for (uint a = 0; a < weightedAttributeIndices.size(); ++a) {
@@ -689,7 +688,7 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
+    displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
     // dh::util::writeGLBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
     
     //// Stuff for all relations
