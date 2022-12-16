@@ -198,6 +198,7 @@ namespace dh::vis {
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {
       ptr->render(model_view, proj, _labelsHandle);
+      glAssert();
     }
 
     // Blit to default framebuffer

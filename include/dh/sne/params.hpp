@@ -56,8 +56,8 @@ namespace dh::sne {
     
     // Gradient descent iteration parameters
     uint momentumSwitchIter = 250;
-    uint removeExaggerationIter = 250;
-    uint exponentialDecayIter = 150;
+    uint nExaggerationIters = 250;
+    uint nExponentialDecayIters = 150;
 
     // Gradient descent parameters
     float minimumGain = 0.1f;

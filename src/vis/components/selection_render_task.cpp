@@ -340,6 +340,7 @@ namespace dh::vis {
       ImGui::Text("S (hold): secondary select"); if(_input.s) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("D (press): deselect"); if(_input.d) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("F (press): unfix datapoints"); if(_input.f) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("E (hold): exaggerate"); if(_input.e) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("R (press): reinitialize (fixed seed)"); if(_input.r) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Alt + R (press): reinitialize (random)"); if(_input.r && _input.alt) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("Alt + Num (press): reinitialize (num seed)"); if(_input.r && _input.num >= 0) { ImGui::SameLine(); ImGui::Text(" <"); }

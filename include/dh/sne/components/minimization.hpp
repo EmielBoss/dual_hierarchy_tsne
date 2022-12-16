@@ -70,6 +70,7 @@ namespace dh::sne {
     std::vector<float> normalizeDatasetUniformDims(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
+    void restartExaggeration(uint nExaggerationIters);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
     void clearTextures();
     void mirrorWeightsToOverlay();
@@ -179,6 +180,7 @@ namespace dh::sne {
     util::GLWindow* _window;
     float* _pcs;
     uint _iteration;
+    uint _removeExaggerationIter;
     Bounds _bounds;
     Bounds _boundsPrev;
     vis::Input _input;
@@ -253,6 +255,7 @@ namespace dh::sne {
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
+      swap(a._removeExaggerationIter, b._removeExaggerationIter);
       swap(a._buffers, b._buffers);
       swap(a._buffersSelectionAttributes, b._buffersSelectionAttributes);
       swap(a._programs, b._programs);

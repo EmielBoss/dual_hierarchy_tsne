@@ -76,7 +76,7 @@ namespace dh::sne {
     const typename EmbeddingHierarchy<D>::Layout eLayout = _embeddingHierarchy.layout();
     const int lvlDiff = static_cast<int>(eLayout.nLvls) - static_cast<int>(fLayout.nLvls);
     const bool fieldHierarchyActive = _useFieldHierarchy 
-                                    && iteration >= _params.removeExaggerationIter
+                                    && iteration >= _params.nExaggerationIters
                                     && lvlDiff < DH_HIER_LVL_DIFFERENCE;
 
     // Build field hierarchy if necessary
@@ -98,7 +98,7 @@ namespace dh::sne {
 
     // Update hierarchy refit/rebuild countdown
     if (_useEmbeddingHierarchy) {
-      if (iteration <= (_params.removeExaggerationIter + DH_BVH_REFIT_PADDING)
+      if (iteration <= (_params.nExaggerationIters + DH_BVH_REFIT_PADDING)
       || _hierarchyRebuildIterations >= DH_BVH_REFIT_ITERS) {
         _hierarchyRebuildIterations = 0;
       } else {

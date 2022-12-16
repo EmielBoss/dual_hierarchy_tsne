@@ -128,7 +128,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0) {
+    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _removeExaggerationIter(_params.nExaggerationIters) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -352,8 +352,15 @@ namespace dh::sne {
     if(_input.num >= 0) { initializeEmbeddingRandomly(_input.num); }
     else { initializeEmbeddingRandomly(_params.seed); }
     _iteration = 0;
+    restartExaggeration(_params.nExaggerationIters);
     const std::vector<vec> zerovecs(_params.n, vec(0));
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+  }
+
+  // Restarts the exaggeration by pushing the exaggeration end iteration further ahead
+  template <uint D, uint DD>
+  void Minimization<D, DD>::restartExaggeration(uint nExaggerationIters) {
+    _removeExaggerationIter = _iteration + nExaggerationIters;
   }
 
   // Configures the axes on request of change
@@ -587,6 +594,7 @@ namespace dh::sne {
     }
 
     if(_input.r) { restartMinimization(); } // Restart
+    if(_input.e) { restartExaggeration(3); } // Re-exaggerate
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
     if(_input.mouseLeft) { compIterationSelect(); } // Select
     if(_selectionRenderTask->getSelectAll()) { compIterationSelect(true); } // Select all
@@ -794,11 +802,11 @@ namespace dh::sne {
 
     // Compute exaggeration factor
     float exaggeration = 1.0f;
-    if (_iteration <= _params.removeExaggerationIter) {
+    if (_iteration <= _removeExaggerationIter) {
       exaggeration = _params.exaggerationFactor;
-    } else if (_iteration <= _params.removeExaggerationIter + _params.exponentialDecayIter) {
-      float decay = 1.0f - static_cast<float>(_iteration - _params.removeExaggerationIter)
-                         / static_cast<float>(_params.exponentialDecayIter);
+    } else if (_iteration <= _removeExaggerationIter + _params.nExponentialDecayIters) {
+      float decay = 1.0f - static_cast<float>(_iteration - _removeExaggerationIter)
+                         / static_cast<float>(_params.nExponentialDecayIters);
       exaggeration = 1.0f + (_params.exaggerationFactor - 1.0f) * decay;
     }
 
