@@ -132,7 +132,39 @@ namespace dh::util {
     }
   }
 
-  // Template instantiations for float, int, uint
+  void normalizeData(std::vector<float>& data, uint n, uint d, float lower, float upper) {
+    // Determine min and max attribute value
+    auto [minIt, maxIt] = std::minmax_element(data.begin(), data.end());
+    float min = *minIt; float max = *maxIt;
+
+    for(uint i = 0; i < n * d; ++i) {
+      data[i] = (data[i] - min) / (max - min);
+      data[i] = data[i] * (upper - lower) + lower;
+      if(data[i] != data[i]) { data[i] = 0.f; }
+    }
+  }
+
+  void normalizeDataNonUniformDims(std::vector<float>& data, uint n, uint d, float lower, float upper) {
+    // Determine min and max attribute values per attribute
+    std::vector<float> mins(d,  FLT_MAX);
+    std::vector<float> maxs(d, -FLT_MAX);
+    for(uint i = 0; i < n; ++i) {
+      for(uint a = 0; a < d; ++a) {
+        if(data[i * d + a] < mins[a]) { mins[a] = data[i * d + a]; }
+        if(data[i * d + a] > maxs[a]) { maxs[a] = data[i * d + a]; }
+      }
+    }
+
+    for(uint i = 0; i < n; ++i) {
+      for(uint a = 0; a < d; ++a) {
+        data[i * d + a] = (data[i * d + a] - mins[a]) / (maxs[a] - mins[a]);
+        data[i * d + a] = data[i * d + a] * (upper - lower) + lower;
+        if(data[i * d + a] != data[i * d + a]) { data[i * d + a] = 0.f; }
+      }
+    }
+  }
+
+  // Template instantiations for writeGLBuffer for float, int, uint
   template void writeGLBuffer<float>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<uint>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<int>(const GLuint handle, uint n, uint d, const std::string filename);

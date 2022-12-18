@@ -30,6 +30,7 @@
 #include "dh/constants.hpp"
 #include "dh/sne/components/minimization.hpp"
 #include "dh/util/logger.hpp"
+#include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 #include "dh/vis/input_queue.hpp"
@@ -77,45 +78,6 @@ namespace dh::sne {
     glDispatchCompute(1, _params.nHighDims, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
-  }
-
-  template <uint D, uint DD>
-  std::vector<float> Minimization<D, DD>::normalizeDataset(const float* dataPtr) {
-    // Determine min and max attribute values per attribute
-    std::vector<float> mins(_params.nHighDims,  FLT_MAX);
-    std::vector<float> maxs(_params.nHighDims, -FLT_MAX);
-    for(uint i = 0; i < _params.n; ++i) {
-      for(uint a = 0; a < _params.nHighDims; ++a) {
-        float val = *(dataPtr + (i * _params.nHighDims) + a);
-        if(val < mins[a]) { mins[a] = val; }
-        if(val > maxs[a]) { maxs[a] = val; }
-      }
-    }
-
-    std::vector<float> data(_params.n * _params.nHighDims);
-    for(uint i = 0; i < _params.n; ++i) {
-      for(uint a = 0; a < _params.nHighDims; ++a) {
-        float val = *(dataPtr + (i * _params.nHighDims) + a);
-        data[i * _params.nHighDims + a] = (val - mins[a]) / (maxs[a] - mins[a]);
-        if(data[i * _params.nHighDims + a] != data[i * _params.nHighDims + a]) { data[i * _params.nHighDims + a] = 0.f; }
-      }
-    }
-    return data;
-  }
-
-  template <uint D, uint DD>
-  std::vector<float> Minimization<D, DD>::normalizeDatasetUniformDims(const float* dataPtr) {
-    // Determine min and max attribute value
-    std::vector<float> data;
-    data.assign(dataPtr, dataPtr + _params.n * _params.nHighDims);
-    auto [minIt, maxIt] = std::minmax_element(data.begin(), data.end());
-    float min = *minIt; float max = *maxIt;
-
-    for(uint i = 0; i < _params.n * _params.nHighDims; ++i) {
-      data[i] = (data[i] - min) / (max - min);
-      if(data[i] != data[i]) { data[i] = 0.f; }
-    }
-    return data;
   }
 
   template <uint D, uint DD>
@@ -187,8 +149,9 @@ namespace dh::sne {
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
       std::vector<float> data;
-      if(_params.uniformDims || _params.imageDataset) { data = normalizeDatasetUniformDims(dataPtr); }
-      else { data = normalizeDataset(dataPtr); }
+      data.assign(dataPtr, dataPtr + _params.n * _params.nHighDims);
+      if(_params.uniformDims || _params.imageDataset) { dh::util::normalizeData(data, _params.n, _params.nHighDims); }
+      else { dh::util::normalizeDataNonUniformDims(data, _params.n, _params.nHighDims); }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
@@ -1091,7 +1054,7 @@ namespace dh::sne {
     program.template uniform<bool>("translationStarted", !_mouseRightPrev);
     program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
     program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
-    program.template uniform<float>("weightFixed", _embeddingRenderTask->getWeightFixed());
+    program.template uniform<float>("weight", _embeddingRenderTask->getWeightFixed());
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));

@@ -81,6 +81,7 @@ void cli(int argc, char** argv) {
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
+    ("normalize", "Normalize data as preprocessing step", cxxopts::value<bool>())
     ("nonUniformDims", "Treat the dimensions/attributes as having different ranges and properties", cxxopts::value<bool>())
     ("disablePCA", "Disable PCA, which can be slow on some datasets", cxxopts::value<bool>())
     ("h,help", "Print this help message and exit")
@@ -135,6 +136,7 @@ void cli(int argc, char** argv) {
   if (result.count("lbl")) { progDoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
+  if (result.count("normalize")) { params.normalizeData = true; }
   if (result.count("nonUniformDims")) { params.uniformDims = false; }
   if (result.count("disablePCA")) { params.disablePCA = true; }
   params.nTexels = params.nHighDims / params.imgDepth;
@@ -149,6 +151,10 @@ void sne() {
   std::vector<int> labels;
   bool includeAllClasses = params.nClasses < 0;
   dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
+  if(params.normalizeData) {
+    if(params.uniformDims) { dh::util::normalizeData(data, params.n, params.nHighDims, 0.f, 255.f); }
+    else { dh::util::normalizeDataNonUniformDims(data, params.n, params.nHighDims); }
+  }
   if(!includeAllClasses) {
     params.n = data.size() / params.nHighDims;
     params.nClusters = params.nClasses;  

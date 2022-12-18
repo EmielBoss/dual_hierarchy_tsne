@@ -607,6 +607,7 @@ namespace dh::sne {
     }
 
     ///////// DEBUGGING /////////
+    
     std::vector<uint> neig(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
     std::vector<float> sims(_symmetricSize);
@@ -630,118 +631,104 @@ namespace dh::sne {
     int classB = 7;
 
     //// Stuff for neighbour relations
-    std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
-    std::vector<float> interDeltas; std::vector<float> intraDeltas;
-    std::vector<float> interDists; std::vector<float> intraDists;
-    std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
-    std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
-
-    // float multiplier = _params.nHighDims / weightedAttributeIndices.size();
-    // std::cout << "\n\n" << multiplier << "\n\n";
-    for(uint i = 0; i < _params.n; ++i) {
-      uint iClass = labl[i];
-      if(selc[i] != 1 || (iClass != classA && iClass != classB)) { continue; }
-      for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
-        uint j = neig[ij];
-        uint jClass = labl[j];
-        if(selc[j] != 1 || (jClass != classA && jClass != classB)) { continue; }
-
-        float distAttrSum = 0.f;
-        float distAttrRatioSum = 0.f;
-        for (uint a = 0; a < weightedAttributeIndices.size(); ++a) {
-          uint attr = setvec[a];
-          float distAttr = std::abs(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr]);
-          float distAttrRatio = distAttr / dist[ij];
-
-          distAttrSum += distAttr;
-          distAttrRatioSum += distAttrRatio;
-        }
-        
-        float simDelta = sims[ij] / simsO[ij];
-        if(labl[i] != labl[j]) {
-          interNeighbs.emplace_back(i, j);
-          interDeltas.push_back(simDelta);
-          interDists.push_back(dist[ij]);
-          interDistsAttr.push_back(distAttrSum);
-          interDistsAttrRatios.push_back(distAttrRatioSum);
-        }
-        else {
-          intraNeighbs.emplace_back(i, j);
-          intraDeltas.push_back(simDelta);
-          intraDists.push_back(dist[ij]);
-          intraDistsAttr.push_back(distAttrSum);
-          intraDistsAttrRatios.push_back(distAttrRatioSum);
-        }
-      }
-    }
-    std::cout << "\n\n";
-    std::cout << "Weighted attributes: ";
-    for(uint a = 0; a < weightedAttributeIndices.size(); a++) { std::cout << a << ":" << setvec[a] << " | "; }
-    std::cout << "\n\n";
-    std::cout << "Delta inter: " << average(interDeltas) << "\n";
-    std::cout << "Delta intra: " << average(intraDeltas) << "\n";
-    std::cout << "Ratio inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
-    std::cout << "Ratio intra: " << average(intraDistsAttr) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
-
-    float sumSims = 0.f; float sumSimsPrev = 0.f;
-    for(uint ij = 0; ij < sims.size(); ++ij) {
-      sumSims += sims[ij]; sumSimsPrev += simsO[ij];
-    }
-    std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
-    // dh::util::writeGLBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
-    
-    //// Stuff for all relations
     // std::vector<std::pair<uint, uint>> interNeighbs; std::vector<std::pair<uint, uint>> intraNeighbs;
     // std::vector<float> interDeltas; std::vector<float> intraDeltas;
     // std::vector<float> interDists; std::vector<float> intraDists;
     // std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
     // std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
-    // std::vector<float> attributeDists(_params.nHighDims, 0.f);
 
+    // // float multiplier = _params.nHighDims / weightedAttributeIndices.size();
+    // // std::cout << "\n\n" << multiplier << "\n\n";
     // for(uint i = 0; i < _params.n; ++i) {
-    //   if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
-    //   for(uint j = 0; j < _params.n; ++j) {
-    //     if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
-    //     if(i == j) { continue; }
-
-    //     float dist = 0.f;
-    //     for(uint d = 0; d < _params.nHighDims; ++d) {
-    //       dist += std::pow(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d], 2);
-    //     }
-
-    //     for(uint d = 0; d < _params.nHighDims; ++d) {
-    //       attributeDists[d] += std::sqrt(std::pow(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d], 2) / dist);
-    //     }
+    //   uint iClass = labl[i];
+    //   if(selc[i] != 1 || (iClass != classA && iClass != classB)) { continue; }
+    //   for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+    //     uint j = neig[ij];
+    //     uint jClass = labl[j];
+    //     if(selc[j] != 1 || (jClass != classA && jClass != classB)) { continue; }
 
     //     float distAttrSum = 0.f;
     //     float distAttrRatioSum = 0.f;
-    //     for (const uint &attr : weightedAttributeIndices) {
-    //       float distAttr = std::pow(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr], 2);
-    //       float distAttrRatio = std::sqrt(distAttr / dist);
+    //     for (uint a = 0; a < weightedAttributeIndices.size(); ++a) {
+    //       uint attr = setvec[a];
+    //       float distAttr = std::abs(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr]);
+    //       float distAttrRatio = distAttr / dist[ij];
+
     //       distAttrSum += distAttr;
     //       distAttrRatioSum += distAttrRatio;
     //     }
-
+        
+    //     float simDelta = sims[ij] / simsO[ij];
     //     if(labl[i] != labl[j]) {
     //       interNeighbs.emplace_back(i, j);
-    //       interDists.push_back(dist);
+    //       interDeltas.push_back(simDelta);
+    //       interDists.push_back(dist[ij]);
     //       interDistsAttr.push_back(distAttrSum);
     //       interDistsAttrRatios.push_back(distAttrRatioSum);
     //     }
     //     else {
     //       intraNeighbs.emplace_back(i, j);
-    //       intraDists.push_back(dist);
+    //       intraDeltas.push_back(simDelta);
+    //       intraDists.push_back(dist[ij]);
     //       intraDistsAttr.push_back(distAttrSum);
     //       intraDistsAttrRatios.push_back(distAttrRatioSum);
     //     }
     //   }
     // }
-    // for(uint d = 0; d < _params.nHighDims; ++d) {
-    //   attributeDists[d] /= (interNeighbs.size() + intraNeighbs.size());
+    // std::cout << "\n\n";
+    // std::cout << "Weighted attributes: ";
+    // for(uint a = 0; a < weightedAttributeIndices.size(); a++) { std::cout << a << ":" << setvec[a] << " | "; }
+    // std::cout << "\n\n";
+    // std::cout << "Delta inter: " << average(interDeltas) << "\n";
+    // std::cout << "Delta intra: " << average(intraDeltas) << "\n";
+    // std::cout << "Ratio inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
+    // std::cout << "Ratio intra: " << average(intraDistsAttr) << " / " << average(intraDists) << " = " << average(intraDistsAttrRatios) << "\n";
+
+    // float sumSims = 0.f; float sumSimsPrev = 0.f;
+    // for(uint ij = 0; ij < sims.size(); ++ij) {
+    //   sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     // }
+    // std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
     // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
+    // dh::util::writeGLBuffer<float>(_buffers(BufferType::eSimilarities), _symmetricSize, 1, "sims");
+    
+    //// Stuff for all relations
+    // uint nPairs = 0; uint nPairsInter = 0; uint nPairsIntra = 0;
+    // std::vector<float> attributeDists(_params.nHighDims, 0.f);
+
+    // for(uint i = 0; i < _params.n; ++i) {
+    //   uint iClass = labl[i];
+    //   if(selc[i] != 1) { continue; }
+    //   for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+    //     uint j = neig[ij];
+    //     uint jClass = labl[j];
+    //     if(selc[j] != 1) { continue; }
+
+    //     float dist = 0.f;
+    //     for(uint d = 0; d < _params.nHighDims; ++d) {
+    //       dist += std::abs(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d]);
+    //     }
+        
+    //     for(uint d = 0; d < _params.nHighDims; ++d) {
+    //       attributeDists[d] += std::abs(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d]);
+    //     }
+
+    //     nPairs++;
+    //     if(labl[i] != labl[j]) {
+    //       nPairsInter++;
+    //     }
+    //     else {
+    //       nPairsIntra++;
+    //     }
+    //   }
+    // }
+    // std::cout << "No. of pairs: " << nPairs << "\n";
+    // std::cout << "No. of pairs (inter): " << nPairsInter << "\n";
+    // std::cout << "No. of pairs (intra): " << nPairsIntra << "\n";
+
     // displayBarplot(attributeDists);
+
+    ///////// DEBUGGING /////////
     
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());

@@ -66,8 +66,6 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance = false, GLuint subtractorBuffer = 0);
-    std::vector<float> normalizeDataset(const float* dataPtr);
-    std::vector<float> normalizeDatasetUniformDims(const float* dataPtr);
     void initializeEmbeddingRandomly(int seed);
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);

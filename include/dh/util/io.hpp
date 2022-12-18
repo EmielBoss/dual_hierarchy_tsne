@@ -75,4 +75,26 @@ namespace dh::util {
                      uint n,
                      uint d,
                      const std::string filename);
+  
+  /**
+   * normalizeData
+   * 
+   * Normalize a vector between lower and upper (0 and 1 by default) with one global minimum and maximum
+   */
+  void normalizeData(std::vector<float>& data,
+                     uint n,
+                     uint d,
+                     float lower = 0.f,
+                     float upper = 1.f);
+
+  /**
+   * normalizeData
+   * 
+   * Normalize a vector between lower and upper (0 and 1 by default) with a separate minimum and maximum per dimension
+   */
+  void normalizeDataNonUniformDims(std::vector<float>& data,
+                                   uint n,
+                                   uint d,
+                                   float lower = 0.f,
+                                   float upper = 1.f);
 } // dh::util

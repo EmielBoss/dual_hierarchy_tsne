@@ -35,6 +35,7 @@ namespace dh::sne {
     int nClusters = 10; // If unsure, leave this at the default 10
     int nClasses = -1; // -1 indicates all classes
     uint nTexels; // Number of texels of images in case imageDataset
+    bool normalizeData = false;
     bool uniformDims = true;
 
     // Basic tSNE parameters
