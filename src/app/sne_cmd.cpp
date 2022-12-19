@@ -139,6 +139,7 @@ void cli(int argc, char** argv) {
   if (result.count("normalize")) { params.normalizeData = true; }
   if (result.count("nonUniformDims")) { params.uniformDims = false; }
   if (result.count("disablePCA")) { params.disablePCA = true; }
+  params.datasetName = iptFilename.substr(0, iptFilename.length() - 4);
   params.nTexels = params.nHighDims / params.imgDepth;
 }
 

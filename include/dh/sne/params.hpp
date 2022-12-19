@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <string>
 #include "dh/types.hpp"
 
 namespace dh::sne {
@@ -37,6 +38,7 @@ namespace dh::sne {
     uint nTexels; // Number of texels of images in case imageDataset
     bool normalizeData = false;
     bool uniformDims = true;
+    std::string datasetName = "";
 
     // Basic tSNE parameters
     uint iterations = 10000;

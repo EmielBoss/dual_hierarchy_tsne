@@ -88,6 +88,7 @@ namespace dh::vis {
     float _pointOpacity;
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
+    std::vector<std::string> _classNames;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -126,6 +127,7 @@ namespace dh::vis {
       swap(a._buffers, b._buffers);
       swap(a._classTextures, b._classTextures);
       swap(a._classCounts, b._classCounts);
+      swap(a._classNames, b._classNames);
       swap(a._colorBuffer, b._colorBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

@@ -135,9 +135,15 @@ namespace dh::sne {
       glAssert();
     }
 
+    // Count classes
+    std::vector<uint> classCounts(_params.nClasses);
+    for(uint i = 0; i < _params.nClasses; ++i) {
+      uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
+      classCounts[i] = classCount;
+    }
+
     // Initialize buffer objects
     std::vector<GLuint> classTextures(_params.nClasses);
-    std::vector<uint> classCounts(_params.nClasses);
     {
       const std::vector<vec> zerovecs(_params.n, vec(0));
       const std::vector<vec> unitvecs(_params.n, vec(1));
@@ -203,9 +209,7 @@ namespace dh::sne {
           GLenum formatInternal = _params.imgDepth == 1 ? GL_R8 : GL_RGB8;
           glTextureStorage2D(classTextures[i], 1, formatInternal, _params.imgWidth, _params.imgHeight);
           
-          uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
-          classCounts[i] = classCount;
-          average(_buffers(BufferType::eLabels), i, classCount, classTextureBuffers[i]);
+          average(_buffers(BufferType::eLabels), i, classCounts[i], classTextureBuffers[i]);
           glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
           GLenum format = _params.imgDepth == 1 ? GL_RED : GL_RGB;
           glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, format, GL_FLOAT, 0);

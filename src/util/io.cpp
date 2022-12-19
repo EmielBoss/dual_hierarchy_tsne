@@ -84,6 +84,20 @@ namespace dh::util {
     }
   }
 
+  void readTxtClassNames(const std::string &fileName, std::vector<std::string>& classNames, int nClasses) {
+    std::ifstream file(fileName);
+    if (!file) {
+      return;
+    }
+    uint counter = 0;
+    std::string str;
+    while (std::getline(file, str))
+    {
+        classNames[counter++] = str;
+        if(counter > (uint) nClasses) { return; }
+    }
+  }
+
   void writeBinFile(const std::string &fileName,
                     const std::vector<float> &data,
                     const std::vector<int> &labels,

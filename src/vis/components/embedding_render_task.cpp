@@ -30,6 +30,7 @@
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
+#include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
 
@@ -126,6 +127,9 @@ namespace dh::vis {
       
       glAssert();
     }
+
+    _classNames = std::vector<std::string>(_params.nClasses, "");
+    dh::util::readTxtClassNames(_params.datasetName + ".txt", _classNames, _params.nClasses);
 
     generateClassColors();
     _isInit = true;
@@ -280,7 +284,7 @@ namespace dh::vis {
         if(_params.imageDataset) { ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine(); }
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
         std::string leadingZeros = i < 10 ? "0" : "";
-        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]);
+        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " " + _classNames[i];
         if(ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
           glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
           _colors[i] = colorUpdated;

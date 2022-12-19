@@ -43,6 +43,15 @@ namespace dh::util {
                    bool withLabels,
                    int& nClasses,
                    bool includeAllClasses);
+
+  /**
+   * readTxtClassNames(...)
+   * 
+   * Read a text data file in which each line is a class name
+   */
+  void readTxtClassNames(const std::string &fileName,
+                         std::vector<std::string>& classNames,
+                         int nClasses);
   
   /**
    * writeBinFile(...)
