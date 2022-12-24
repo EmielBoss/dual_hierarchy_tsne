@@ -45,7 +45,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Field();
-    Field(MinimizationBuffers minimization, Params params);
+    Field(MinimizationBuffers minimization, Params* params);
     ~Field();
 
     // Copy constr/assignment is explicitly deleted
@@ -152,7 +152,7 @@ namespace dh::sne {
     // State
     bool _isInit;
     MinimizationBuffers _minimization;
-    Params _params;
+    Params* _params;
     GLuint _stencilVAOHandle;
     GLuint _stencilFBOHandle;
     uint _hierarchyRebuildIterations;

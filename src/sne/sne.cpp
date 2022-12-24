@@ -33,7 +33,7 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(Params params, std::vector<char> axisMapping, const std::vector<float>& data, const std::vector<int>& labels)
+  SNE::SNE(Params* params, std::vector<char> axisMapping, const std::vector<float>& data, const std::vector<int>& labels)
   : _dataPtr(data.data()),
     _labelPtr(labels.data()),
     _params(params),
@@ -65,8 +65,8 @@ namespace dh::sne {
 
   void SNE::constructMinimization() {
     uint numSNEdims = uint(_axisMapping[0] == 't') + uint(_axisMapping[1] == 't') + uint(_axisMapping[2] == 't');
-    if (_params.nLowDims == 2) {  _minimization = sne::Minimization<2, 2>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
-    if (_params.nLowDims == 3) {
+    if (_params->nLowDims == 2) {  _minimization = sne::Minimization<2, 2>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
+    if (_params->nLowDims == 3) {
       if(numSNEdims == 2) { _minimization = sne::Minimization<2, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); } else
       if(numSNEdims == 3) { _minimization = sne::Minimization<3, 3>(&_similarities, _dataPtr, _labelPtr, _params, _axisMapping); }
     }
@@ -96,7 +96,7 @@ namespace dh::sne {
 
     // Run timer to track full minimization computation
     _minimizationTimer.tick();
-    std::visit([&](auto& m) { m.comp(); }, _minimization);  // This selects the correct template instantiation, i.e. Minimization<_params.nLowDims>
+    std::visit([&](auto& m) { m.comp(); }, _minimization);  // This selects the correct template instantiation, i.e. Minimization<_params->nLowDims>
     _minimizationTimer.tock();
     _minimizationTimer.poll();
   }
@@ -144,16 +144,16 @@ namespace dh::sne {
 
     const auto buffers = std::visit([](const auto& m) { return m.buffers(); }, _minimization);
     
-    if (_params.nLowDims == 2) {
+    if (_params->nLowDims == 2) {
       // Copy embedding data over
-      std::vector<float> buffer(_params.n * 2);
+      std::vector<float> buffer(_params->n * 2);
       glGetNamedBufferSubData(buffers.embedding, 0, buffer.size() * sizeof(float), buffer.data());
       glAssert();
 
       return buffer;
-    } else if (_params.nLowDims == 3) {
+    } else if (_params->nLowDims == 3) {
       // Copy embedding data over to a padded type (technically 4 floats)
-      std::vector<dh::util::AlignedVec<3, float>> _buffer(_params.n);
+      std::vector<dh::util::AlignedVec<3, float>> _buffer(_params->n);
       glGetNamedBufferSubData(buffers.embedding, 0, _buffer.size() * sizeof(dh::util::AlignedVec<3, float>), _buffer.data());
       glAssert();
       
@@ -161,7 +161,7 @@ namespace dh::sne {
       std::vector<glm::vec<3, float, glm::highp>> buffer(_buffer.begin(), _buffer.end());
       
       // Copy embedding over to floats only
-      std::vector<float> embedding(_params.n * 3);
+      std::vector<float> embedding(_params->n * 3);
       std::memcpy(embedding.data(), buffer.data(), embedding.size() * sizeof(float));
       return embedding;
     }

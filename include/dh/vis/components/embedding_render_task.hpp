@@ -40,7 +40,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params, std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority);
+    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params* params, std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -61,6 +61,9 @@ namespace dh::vis {
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
+    float getPerplexity() { return _perplexity; }
+    bool getFocusButtonPressed() { return _buttonPressed; }
+    uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
 
   private:
@@ -73,7 +76,7 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::Params _params;
+    sne::Params* _params;
 
     // ImGui state
     bool _canDrawLabels;
@@ -86,6 +89,9 @@ namespace dh::vis {
     uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;
+    float _perplexity;
+    int _k;
+    bool _buttonPressed;
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
     std::vector<std::string> _classNames;
@@ -123,6 +129,9 @@ namespace dh::vis {
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
+      swap(a._perplexity, b._perplexity);
+      swap(a._k, b._k);
+      swap(a._buttonPressed, b._buttonPressed);
       swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
       swap(a._classTextures, b._classTextures);

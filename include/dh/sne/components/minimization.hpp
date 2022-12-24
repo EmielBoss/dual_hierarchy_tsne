@@ -54,7 +54,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping);
+    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping);
     ~Minimization();
 
     // Copy constr/assignment is explicitly deleted
@@ -167,7 +167,7 @@ namespace dh::sne {
     // State
     bool _isInit;
     bool _loggedNewline;
-    Params _params;
+    Params* _params;
     std::vector<char> _axisMapping;
     std::vector<char> _axisMappingPrev;
     int _axisIndex;

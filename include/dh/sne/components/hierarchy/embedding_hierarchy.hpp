@@ -63,7 +63,7 @@ namespace dh::sne {
 
     // Constr/destr
     EmbeddingHierarchy();
-    EmbeddingHierarchy(MinimizationBuffers minimization, Layout layout, Params params);
+    EmbeddingHierarchy(MinimizationBuffers minimization, Layout layout, Params* params);
     ~EmbeddingHierarchy();
 
     // Copy constr/assignment is explicitly deleted
@@ -126,7 +126,7 @@ namespace dh::sne {
     uint _nRebuilds;
     MinimizationBuffers _minimization;
     Layout _layout;
-    Params _params;
+    Params* _params;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

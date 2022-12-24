@@ -38,7 +38,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeights, sne::Params params, int priority, const float* _dataPtr);
+    SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -88,7 +88,7 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::Params _params;
+    sne::Params* _params;
     glm::vec2 _mousePosScreen;
     dh::vis::Input _input;
 
@@ -107,8 +107,6 @@ namespace dh::vis {
     bool _selectAll;
     bool _hoveringTexture;
     uint _textureTabOpened;
-    float _perplexity;
-    int _k;
     bool _plotError;
     uint _currentSelectionTab;
     uint _currentTypeTab;
@@ -136,8 +134,6 @@ namespace dh::vis {
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
     float getOpenedTextureIndex() { return _currentSelectionTab * 2 + _currentTypeTab; }
-    float getPerplexity() { return _perplexity; }
-    uint getK() { return (uint) _k; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -158,8 +154,6 @@ namespace dh::vis {
       swap(a._texelBrushRadius, b._texelBrushRadius);
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
-      swap(a._perplexity, b._perplexity);
-      swap(a._k, b._k);
       swap(a._plotError, b._plotError);
       swap(a._buffers, b._buffers);
       swap(a._texturedataBuffers, b._texturedataBuffers);

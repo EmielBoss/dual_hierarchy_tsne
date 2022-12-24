@@ -39,7 +39,7 @@ namespace dh::vis {
 
   public:
     FieldHierarchyRenderTask();
-    FieldHierarchyRenderTask(sne::FieldHierarchyBuffers fieldHierarchy, sne::Params params, int priority);
+    FieldHierarchyRenderTask(sne::FieldHierarchyBuffers fieldHierarchy, sne::Params* params, int priority);
     ~FieldHierarchyRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -63,7 +63,7 @@ namespace dh::vis {
 
     // State
     bool _isInit;
-    sne::Params _params;
+    sne::Params* _params;
     sne::MinimizationBuffers _minimization;
     sne::FieldBuffers _field;
     sne::FieldHierarchyBuffers _fieldHierarchy;

@@ -70,7 +70,7 @@ namespace dh::sne {
 
     // Constr/destr
     FieldHierarchy();
-    FieldHierarchy(FieldBuffers field, Layout layout, Params params);
+    FieldHierarchy(FieldBuffers field, Layout layout, Params* params);
     ~FieldHierarchy();
 
     // Copy constr/assignment is explicitly deleted
@@ -115,7 +115,7 @@ namespace dh::sne {
     FieldBuffers _field;
     Layout _constrLayout;
     Layout _compLayout;
-    Params _params;
+    Params* _params;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;

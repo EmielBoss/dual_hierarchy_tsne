@@ -38,16 +38,16 @@ namespace dh::sne {
     // ...
   }
 
-  KLDivergence::KLDivergence(Params params, SimilaritiesBuffers similarities, MinimizationBuffers minimization)
+  KLDivergence::KLDivergence(Params* params, SimilaritiesBuffers similarities, MinimizationBuffers minimization)
   : _isInit(false), _params(params), _similarities(similarities), _minimization(minimization) {
     Logger::newt() << prefix << "Initializing...";
     
     // Initialize shader programs
     {
-      if (_params.nLowDims == 2) {
+      if (_params->nLowDims == 2) {
         _programs(ProgramType::eQijSumComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/kl_divergence/2D/qijSum.comp"));
         _programs(ProgramType::eKLDSumComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/kl_divergence/2D/KLDSum.comp"));
-      } else if (_params.nLowDims == 3) {
+      } else if (_params->nLowDims == 3) {
         _programs(ProgramType::eQijSumComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/kl_divergence/3D/qijSum.comp"));
         _programs(ProgramType::eKLDSumComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/kl_divergence/3D/KLDSum.comp"));
       }
@@ -62,8 +62,8 @@ namespace dh::sne {
     // Initialize buffer objects
     {
       glCreateBuffers(_buffers.size(), _buffers.data());
-      glNamedBufferStorage(_buffers(BufferType::eQijSum), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eKLDSum), _params.n * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eQijSum), _params->n * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eKLDSum), _params->n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eReduce), 256 * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eReduceFinal), sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glAssert();
@@ -103,7 +103,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
@@ -111,7 +111,7 @@ namespace dh::sne {
       
       // In steps of 512, perforn sums over all j
       const uint step = 512;
-      const uint end = _params.n;
+      const uint end = _params->n;
       for (int begin = 0; begin < end; begin += step) {
         // Dispatch shader for a limited range
         program.template uniform<uint>("begin", begin);
@@ -133,7 +133,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eQijSum));
@@ -163,7 +163,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
@@ -175,7 +175,7 @@ namespace dh::sne {
 
       // In steps of 512, perforn sums over all j
       const uint step = 512;
-      const uint end = _params.n;
+      const uint end = _params->n;
       for (int begin = 0; begin < end; begin += step) {
         // Dispatch shader for a limited range
         program.template uniform<uint>("begin", begin);
@@ -197,7 +197,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eKLDSum));

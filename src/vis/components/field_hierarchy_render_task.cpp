@@ -69,7 +69,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  FieldHierarchyRenderTask<D>::FieldHierarchyRenderTask(sne::FieldHierarchyBuffers fieldHierarchy, sne::Params params, int priority)
+  FieldHierarchyRenderTask<D>::FieldHierarchyRenderTask(sne::FieldHierarchyBuffers fieldHierarchy, sne::Params* params, int priority)
   : RenderTask(priority, "FieldHierarchyRenderTask"),
     _isInit(false),
     _fieldHierarchy(fieldHierarchy),

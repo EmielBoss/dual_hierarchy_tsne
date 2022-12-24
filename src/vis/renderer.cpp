@@ -47,7 +47,7 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(sne::Params params, char* axisMapping, const util::GLWindow& window, const std::vector<int>& labels)
+  Renderer::Renderer(sne::Params* params, char* axisMapping, const util::GLWindow& window, const std::vector<int>& labels)
   : _isInit(false),
     _params(params),
     _axisMapping(axisMapping),
@@ -74,11 +74,11 @@ namespace dh::vis {
     // second as 3D rendertasks need trackball input to generate transformation matrix
     // third for brush selecting datapoints
     InputQueue::instance().emplace(vis::EscInputTask());
-    if (_params.nLowDims == 3) {
+    if (_params->nLowDims == 3) {
       // In 3D, center embedding on screen, and allow trackball to provide view matrix and selection
       _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
       _trackballInputTask = InputQueue::instance().emplace(vis::TrackballInputTask());
-    } else if (_params.nLowDims == 2) {
+    } else if (_params->nLowDims == 2) {
       // In 2D, center embedding on screen and allow selection
       _selectionInputTask = InputQueue::instance().emplace(vis::SelectionInputTask());
     }
@@ -163,11 +163,11 @@ namespace dh::vis {
 
     // Model/view/proj matrices. 3D view matrix is provided by trackball
     glm::mat4 proj, model_view;
-    if (_params.nLowDims == 3) {
+    if (_params->nLowDims == 3) {
       // In 3D, center embedding on screen, and allow trackball to provide view matrix
       model_view = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f));
       proj = glm::perspectiveFov(0.5f, (float) _fboSize.x, (float) _fboSize.y, 0.0001f, 1000.f);
-    } else if (_params.nLowDims == 2) {
+    } else if (_params->nLowDims == 2) {
       // In 2D, center embedding on screen
       model_view = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f));
       proj = glm::infinitePerspective(1.0f, (float) _fboSize.x / (float) _fboSize.y, 0.0001f);
@@ -249,11 +249,11 @@ namespace dh::vis {
     // Let components handle their own specific settings
     drawImGuiComponents();
 
-    if (ImGui::CollapsingHeader("About")) {
-      ImGui::Spacing();
-      ImGui::Text("%s", aboutText.c_str());
-      ImGui::Spacing();
-    }
+    // if (ImGui::CollapsingHeader("About")) {
+    //   ImGui::Spacing();
+    //   ImGui::Text("%s", aboutText.c_str());
+    //   ImGui::Spacing();
+    // }
 
     // End body of main ImGui window
     ImGui::End();
@@ -277,6 +277,6 @@ namespace dh::vis {
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    // if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

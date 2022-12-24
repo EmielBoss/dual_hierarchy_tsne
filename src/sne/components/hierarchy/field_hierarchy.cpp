@@ -42,7 +42,7 @@ namespace dh::sne {
   }
 
   template <uint D>
-  FieldHierarchy<D>::FieldHierarchy(FieldBuffers field, Layout constrLayout, Params params)
+  FieldHierarchy<D>::FieldHierarchy(FieldBuffers field, Layout constrLayout, Params* params)
   : _isInit(false), _nRebuilds(0), _field(field), _constrLayout(constrLayout), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 

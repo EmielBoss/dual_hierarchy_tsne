@@ -42,7 +42,7 @@ namespace dh::sne {
   }
 
   template <uint D>
-  EmbeddingHierarchy<D>::EmbeddingHierarchy(MinimizationBuffers minimization, Layout layout, Params params)
+  EmbeddingHierarchy<D>::EmbeddingHierarchy(MinimizationBuffers minimization, Layout layout, Params* params)
   : _isInit(false), _nRebuilds(0), _minimization(minimization), _layout(layout), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 

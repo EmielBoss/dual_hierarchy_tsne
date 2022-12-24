@@ -41,7 +41,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Similarities();
-    Similarities(const float* dataPtr, Params params);
+    Similarities(const float* dataPtr, Params* params);
     ~Similarities();
 
     // Copy constr/assignment is explicitly deleted
@@ -59,6 +59,7 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
+    void recomp(float perplexity, uint k, GLuint selectedBufferHandle);
     void weighSimilarities(float weight, GLuint selectedBufferHandle, bool interOnly = false);
     void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
@@ -125,7 +126,7 @@ namespace dh::sne {
 
     // State
     bool _isInit;
-    Params _params;
+    Params* _params;
     const float* _dataPtr;
     uint _kPrev;
     uint _symmetricSize;

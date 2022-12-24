@@ -69,7 +69,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingHierarchyRenderTask<D>::EmbeddingHierarchyRenderTask(sne::MinimizationBuffers minimization, sne::EmbeddingHierarchyBuffers embeddingHierarchy, sne::Params params, int priority)
+  EmbeddingHierarchyRenderTask<D>::EmbeddingHierarchyRenderTask(sne::MinimizationBuffers minimization, sne::EmbeddingHierarchyBuffers embeddingHierarchy, sne::Params* params, int priority)
   : RenderTask(priority, "EmbeddingHierarchyRenderTask"),
     _isInit(false),
     _minimization(minimization),

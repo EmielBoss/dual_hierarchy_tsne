@@ -54,10 +54,10 @@ namespace dh::sne {
     program.bind();
 
     // Set uniforms
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<uint>("nPointsMasked", maskCount);
-    program.template uniform<uint>("nHighDims", _params.nHighDims);
-    program.template uniform<uint>("imgDepth", _params.imgDepth);
+    program.template uniform<uint>("nHighDims", _params->nHighDims);
+    program.template uniform<uint>("imgDepth", _params->imgDepth);
     program.template uniform<uint>("maskNumber", maskNumber);
     program.template uniform<bool>("calcVariance", calcVariance);
 
@@ -72,10 +72,10 @@ namespace dh::sne {
     glAssert();
 
     program.template uniform<uint>("iter", 0);
-    glDispatchCompute(128, _params.nHighDims, 1);
+    glDispatchCompute(128, _params->nHighDims, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     program.template uniform<uint>("iter", 1);
-    glDispatchCompute(1, _params.nHighDims, 1);
+    glDispatchCompute(1, _params->nHighDims, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
@@ -87,10 +87,10 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params params, std::vector<char> axisMapping)
+  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _removeExaggerationIter(_params.nExaggerationIters) {
+    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _removeExaggerationIter(_params->nExaggerationIters) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -136,96 +136,96 @@ namespace dh::sne {
     }
 
     // Count classes
-    std::vector<uint> classCounts(_params.nClasses);
-    for(uint i = 0; i < _params.nClasses; ++i) {
-      uint classCount = std::count(labelPtr, labelPtr + _params.n, i);
+    std::vector<uint> classCounts(_params->nClasses);
+    for(uint i = 0; i < _params->nClasses; ++i) {
+      uint classCount = std::count(labelPtr, labelPtr + _params->n, i);
       classCounts[i] = classCount;
     }
 
     // Initialize buffer objects
-    std::vector<GLuint> classTextures(_params.nClasses);
+    std::vector<GLuint> classTextures(_params->nClasses);
     {
-      const std::vector<vec> zerovecs(_params.n, vec(0));
-      const std::vector<vec> unitvecs(_params.n, vec(1));
-      const std::vector<uint> falses(_params.n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
-      const std::vector<float> ones(_params.n, 1.0f);
-      std::vector<float> zeros(_params.n, 0.0f);
-      std::vector<uint> labeled(_params.n, 0);
-      // for(uint i = 0; i < _params.n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
+      const std::vector<vec> zerovecs(_params->n, vec(0));
+      const std::vector<vec> unitvecs(_params->n, vec(1));
+      const std::vector<uint> falses(_params->n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
+      const std::vector<float> ones(_params->n, 1.0f);
+      std::vector<float> zeros(_params->n, 0.0f);
+      std::vector<uint> labeled(_params->n, 0);
+      // for(uint i = 0; i < _params->n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
       std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
       for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
       std::vector<float> data;
-      data.assign(dataPtr, dataPtr + _params.n * _params.nHighDims);
-      if(_params.uniformDims || _params.imageDataset) { dh::util::normalizeData(data, _params.n, _params.nHighDims); }
-      else { dh::util::normalizeDataNonUniformDims(data, _params.n, _params.nHighDims); }
+      data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
+      if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
+      else { dh::util::normalizeDataNonUniformDims(data, _params->n, _params->nHighDims); }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), data.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eLabels), _params.n * sizeof(int), labelPtr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params.n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), unitvecs.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eZ), 2 * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eZReduce), 128 * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eField), _params.n * 4 * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eAttractive), _params.n * sizeof(vec), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eGradients), _params.n * sizeof(vec), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params.n * sizeof(vec), zerovecs.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eGain), _params.n * sizeof(vec), unitvecs.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params.n * _params.k * sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params.n * _params.k * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params.n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params.n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eField), _params->n * 4 * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eAttractive), _params->n * sizeof(vec), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eGradients), _params->n * sizeof(vec), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::ePrevGradients), _params->n * sizeof(vec), zerovecs.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eGain), _params->n * sizeof(vec), unitvecs.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params->n * _params->k * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params->n * _params->k * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params->n * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params.nHighDims * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eFixed), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eTranslating), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
-      glNamedBufferStorage(_buffers(BufferType::eWeights), _params.n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
-      glNamedBufferStorage(_buffers(BufferType::eLabeled), _params.n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params.n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params.n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params.n * sizeof(vec), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eTextureDataReduce), 128 * _params->nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
+      glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
+      glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glAssert();
 
       // Initialize buffers for the average/variance of attributes of the selected datapoints
       glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
       for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
-        glNamedBufferStorage(_buffersSelectionAttributes[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, 0);
+        glNamedBufferStorage(_buffersSelectionAttributes[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, 0);
       }
-      glNamedBufferStorage(_buffersSelectionAttributes(SelectionAttributesType::eOverlay), _params.nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffersSelectionAttributes(SelectionAttributesType::eOverlay), _params->nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
       mirrorWeightsToOverlay();
 
       // Create class textures for passing to _selectionRenderTask (doing this here because Minimization has the data and average() function)
-      if(_params.imageDataset) {
-        std::vector<GLuint> classTextureBuffers(_params.nClasses);
+      if(_params->imageDataset) {
+        std::vector<GLuint> classTextureBuffers(_params->nClasses);
         glCreateBuffers(classTextureBuffers.size(), classTextureBuffers.data());
         glCreateTextures(GL_TEXTURE_2D, classTextures.size(), classTextures.data());
-        for(uint i = 0; i < _params.nClasses; ++i) {
-          glNamedBufferStorage(classTextureBuffers[i], _params.nTexels * _params.imgDepth * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+        for(uint i = 0; i < _params->nClasses; ++i) {
+          glNamedBufferStorage(classTextureBuffers[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
 
           glTextureParameteri(classTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
           glTextureParameteri(classTextures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-          GLenum formatInternal = _params.imgDepth == 1 ? GL_R8 : GL_RGB8;
-          glTextureStorage2D(classTextures[i], 1, formatInternal, _params.imgWidth, _params.imgHeight);
+          GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
+          glTextureStorage2D(classTextures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
           
           average(_buffers(BufferType::eLabels), i, classCounts[i], classTextureBuffers[i]);
           glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
-          GLenum format = _params.imgDepth == 1 ? GL_RED : GL_RGB;
-          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, format, GL_FLOAT, 0);
+          GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
         }
         glDeleteBuffers(classTextureBuffers.size(), classTextureBuffers.data());
       }
     }
 
     // Calculate nPCs number of principal components and stores the values in _pcs
-    if(!_params.disablePCA) {
-      faiss::PCAMatrix matrixPCA(_params.nHighDims, _params.nPCs);
-      matrixPCA.train(_params.n, _dataPtr);
-      _pcs = matrixPCA.apply(_params.n, _dataPtr);
+    if(!_params->disablePCA) {
+      faiss::PCAMatrix matrixPCA(_params->nHighDims, _params->nPCs);
+      matrixPCA.train(_params->n, _dataPtr);
+      _pcs = matrixPCA.apply(_params->n, _dataPtr);
     }
 
-    initializeEmbeddingRandomly(_params.seed);
+    initializeEmbeddingRandomly(_params->seed);
 
     // Output memory use of OpenGL buffer objects
     const GLuint bufferSize = util::glGetBuffersSize(_buffers.size(), _buffers.data());
@@ -260,16 +260,16 @@ namespace dh::sne {
   void Minimization<D, DD>::initializeEmbeddingRandomly(int seed) {
     
     // Copy over embedding and fixed buffers to host
-    std::vector<vec> embedding(_params.n);
-    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
-    std::vector<uint> fixed(_params.n);
-    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params.n * sizeof(uint), fixed.data());
+    std::vector<vec> embedding(_params->n);
+    glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params->n * sizeof(vec), embedding.data());
+    std::vector<uint> fixed(_params->n);
+    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params->n * sizeof(uint), fixed.data());
 
     // Seed the (bad) rng
     std::srand(seed);
     
     // Generate n random D-dimensional vectors
-    for (uint i = 0; i < _params.n; ++i) {
+    for (uint i = 0; i < _params->n; ++i) {
       if(fixed[i]) { continue; }
       vec v;
       float r;
@@ -283,11 +283,11 @@ namespace dh::sne {
       } while (r > 1.f || r == 0.f);
 
       r = std::sqrt(-2.f * std::log(r) / r);
-      embedding[i] = v * r * _params.rngRange;
+      embedding[i] = v * r * _params->rngRange;
     }
 
     // Copy to buffer
-    glNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
+    glNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params->n * sizeof(vec), embedding.data());
     glAssert();
   }
 
@@ -317,10 +317,10 @@ namespace dh::sne {
     if(_iteration < 100) { return; }
     if(_input.alt) { initializeEmbeddingRandomly(_iteration); } else
     if(_input.num >= 0) { initializeEmbeddingRandomly(_input.num); }
-    else { initializeEmbeddingRandomly(_params.seed); }
+    else { initializeEmbeddingRandomly(_params->seed); }
     _iteration = 0;
-    restartExaggeration(_params.nExaggerationIters);
-    const std::vector<vec> zerovecs(_params.n, vec(0));
+    restartExaggeration(_params->nExaggerationIters);
+    const std::vector<vec> zerovecs(_params->n, vec(0));
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
   }
 
@@ -335,20 +335,20 @@ namespace dh::sne {
   void Minimization<D, DD>::reconfigureZAxis() {
     if constexpr (D == DD) { return; }
 
-    std::vector<float> axisVals(_params.n);
+    std::vector<float> axisVals(_params->n);
     if(_axisMapping[2] == 'p') {
-      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _pcs[i*_params.nPCs + _axisIndex]; }
+      for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _pcs[i*_params->nPCs + _axisIndex]; }
     } else
     if(_axisMapping[2] == 'a') {
-      for(uint i = 0; i < _params.n; ++i) { axisVals[i] = _dataPtr[i*_params.nHighDims + _axisIndex]; }
-      if(_params.imageDataset) { setOverlayTexel(_axisIndex, {0.f, 1.f, 0.f, 1.f}); }
+      for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _dataPtr[i*_params->nHighDims + _axisIndex]; }
+      if(_params->imageDataset) { setOverlayTexel(_axisIndex, {0.f, 1.f, 0.f, 1.f}); }
     }
     auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
     float min = *minIt;
     float range = *maxIt - *minIt;
     float rangeInv = range > 0 ? 1 / range : 1;
     uint stride = (DD == 2) ? 2 : 4;
-    for(uint i = 0; i < _params.n; ++i) {
+    for(uint i = 0; i < _params->n; ++i) {
       float valRel = (axisVals[i] - min) * rangeInv;
       glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D) * sizeof(float), sizeof(float), &valRel);
     }
@@ -385,12 +385,12 @@ namespace dh::sne {
     for(uint i = 0; i < kernel.size(); ++i) { kernel[i] /= max; } // Normalize kernel
 
     for(int i = -radius; i <= radius; ++i) {
-      int x = centerTexelIndex / _params.imgWidth;
-      if(x + i < 0 || x + i >= _params.imgHeight) { continue; }
+      int x = centerTexelIndex / _params->imgWidth;
+      if(x + i < 0 || x + i >= _params->imgHeight) { continue; }
       for(int j = -radius; j <= radius; ++j) {
-        int y = centerTexelIndex % _params.imgWidth;
-        if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
-        uint texelIndex = centerTexelIndex + i * _params.imgWidth + j;
+        int y = centerTexelIndex % _params->imgWidth;
+        if(y + j < 0 || y + j >= _params->imgWidth) { continue; }
+        uint texelIndex = centerTexelIndex + i * _params->imgWidth + j;
         float texelWeightPrev;
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * sizeof(float), sizeof(float), &texelWeightPrev);
         float texelWeight = texelWeightPrev - (texelWeightPrev - weight) * kernel[i + radius] * kernel[j + radius];
@@ -402,12 +402,12 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::eraseTexels(uint centerTexelIndex, int radius) {
     for(int i = -radius; i <= radius; ++i) {
-      int x = centerTexelIndex / _params.imgWidth;
-      if(x + i < 0 || x + i >= _params.imgHeight) { continue; }
+      int x = centerTexelIndex / _params->imgWidth;
+      if(x + i < 0 || x + i >= _params->imgHeight) { continue; }
       for(int j = -radius; j <= radius; ++j) {
-        int y = centerTexelIndex % _params.imgWidth;
-        if(y + j < 0 || y + j >= _params.imgWidth) { continue; }
-        uint texelIndex = centerTexelIndex + i * _params.imgWidth + j;
+        int y = centerTexelIndex % _params->imgWidth;
+        if(y + j < 0 || y + j >= _params->imgWidth) { continue; }
+        uint texelIndex = centerTexelIndex + i * _params->imgWidth + j;
         setTexelWeight(texelIndex, 1.f);
       }
     }
@@ -415,53 +415,53 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::setTexelWeight(uint texelIndex, float weight) {
-    for(uint i = 0; i < _params.imgDepth; ++i) {
-      uint attr = texelIndex * _params.imgDepth + i;
+    for(uint i = 0; i < _params->imgDepth; ++i) {
+      uint attr = texelIndex * _params->imgDepth + i;
       glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attr * sizeof(float), sizeof(float), &weight);
       if(weight != 1.f) { _weightedAttributeIndices.insert(attr); } else { _weightedAttributeIndices.erase(attr); }
     }
-    setOverlayTexel(texelIndex, {0.25f, 0.25f, 1.f, weight / _params.maxAttributeWeight / 1.5f});
+    setOverlayTexel(texelIndex, {0.25f, 0.25f, 1.f, weight / _params->maxAttributeWeight / 1.5f});
   }
 
   template <uint D, uint DD>
   float Minimization<D, DD>::getTexelWeight(uint texelIndex) {
-    std::vector<float> weights(_params.imgDepth);
-    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * _params.imgDepth * sizeof(float), _params.imgDepth * sizeof(float), weights.data());
+    std::vector<float> weights(_params->imgDepth);
+    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * _params->imgDepth * sizeof(float), _params->imgDepth * sizeof(float), weights.data());
     float weight = std::reduce(weights.begin(), weights.end());
-    return weight / _params.imgDepth;
+    return weight / _params->imgDepth;
   }
 
   template <uint D, uint DD>
   float Minimization<D, DD>::getTexelValue(uint texelIndex, GLuint buffer) {
-    std::vector<float> values(_params.imgDepth);
-    glGetNamedBufferSubData(buffer, texelIndex * _params.imgDepth * sizeof(float), _params.imgDepth * sizeof(float), values.data());
+    std::vector<float> values(_params->imgDepth);
+    glGetNamedBufferSubData(buffer, texelIndex * _params->imgDepth * sizeof(float), _params->imgDepth * sizeof(float), values.data());
     float value = std::reduce(values.begin(), values.end());
-    return value / _params.imgDepth;
+    return value / _params->imgDepth;
   }
 
   template <uint D, uint DD>
   void Minimization<D, DD>::mirrorWeightsToOverlay() {
-    for(uint i = 0; i < _params.nTexels; ++i) {
-      float weight = getTexelWeight(i) / _params.maxAttributeWeight;
+    for(uint i = 0; i < _params->nTexels; ++i) {
+      float weight = getTexelWeight(i) / _params->maxAttributeWeight;
       setOverlayTexel(i, {0.25f, 0.25f, 1.f, weight / 1.5f});
     }
   }
 
   template <uint D, uint DD>
   void Minimization<D, DD>::autoweighAttributes(uint textureType, float percentage) {
-    std::vector<float> textureBuffer(_params.nTexels * _params.imgDepth);
-    glGetNamedBufferSubData(_buffersSelectionAttributes[textureType], 0, _params.nTexels * _params.imgDepth * sizeof(float), textureBuffer.data());
-    std::vector<float> textureData(_params.nTexels, 0.f);
-    for(uint i = 0; i < _params.nTexels; ++i) {
-      for(uint c = 0; c < _params.imgDepth; ++c) {
-        textureData[i] += textureBuffer[i * _params.imgDepth + c];
+    std::vector<float> textureBuffer(_params->nTexels * _params->imgDepth);
+    glGetNamedBufferSubData(_buffersSelectionAttributes[textureType], 0, _params->nTexels * _params->imgDepth * sizeof(float), textureBuffer.data());
+    std::vector<float> textureData(_params->nTexels, 0.f);
+    for(uint i = 0; i < _params->nTexels; ++i) {
+      for(uint c = 0; c < _params->imgDepth; ++c) {
+        textureData[i] += textureBuffer[i * _params->imgDepth + c];
       }
-      textureData[i] /= _params.imgDepth;
+      textureData[i] /= _params->imgDepth;
     }
 
     std::vector<size_t> indices(textureData.size());
     std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
-    uint nSelected = _params.nTexels * percentage;
+    uint nSelected = _params->nTexels * percentage;
     std::partial_sort(indices.begin(), indices.begin() + nSelected, indices.end(),
                       [&](size_t A, size_t B) {
                         return textureData[A] > textureData[B];
@@ -474,11 +474,11 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::invertAttributeWeights() {
-    for(uint i = 0; i < _params.nTexels; ++i) {
+    for(uint i = 0; i < _params->nTexels; ++i) {
       float weightTexel = getTexelWeight(i);
       float weightCurrent = _selectionRenderTask->getAttributeWeight();
       float weight = 1.f + weightCurrent - weightTexel;
-      weight = std::clamp(weight, 0.f, _params.maxAttributeWeight);
+      weight = std::clamp(weight, 0.f, _params->maxAttributeWeight);
       setTexelWeight(i, weight);
     }
   }
@@ -487,7 +487,7 @@ namespace dh::sne {
   void Minimization<D, DD>::refineAttributeWeights(uint textureType) {
     float min = 0.f;
     float max = 1.f;
-    for(uint i = 0; i < _params.nTexels; i = ++i) {
+    for(uint i = 0; i < _params->nTexels; i = ++i) {
       if(_weightedAttributeIndices.find(i) == _weightedAttributeIndices.end()) { continue; } // Attribute isn't weighted
 
       float value = getTexelValue(i, _buffersSelectionAttributes[textureType]);
@@ -505,7 +505,7 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::comp() {
-    while (_iteration < _params.iterations) {
+    while (_iteration < _params->iterations) {
       compIteration();
     }
   }
@@ -547,7 +547,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
       _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
-      if(_params.imageDataset) { clearTextures(); }
+      if(_params->imageDataset) { clearTextures(); }
     }
     
     // Clear translations if not translating
@@ -555,7 +555,7 @@ namespace dh::sne {
     
     // Free/unfix fixed datapoints
     if(_input.f) {
-      const std::vector<float> ones(_params.n, 1.0f);
+      const std::vector<float> ones(_params->n, 1.0f);
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
       glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     }
@@ -573,7 +573,7 @@ namespace dh::sne {
     _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
 
-    if(_params.imageDataset) {
+    if(_params->imageDataset) {
       // Draw dragselected attributes in texture
       _draggedTexel = _selectionRenderTask->getDraggedTexel();
       if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
@@ -605,7 +605,7 @@ namespace dh::sne {
           _similarities->reset();
         }
         if(_button == 4) { // Clear attribute weights
-          const std::vector<float> ones(_params.nHighDims, 1.0f);
+          const std::vector<float> ones(_params->nHighDims, 1.0f);
           glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
           mirrorWeightsToOverlay();
           _weightedAttributeIndices = std::set<uint>();
@@ -617,13 +617,17 @@ namespace dh::sne {
           refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
         }
       }
-      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because some comps delete and recreate buffers
+
+      if(_embeddingRenderTask->getFocusButtonPressed()) {
+        std::cout << "FOCUS!\n";
+      }
+      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp deletes and recreates buffers
       _buttonPrev = _button;
     }
 
     // Select individual datapoints if int field input changed
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
-    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params.n) {
+    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
       uint sn = _input.s + 1; // Selection number
       glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(int), sizeof(int), &sn);
       compIterationSelect(true);
@@ -663,7 +667,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<float>("padding", 0.0f);
 
       // Set buffer bindings
@@ -695,7 +699,7 @@ namespace dh::sne {
     {
       // Determine field texture size by scaling bounds
       const vec range = _bounds.range();
-      const float ratio = (D == 2) ? _params.fieldScaling2D : _params.fieldScaling3D;
+      const float ratio = (D == 2) ? _params->fieldScaling2D : _params->fieldScaling3D;
       uvec size = dh::util::max(uvec(range * ratio), uvec(fieldMinSize));
 
       // Size becomes nearest larger power of two for field hierarchy
@@ -715,7 +719,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eField));
@@ -745,8 +749,8 @@ namespace dh::sne {
       program.bind();
       
       // Set uniforms
-      program.template uniform<uint>("nPos", _params.n);
-      program.template uniform<float>("invPos", 1.f / static_cast<float>(_params.n));
+      program.template uniform<uint>("nPos", _params->n);
+      program.template uniform<float>("invPos", 1.f / static_cast<float>(_params->n));
       program.template uniform<float>("weightFalloff", _embeddingRenderTask->getWeightFalloff());
 
       // Set buffer bindings
@@ -760,7 +764,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1); // One warp/sub21ee1group per datapoint
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/sub21ee1group per datapoint
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -770,11 +774,11 @@ namespace dh::sne {
     // Compute exaggeration factor
     float exaggeration = 1.0f;
     if (_iteration <= _removeExaggerationIter) {
-      exaggeration = _params.exaggerationFactor;
-    } else if (_iteration <= _removeExaggerationIter + _params.nExponentialDecayIters) {
+      exaggeration = _params->exaggerationFactor;
+    } else if (_iteration <= _removeExaggerationIter + _params->nExponentialDecayIters) {
       float decay = 1.0f - static_cast<float>(_iteration - _removeExaggerationIter)
-                         / static_cast<float>(_params.nExponentialDecayIters);
-      exaggeration = 1.0f + (_params.exaggerationFactor - 1.0f) * decay;
+                         / static_cast<float>(_params->nExponentialDecayIters);
+      exaggeration = 1.0f + (_params->exaggerationFactor - 1.0f) * decay;
     }
 
     // 5.
@@ -787,7 +791,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<float>("exaggeration", exaggeration);
 
       // Set buffer bindings
@@ -797,7 +801,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eGradients));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       
       timer.tock();
@@ -805,9 +809,9 @@ namespace dh::sne {
     }
 
     // Precompute instead of doing it in shader N times
-    const float iterMult = (static_cast<double>(_iteration) < _params.momentumSwitchIter) 
-                         ? _params.momentum 
-                         : _params.finalMomentum;
+    const float iterMult = (static_cast<double>(_iteration) < _params->momentumSwitchIter) 
+                         ? _params->momentum 
+                         : _params->finalMomentum;
 
     // 6.
     // Update embedding
@@ -819,9 +823,9 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<float>("eta", _params.eta);
-      program.template uniform<float>("minGain", _params.minimumGain);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<float>("eta", _params->eta);
+      program.template uniform<float>("minGain", _params->minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
       program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
@@ -837,7 +841,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       
       timer.tock();
@@ -861,7 +865,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<float>("scaling", scaling);
       program.template uniform<float, D>("center", boundsCenter);
 
@@ -869,7 +873,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       
       timer.tock();
@@ -881,15 +885,15 @@ namespace dh::sne {
     _colorMapping = _embeddingRenderTask->getColorMapping();
     if(_colorMapping == 2 && _colorMappingPrev != 2) {
       // Compute approximate KNN of each point in embedding, delegated to FAISS
-      std::vector<vec> embedding(_params.n);
-      glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params.n * sizeof(vec), embedding.data());
-      std::vector<float> embeddingFiltered = dh::util::to_unaligned_vector<D, float>(embedding, _params.n);
+      std::vector<vec> embedding(_params->n);
+      glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params->n * sizeof(vec), embedding.data());
+      std::vector<float> embeddingFiltered = dh::util::to_unaligned_vector<D, float>(embedding, _params->n);
       {
         util::KNN knn(
           embeddingFiltered.data(),
           _buffers(BufferType::eDistancesEmb),
           _buffers(BufferType::eNeighborsEmb),
-          _params.n, _params.k, D);
+          _params->n, _params->k, D);
         knn.comp();
       }
 
@@ -898,8 +902,8 @@ namespace dh::sne {
         program.bind();
 
         // Set uniforms
-        program.template uniform<uint>("nPoints", _params.n);
-        program.template uniform<uint>("kParam", _params.k);
+        program.template uniform<uint>("nPoints", _params->n);
+        program.template uniform<uint>("kParam", _params->k);
 
         // Set buffer bindings
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _similaritiesBuffers.layout);
@@ -908,7 +912,7 @@ namespace dh::sne {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eNeighborhoodPreservation));
 
         // Dispatch shader
-        glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+        glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         
         glAssert();
@@ -933,11 +937,11 @@ namespace dh::sne {
         fieldStr << " (" << (static_cast<float>(_field.memSize()) / 1'048'576.0f) << " mb)";
       }
       
-      const std::string postfix = (_iteration < _params.iterations)
+      const std::string postfix = (_iteration < _params->iterations)
                                 ? "iter: " + std::to_string(_iteration) + ", field: " + fieldStr.str()
                                 : "Done!";
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
-      progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params.iterations));
+      progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params->iterations));
     }
   }
 
@@ -953,7 +957,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniform
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<int>("selectionNumber", sn);
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
@@ -968,13 +972,13 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelection));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       glAssert();
     } else
     if(_selectionRenderTask->getSelectAll()) {
-      const std::vector<int> allSelected(_params.n, sn);
+      const std::vector<int> allSelected(_params->n, sn);
       glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, allSelected.data());
     }
 
@@ -985,7 +989,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("selectionNumber", s + 1);
 
       // Set buffer bindings
@@ -1008,7 +1012,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
 
       // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
-      if(_selectionCounts[0] - selectionCountPrev > _params.n / 500) { _embeddingRenderTask->setWeighForces(false); }
+      if(_selectionCounts[0] - selectionCountPrev > _params->n / 500) { _embeddingRenderTask->setWeighForces(false); }
     }
 
     // 3.
@@ -1024,7 +1028,7 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nHighDims", _params.nHighDims);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersSelectionAttributes[i]);
@@ -1032,7 +1036,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersSelectionAttributes[i+4]);
       glAssert();
 
-      glDispatchCompute(ceilDiv(_params.nHighDims, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->nHighDims, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
@@ -1053,7 +1057,7 @@ namespace dh::sne {
     program.bind();
 
     // Set uniform
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<float, D>("shiftRel", shiftRel);
     program.template uniform<bool>("translationStarted", !_mouseRightPrev);
     program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
@@ -1071,7 +1075,7 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
 
     // Dispatch shader
-    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
@@ -1083,14 +1087,14 @@ namespace dh::sne {
     program.bind();
 
     // Set uniform
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
 
     // Dispatch shader
-    glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+    glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
 

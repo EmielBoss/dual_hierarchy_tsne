@@ -59,7 +59,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params params,
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params* params,
                                               std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority)
   : RenderTask(priority, "EmbeddingRenderTask"), 
     _isInit(false),
@@ -70,12 +70,15 @@ namespace dh::vis {
     _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
-    _weightFixed(params.k),
-    _weightFalloff(calculateFalloff(params.n, params.k, params.nClusters)),
-    _numClusters(params.nClusters),
-    _numClustersPrev(params.nClusters),
+    _weightFixed(params->k),
+    _weightFalloff(calculateFalloff(params->n, params->k, params->nClusters)),
+    _numClusters(params->nClusters),
+    _numClustersPrev(params->nClusters),
     _pointRadius(0.003f),
-    _pointOpacity(1.0f) {
+    _pointOpacity(1.0f),
+    _buttonPressed(false),
+    _perplexity(params->perplexity),
+    _k((int) _params->k) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
 
@@ -128,8 +131,8 @@ namespace dh::vis {
       glAssert();
     }
 
-    _classNames = std::vector<std::string>(_params.nClasses, "");
-    dh::util::readTxtClassNames(_params.datasetName + ".txt", _classNames, _params.nClasses);
+    _classNames = std::vector<std::string>(_params->nClasses, "");
+    dh::util::readTxtClassNames(_params->datasetName + ".txt", _classNames, _params->nClasses);
 
     generateClassColors();
     _isInit = true;
@@ -192,7 +195,7 @@ namespace dh::vis {
       glm::vec4(128, 128, 128, 255)
     };
 
-    int nColorsToAdd = _params.nClasses - _colors.size();
+    int nColorsToAdd = _params->nClasses - _colors.size();
     for(int i = 0; i < nColorsToAdd; ++i) {
       glm::vec4 newColor = _colors[i] + _colors[i+1];
       newColor /= 2.f;
@@ -200,7 +203,7 @@ namespace dh::vis {
     }
 
     glCreateBuffers(1, &_colorBuffer);
-    glNamedBufferStorage(_colorBuffer, _params.nClasses * sizeof(glm::vec4), _colors.data(), GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(_colorBuffer, _params->nClasses * sizeof(glm::vec4), _colors.data(), GL_DYNAMIC_STORAGE_BIT);
     glAssert();
   }
 
@@ -242,11 +245,11 @@ namespace dh::vis {
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
-    glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params.n);
+    glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params->n);
 
     // Check if user changed numClusters and update weightFalloff if so
     if(_numClusters != _numClustersPrev) {
-      _weightFalloff = calculateFalloff(_params.n, _params.k, _numClusters);
+      _weightFalloff = calculateFalloff(_params->n, _params->k, _numClusters);
       _numClustersPrev = _numClusters;
     }
   }
@@ -267,11 +270,20 @@ namespace dh::vis {
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
       ImGui::Spacing();
       ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
-      ImGui::SliderFloat("Fixed datapoint weight", &_weightFixed, 1.0f, _params.k * 5.0f);
+      ImGui::SliderFloat("Fixed datapoint weight", &_weightFixed, 1.0f, _params->k * 5.0f);
       ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
       ImGui::Text("or set the number of clusters you see:");
       ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
+
+      _buttonPressed = false;
+      ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
+      ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
+      if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params->kMax, 3 * (uint)(_perplexity) + 1); }
+      ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params->kMax);
+      if(ImGui::SameLine(); ImGui::Button("Focus")) { _buttonPressed = true; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
+      ImGui::PopItemWidth();
     }
   }
 
@@ -280,8 +292,8 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
     if(!_canDrawLabels) { return; }
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
-      for(uint i = 0; i < _params.nClasses; ++i) {
-        if(_params.imageDataset) { ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine(); }
+      for(uint i = 0; i < _params->nClasses; ++i) {
+        if(_params->imageDataset) { ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine(); }
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
         std::string leadingZeros = i < 10 ? "0" : "";
         std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " " + _classNames[i];

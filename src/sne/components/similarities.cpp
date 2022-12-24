@@ -125,7 +125,7 @@ namespace dh::sne {
 
     // Auxiliary function to create a window and display a scatterplot
   void Similarities::displayBarplot(std::vector<float> ys) {
-    std::vector<float> xs(_params.nHighDims);
+    std::vector<float> xs(_params->nHighDims);
     std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
 
     dh::util::GLWindowInfo info;
@@ -166,7 +166,7 @@ namespace dh::sne {
       ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
 
       if (ImPlot::BeginPlot("Barplot")) {
-        ImPlot::PlotBars("Total distance", xs.data(), ys.data(), _params.nHighDims, 1.f);
+        ImPlot::PlotBars("Total distance", xs.data(), ys.data(), _params->nHighDims, 1.f);
         ImPlot::EndPlot();
       }
 
@@ -189,7 +189,7 @@ namespace dh::sne {
     // ...
   }
 
-  Similarities::Similarities(const float* dataPtr, Params params)
+  Similarities::Similarities(const float* dataPtr, Params* params)
   : _isInit(false), _dataPtr(dataPtr), _params(params) {
     Logger::newt() << prefix << "Initializing...";
 
@@ -217,11 +217,11 @@ namespace dh::sne {
     // Create and initialize buffers
     glCreateBuffers(_buffers.size(), _buffers.data());
     {
-      const std::vector<float> ones(_params.nHighDims, 1.0f);
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params.n * _params.nHighDims * sizeof(float), _dataPtr, 0); // Original dataset
-      glNamedBufferStorage(_buffers(BufferType::eScan), _params.n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
-      glNamedBufferStorage(_buffers(BufferType::eLayout), _params.n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
-      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params.nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
+      const std::vector<float> ones(_params->nHighDims, 1.0f);
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), _dataPtr, 0); // Original dataset
+      glNamedBufferStorage(_buffers(BufferType::eScan), _params->n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
+      glNamedBufferStorage(_buffers(BufferType::eLayout), _params->n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
+      glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params->nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
     }
 
@@ -244,7 +244,7 @@ namespace dh::sne {
     return *this;
   }
 
-  // Sum reduction on a buffer. largeBuffer means larger than _params.n, in which case its contents are first accumulated per (selected) datapoint
+  // Sum reduction on a buffer. largeBuffer means larger than _params->n, in which case its contents are first accumulated per (selected) datapoint
   template<typename T>
   T Similarities::reduce(GLuint bufferToReduce, bool largeBuffer, GLuint selectionBufferHandle) {
     uint nBuffers = largeBuffer ? 3 : 2;
@@ -253,14 +253,14 @@ namespace dh::sne {
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
 
     if(largeBuffer) {
-      glNamedBufferStorage(_buffersReduce(BufferReduceType::eAccumulationPerDatapoint), _params.n * sizeof(T), nullptr, 0);
+      glNamedBufferStorage(_buffersReduce(BufferReduceType::eAccumulationPerDatapoint), _params->n * sizeof(T), nullptr, 0);
 
       dh::util::GLProgram& program = std::is_same<T, float>::value
                                     ? _programs(ProgramType::eAccumulatePerDatapointFloatComp)
                                     : _programs(ProgramType::eAccumulatePerDatapointUintComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<bool>("selectedOnly", selectionBufferHandle > 0);
 
       // Set buffer bindings
@@ -271,7 +271,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
       glAssert();
       std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
     }
@@ -279,7 +279,7 @@ namespace dh::sne {
     dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceFloatComp) : _programs(ProgramType::eReduceUintComp);
     program.bind();
   
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToReduce);
@@ -308,12 +308,12 @@ namespace dh::sne {
     // Create and initialize temporary buffer objects
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     {
-      std::vector<uint> zeroes(_params.n * _params.k, 0);
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eDistances), _params.n * _params.k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), _params.n * _params.k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params.n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params.n * _params.k * sizeof(float), zeroes.data(), 0); // n * k floats of neighbor similarities; every k'th element is 0
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params.n * sizeof(uint), zeroes.data(), 0);
+      std::vector<uint> zeroes(_params->n * _params->k, 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eDistances), _params->n * _params->k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), _params->n * _params->k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params->n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params->n * _params->k * sizeof(float), zeroes.data(), 0); // n * k floats of neighbor similarities; every k'th element is 0
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params->n * sizeof(uint), zeroes.data(), 0);
     }
     
     // Progress bar for logging steps of the similarity computation
@@ -330,7 +330,7 @@ namespace dh::sne {
         _buffers(BufferType::eDataset),
         _buffersTemp(BufferTempType::eDistances),
         _buffersTemp(BufferTempType::eNeighbors),
-        _params.n, _params.k, _params.nHighDims);
+        _params->n, _params->k, _params->nHighDims);
       knn.comp();
     }
 
@@ -348,9 +348,9 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
-      program.template uniform<float>("perplexity", _params.perplexity);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("kNeighbors", _params->k);
+      program.template uniform<float>("perplexity", _params->perplexity);
       program.template uniform<uint>("nIters", 200); // Number of binary search iterations for finding sigma corresponding to perplexity
       program.template uniform<float>("epsilon", 1e-4);
 
@@ -360,7 +360,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       
       timer.tock();
@@ -373,7 +373,7 @@ namespace dh::sne {
 
     // 3.
     // Expand KNN data so it becomes symmetric. That is, every neigbor referred by a point itself refers to that point as a neighbor.
-    // Actually just fills eSizes, which, for each element, is _params.k-1+the number of "unregistered neighbors"; datapoints that have it as a neighbor but which it doesn't reciprocate
+    // Actually just fills eSizes, which, for each element, is _params->k-1+the number of "unregistered neighbors"; datapoints that have it as a neighbor but which it doesn't reciprocate
     {
       auto& timer = _timers(TimerType::eExpandComp);
       timer.tick();
@@ -382,15 +382,15 @@ namespace dh::sne {
       program.bind();
       
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("kNeighbors", _params->k);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eSizes));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -405,9 +405,9 @@ namespace dh::sne {
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
 
     {
-      util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params.n);
+      util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params->n);
       scan.comp();
-      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params.n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
+      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     }
 
     // Initialize permanent buffer objects
@@ -431,14 +431,14 @@ namespace dh::sne {
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eScan));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -458,8 +458,8 @@ namespace dh::sne {
       auto &program = _programs(ProgramType::eNeighborsComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("kNeighbors", _params.k);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("kNeighbors", _params->k);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eNeighbors));
@@ -470,7 +470,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n * (_params.k-1), 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n * (_params->k-1), 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -483,7 +483,7 @@ namespace dh::sne {
       auto &program = _programs(ProgramType::eNeighborsSortComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
+      program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eLayout));
@@ -491,7 +491,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       glAssert();
@@ -503,8 +503,8 @@ namespace dh::sne {
       auto &program = _programs(ProgramType::eL1DistancesComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("nHighDims", _params.nHighDims);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eDataset));
@@ -514,10 +514,10 @@ namespace dh::sne {
 
       // Dispatch shader in batches of batchSize (selected) attriibutes
       uint batchSize = 5;
-      for(uint b = 0; b * batchSize < _params.nHighDims; ++b) {
+      for(uint b = 0; b * batchSize < _params->nHighDims; ++b) {
         program.template uniform<uint>("batchBegin", b * batchSize);
-        program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) _params.nHighDims));
-        glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+        program.template uniform<uint>("batchEnd", std::min((b+1) * batchSize, (uint) _params->nHighDims));
+        glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
         glFinish();
         glAssert();
       }
@@ -544,11 +544,15 @@ namespace dh::sne {
     glPollTimers(_timers.size(), _timers.data());
   }
 
+  void Similarities::recomp(float perplexity, uint k, GLuint selectedBufferHandle) {
+
+  }
+
   void Similarities::weighSimilarities(float weight, GLuint selectionBufferHandle, bool interOnly) {
     auto &program = _programs(ProgramType::eWeighSimilaritiesComp);
     program.bind();
 
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<float>("weight", weight);
     program.template uniform<bool>("interOnly", interOnly);
 
@@ -559,7 +563,7 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSimilarities));
 
     // Dispatch shader
-    glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+    glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
@@ -577,10 +581,10 @@ namespace dh::sne {
       auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeComp);
       program.bind();
 
-      program.template uniform<uint>("nPoints", _params.n);
-      program.template uniform<uint>("nHighDims", _params.nHighDims);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
       program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
-      program.template uniform<float>("multiplier", _params.nHighDims / weightedAttributeIndices.size() / 5.f);
+      program.template uniform<float>("multiplier", _params->nHighDims / weightedAttributeIndices.size() / 5.f);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -594,7 +598,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params.n, 256u / 32u), 1, 1);
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
       glAssert();
     }
 
@@ -616,19 +620,21 @@ namespace dh::sne {
     glGetNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), 0, _symmetricSize * sizeof(float), simsO.data());
     std::vector<float> dist(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eDistancesL1), 0, _symmetricSize * sizeof(float), dist.data());
-    std::vector<uint> layo(_params.n * 2);
-    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params.n * 2 * sizeof(uint), layo.data());
-    std::vector<uint> selc(_params.n);
-    glGetNamedBufferSubData(selectionBufferHandle, 0, _params.n * sizeof(uint), selc.data());
-    std::vector<int> labl(_params.n);
-    glGetNamedBufferSubData(labelsBufferHandle, 0, _params.n * sizeof(int), labl.data());
-    std::vector<float> wght(_params.nHighDims);
-    glGetNamedBufferSubData(_buffers(BufferType::eAttributeWeights), 0, _params.nHighDims * sizeof(float), wght.data());
+    std::vector<uint> layo(_params->n * 2);
+    glGetNamedBufferSubData(_buffers(BufferType::eLayout), 0, _params->n * 2 * sizeof(uint), layo.data());
+    std::vector<uint> selc(_params->n);
+    glGetNamedBufferSubData(selectionBufferHandle, 0, _params->n * sizeof(uint), selc.data());
+    std::vector<int> labl(_params->n);
+    glGetNamedBufferSubData(labelsBufferHandle, 0, _params->n * sizeof(int), labl.data());
+    std::vector<float> wght(_params->nHighDims);
+    glGetNamedBufferSubData(_buffers(BufferType::eAttributeWeights), 0, _params->nHighDims * sizeof(float), wght.data());
     // std::vector<float> test(_symmetricSize);
     // glGetNamedBufferSubData(_buffers(BufferType::eTest), 0, _symmetricSize * sizeof(float), test.data());
 
-    int classA = 1;
-    int classB = 7;
+    // int classA = 1; // b
+    // int classB = 7; // h
+    int classA = 6; // g
+    int classB = 16; // q
 
     //// Stuff for neighbours ////
 
@@ -637,11 +643,11 @@ namespace dh::sne {
     std::vector<float> interDists; std::vector<float> intraDists;
     std::vector<float> interDistsAttr; std::vector<float> intraDistsAttr;
     std::vector<float> interDistsAttrRatios; std::vector<float> intraDistsAttrRatios;
-    std::vector<float> attributeDistsNeighbs(_params.nHighDims, 0.f);
+    std::vector<float> attributeDistsNeighbs(_params->nHighDims, 0.f);
 
-    // float multiplier = _params.nHighDims / weightedAttributeIndices.size();
+    // float multiplier = _params->nHighDims / weightedAttributeIndices.size();
     // std::cout << "\n\n" << multiplier << "\n\n";
-    for(uint i = 0; i < _params.n; ++i) {
+    for(uint i = 0; i < _params->n; ++i) {
       uint iClass = labl[i];
       if(selc[i] != 1 || (iClass != classA && iClass != classB)) { continue; }
       for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
@@ -649,15 +655,15 @@ namespace dh::sne {
         uint jClass = labl[j];
         if(selc[j] != 1 || (jClass != classA && jClass != classB)) { continue; }
 
-        for(uint d = 0; d < _params.nHighDims; ++d) {
-          attributeDistsNeighbs[d] += std::abs(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d]) / dist[ij];
+        for(uint d = 0; d < _params->nHighDims; ++d) {
+          attributeDistsNeighbs[d] += std::abs(_dataPtr[i * _params->nHighDims + d] - _dataPtr[j * _params->nHighDims + d]) / dist[ij];
         }
 
         float distAttrSum = 0.f;
         float distAttrRatioSum = 0.f;
         for (uint a = 0; a < weightedAttributeIndices.size(); ++a) {
           uint attr = setvec[a];
-          float distAttr = std::abs(_dataPtr[i * _params.nHighDims + attr] - _dataPtr[j * _params.nHighDims + attr]);
+          float distAttr = std::abs(_dataPtr[i * _params->nHighDims + attr] - _dataPtr[j * _params->nHighDims + attr]);
           float distAttrRatio = distAttr / dist[ij];
 
           distAttrSum += distAttr;
@@ -682,9 +688,6 @@ namespace dh::sne {
       }
     }
     std::cout << "\n\n";
-    std::cout << "Weighted attributes: ";
-    for(uint a = 0; a < weightedAttributeIndices.size(); a++) { std::cout << a << ":" << setvec[a] << " | "; }
-    std::cout << "\n\n";
     std::cout << "Delta inter: " << average(interDeltas) << "\n";
     std::cout << "Delta intra: " << average(intraDeltas) << "\n";
     std::cout << "Ratio inter: " << average(interDistsAttr) << " / " << average(interDists) << " = " << average(interDistsAttrRatios) << "\n";
@@ -700,23 +703,23 @@ namespace dh::sne {
     //// Stuff for all pairs ////
 
     // uint nPairs = 0; uint nPairsInter = 0; uint nPairsIntra = 0;
-    // std::vector<float> attributeDistsPairs(_params.nHighDims, 0.f);
+    // std::vector<float> attributeDistsPairs(_params->nHighDims, 0.f);
 
-    // for(uint i = 0; i < _params.n; ++i) {
+    // for(uint i = 0; i < _params->n; ++i) {
     //   uint iClass = labl[i];
     //   if(selc[i] != 1) { continue; }
-    //   for(uint j = 0; j < _params.n; ++j) {
+    //   for(uint j = 0; j < _params->n; ++j) {
     //     uint jClass = labl[j];
     //     if(selc[j] != 1) { continue; }
     //     if(i == j) { continue; }
 
     //     float dist = 0.f;
-    //     for(uint d = 0; d < _params.nHighDims; ++d) {
-    //       dist += std::abs(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d]);
+    //     for(uint d = 0; d < _params->nHighDims; ++d) {
+    //       dist += std::abs(_dataPtr[i * _params->nHighDims + d] - _dataPtr[j * _params->nHighDims + d]);
     //     }
         
-    //     for(uint d = 0; d < _params.nHighDims; ++d) {
-    //       attributeDistsPairs[d] += std::abs(_dataPtr[i * _params.nHighDims + d] - _dataPtr[j * _params.nHighDims + d]) / dist;
+    //     for(uint d = 0; d < _params->nHighDims; ++d) {
+    //       attributeDistsPairs[d] += std::abs(_dataPtr[i * _params->nHighDims + d] - _dataPtr[j * _params->nHighDims + d]) / dist;
     //     }
 
     //     nPairs++;
@@ -729,8 +732,8 @@ namespace dh::sne {
     //   }
     // }
 
-    // std::vector<float> attributeDistsRatios(_params.nHighDims);
-    // for(uint d = 0; d < _params.nHighDims; ++d) {
+    // std::vector<float> attributeDistsRatios(_params->nHighDims);
+    // for(uint d = 0; d < _params->nHighDims; ++d) {
     //   attributeDistsNeighbs[d] /= interNeighbs.size() + intraNeighbs.size();
     //   attributeDistsPairs[d] /= nPairs;
     //   attributeDistsRatios[d] += attributeDistsNeighbs[d] / attributeDistsPairs[d];

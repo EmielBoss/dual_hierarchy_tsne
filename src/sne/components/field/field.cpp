@@ -76,7 +76,7 @@ namespace dh::sne {
     const typename EmbeddingHierarchy<D>::Layout eLayout = _embeddingHierarchy.layout();
     const int lvlDiff = static_cast<int>(eLayout.nLvls) - static_cast<int>(fLayout.nLvls);
     const bool fieldHierarchyActive = _useFieldHierarchy 
-                                    && iteration >= _params.nExaggerationIters
+                                    && iteration >= _params->nExaggerationIters
                                     && lvlDiff < DH_HIER_LVL_DIFFERENCE;
 
     // Build field hierarchy if necessary
@@ -98,7 +98,7 @@ namespace dh::sne {
 
     // Update hierarchy refit/rebuild countdown
     if (_useEmbeddingHierarchy) {
-      if (iteration <= (_params.nExaggerationIters + DH_BVH_REFIT_PADDING)
+      if (iteration <= (_params->nExaggerationIters + DH_BVH_REFIT_PADDING)
       || _hierarchyRebuildIterations >= DH_BVH_REFIT_ITERS) {
         _hierarchyRebuildIterations = 0;
       } else {
@@ -116,7 +116,7 @@ namespace dh::sne {
     program.bind();
 
     // Set uniforms, bind texture unit
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<int>("fieldSampler", 0);
     glBindTextureUnit(0, _textures(TextureType::eField));
 
@@ -126,7 +126,7 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimization.bounds);
 
     // Dispatch compute shader
-    glDispatchCompute(ceilDiv(_params.n, 128u), 1, 1);
+    glDispatchCompute(ceilDiv(_params->n, 128u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     timer.tock();

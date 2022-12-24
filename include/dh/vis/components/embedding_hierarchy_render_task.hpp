@@ -39,7 +39,7 @@ namespace dh::vis {
 
   public:
     EmbeddingHierarchyRenderTask();
-    EmbeddingHierarchyRenderTask(sne::MinimizationBuffers minimization, sne::EmbeddingHierarchyBuffers embeddingHierarchy, sne::Params params, int priority);
+    EmbeddingHierarchyRenderTask(sne::MinimizationBuffers minimization, sne::EmbeddingHierarchyBuffers embeddingHierarchy, sne::Params* params, int priority);
     ~EmbeddingHierarchyRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -65,7 +65,7 @@ namespace dh::vis {
     bool _isInit;
     sne::MinimizationBuffers _minimization;
     sne::EmbeddingHierarchyBuffers _embeddingHierarchy;
-    sne::Params _params;
+    sne::Params* _params;
 
     // ImGui state
     float _lineWidth;

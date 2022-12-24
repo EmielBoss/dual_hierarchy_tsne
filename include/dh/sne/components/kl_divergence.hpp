@@ -36,7 +36,7 @@ namespace dh::sne {
   class KLDivergence {
   public:
     KLDivergence();
-    KLDivergence(Params params, SimilaritiesBuffers similarities, MinimizationBuffers minimization);
+    KLDivergence(Params* params, SimilaritiesBuffers similarities, MinimizationBuffers minimization);
     ~KLDivergence();
 
     // Copy constr/assignment is explicitly deleted
@@ -79,7 +79,7 @@ namespace dh::sne {
 
     // State
     bool _isInit;
-    Params _params;
+    Params* _params;
     SimilaritiesBuffers _similarities;
     MinimizationBuffers _minimization;
 

@@ -72,7 +72,7 @@ namespace dh::sne {
 
       // Draw a point at each embedding position (_stencilVAOHandle contains the minimization.embedding)
       glBindVertexArray(_stencilVAOHandle);
-      glDrawArrays(GL_POINTS, 0, _params.n);
+      glDrawArrays(GL_POINTS, 0, _params->n);
       
       // (3D only) Disable OR logic operations
       if constexpr (D == 3) {
@@ -125,7 +125,7 @@ namespace dh::sne {
 
     // Set uniforms
     program.template uniform<uint, D>("textureSize", _size);
-    program.template uniform<uint>("nPoints", _params.n);
+    program.template uniform<uint>("nPoints", _params->n);
 
     // Bind buffers
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);

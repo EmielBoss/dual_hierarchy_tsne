@@ -39,7 +39,7 @@ namespace dh::vis {
 
   public:
     AxesRenderTask();
-    AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params params, std::vector<char> axisMapping, int selectedAxistype, int priority);
+    AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params* params, std::vector<char> axisMapping, int selectedAxistype, int priority);
     ~AxesRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -59,7 +59,7 @@ namespace dh::vis {
     // State
     bool _isInit;
     sne::MinimizationBuffers _minimization;
-    sne::Params _params;
+    sne::Params* _params;
     std::vector<char> _axisMapping;
     std::vector<char> _axisMappingPrev;
 

@@ -69,14 +69,14 @@ namespace dh::sne {
   }();
 
   template <>
-  Field<3>::Field(MinimizationBuffers minimization, Params params)
+  Field<3>::Field(MinimizationBuffers minimization, Params* params)
   : _isInit(false),
     _minimization(minimization),
     _params(params),
     _hierarchyRebuildIterations(0),
     _size(0),
-    _useEmbeddingHierarchy(params.dualHierarchyTheta > 0.0f),
-    _useFieldHierarchy(params.dualHierarchyTheta > 0.0f) {
+    _useEmbeddingHierarchy(params->dualHierarchyTheta > 0.0f),
+    _useFieldHierarchy(params->dualHierarchyTheta > 0.0f) {
     Logger::newt() << prefix << "Initializing...";
     
     // Initialize shader programs
@@ -169,7 +169,7 @@ namespace dh::sne {
 
     // Embedding hierarchy used, initialize
     if (_useEmbeddingHierarchy) {
-      const EmbeddingHierarchy<3>::Layout layout(_params.n);
+      const EmbeddingHierarchy<3>::Layout layout(_params->n);
       _embeddingHierarchy = EmbeddingHierarchy<3>(_minimization, layout, _params);
     }
 

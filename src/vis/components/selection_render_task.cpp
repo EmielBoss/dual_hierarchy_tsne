@@ -50,7 +50,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _texturedataBuffers(texturedataBuffers),
@@ -69,8 +69,6 @@ namespace dh::vis {
     _similarityWeight(2.f),
     _autoselectPercentage(0.1f),
     _textureTabOpened(0),
-    _perplexity(params.perplexity),
-    _k((int) _params.k),
     _plotError(true),
     _currentTypeTab(0) {
 
@@ -111,17 +109,17 @@ namespace dh::vis {
       glAssert();
     }
 
-    if(_params.imageDataset) {
+    if(_params->imageDataset) {
       glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
       for(uint i = 0; i < _textures.size() - 1; ++i) {
         glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        GLenum formatInternal = _params.imgDepth == 1 ? GL_R8 : GL_RGB8;
-        glTextureStorage2D(_textures[i], 1, formatInternal, _params.imgWidth, _params.imgHeight);
+        GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
+        glTextureStorage2D(_textures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
       }
       glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_textures[_textures.size()-1], 1, GL_RGBA8, _params.imgWidth, _params.imgHeight);
+      glTextureStorage2D(_textures[_textures.size()-1], 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
     }
 
 
@@ -165,14 +163,14 @@ namespace dh::vis {
 
   void SelectionRenderTask::drawImGuiComponent() {
     // Copy texture data to textures
-    if(_params.imageDataset) {
+    if(_params->imageDataset) {
       for(uint i = 0; i < _textures.size() - 1; ++i) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[i]);
-        GLenum format = _params.imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params.imgWidth, _params.imgHeight, format, GL_FLOAT, 0);
+        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+        glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
       }
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_textures.size()-1]);
-      glTextureSubImage2D(_textures[_textures.size()-1], 0, 0, 0, _params.imgWidth, _params.imgHeight, GL_RGBA, GL_FLOAT, 0);
+      glTextureSubImage2D(_textures[_textures.size()-1], 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
 
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -186,7 +184,7 @@ namespace dh::vis {
       ImGui::InputInt("Select individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
 
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params.maxSimilarityWeight);
+      ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
 
       ImGui::Text("No. of sel. points: %i", _selectionCounts[0]);
       if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
@@ -236,7 +234,7 @@ namespace dh::vis {
 
   void SelectionRenderTask::drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text) {
     if (ImGui::BeginTabItem(text)) {
-      if(_params.imageDataset) {
+      if(_params->imageDataset) {
         drawImGuiTexture(selectionIndex * 2 + typeIndex);
         drawImGuiTextureControls();
       } else {
@@ -264,15 +262,15 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) {
       ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures[6], ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
       _hoveringTexture = true;
-      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params.imgWidth;
-      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params.imgHeight;
-      uint hoveredTexel = teYel * _params.imgWidth + teXel;
+      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params->imgWidth;
+      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params->imgHeight;
+      uint hoveredTexel = teYel * _params->imgWidth + teXel;
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
       std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
-      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params.imgDepth);
+      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params->imgDepth);
       ImGui::Text(prompts[index], texelValue);
       ImGui::EndTooltip();
 
@@ -282,7 +280,7 @@ namespace dh::vis {
       _hoveringTexture = false;
       _draggedTexel = -1;
     }
-    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params.maxAttributeWeight, "Attr\nWght\n%.2f");
+    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
     glAssert();
   }
@@ -301,30 +299,25 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
-    // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
-    // ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
-    // if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params.kMax, 3 * (uint)(_perplexity) + 1); }
-    // ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params.kMax);
-    // ImGui::PopItemWidth();
   }
 
   void SelectionRenderTask::drawImPlotBarPlot(uint selectionIndex) {
-    ImPlot::SetNextAxesLimits(0.f, (float) _params.nHighDims, 0.f, 1.f);
+    ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##")) {
-      std::vector<float> xs(_params.nHighDims);
+      std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
-      std::vector<float> ys(_params.nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2], 0, _params.nHighDims * sizeof(float), ys.data());
-      std::vector<float> errs(_params.nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2 + 1], 0, _params.nHighDims * sizeof(float), errs.data());
+      std::vector<float> ys(_params->nHighDims);
+      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2], 0, _params->nHighDims * sizeof(float), ys.data());
+      std::vector<float> errs(_params->nHighDims);
+      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
 
       ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 
-      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
+      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
       if(_plotError) {
         ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
-        ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params.nHighDims);
-        ImPlot::PlotBars("Average", xs.data(), ys.data(), _params.nHighDims, 1.f);
+        ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params->nHighDims);
+        ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
       }
       ImPlot::EndPlot();
     }
