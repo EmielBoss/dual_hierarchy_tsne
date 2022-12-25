@@ -55,11 +55,10 @@ namespace dh::sne {
     float average(std::vector<float> vec);
     void displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative);
     void displayBarplot(std::vector<float> ys);
-    template <typename T> T reduce(GLuint bufferToReduce, bool largeBuffer = false, GLuint selectionBufferHandle = 0);
 
     // Compute similarities
     void comp();
-    void recomp(float perplexity, uint k, GLuint selectedBufferHandle);
+    void recomp(GLuint selectedBufferHandle);
     void weighSimilarities(float weight, GLuint selectedBufferHandle, bool interOnly = false);
     void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
@@ -90,19 +89,7 @@ namespace dh::sne {
       Length
     };
 
-    enum class BufferReduceType {
-      eReduce,
-      eReduced,
-      eAccumulationPerDatapoint,
-
-      Length
-    };
-
     enum class ProgramType {
-      eAccumulatePerDatapointFloatComp,
-      eAccumulatePerDatapointUintComp,
-      eReduceFloatComp,
-      eReduceUintComp,
       eSimilaritiesComp,
       eExpandComp,
       eLayoutComp,
@@ -134,7 +121,6 @@ namespace dh::sne {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
-    util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
     util::CUTimer _knnTimer;

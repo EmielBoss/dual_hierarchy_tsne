@@ -63,7 +63,7 @@ rsrcs_embed(shaders ${CMAKE_SOURCE_DIR}/resources/shaders)
 
 # Specify util library
 add_library_recurse(util ${CMAKE_SOURCE_DIR}/src/util ${CMAKE_SOURCE_DIR}/include/dh/util)
-target_link_libraries(util PUBLIC cub glad::glad glfw glm::glm indicators::indicators date::date faiss)
+target_link_libraries(util PUBLIC cub glad::glad glfw glm::glm indicators::indicators date::date faiss ResourceEmbed)
 
 # Specify sne library
 add_library_recurse(sne ${CMAKE_SOURCE_DIR}/src/sne ${CMAKE_SOURCE_DIR}/include/dh/sne)

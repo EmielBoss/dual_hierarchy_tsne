@@ -33,6 +33,7 @@
 #include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
+#include "dh/util/gl/reduce.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/util/cu/knn.cuh"
 #include <faiss/VectorTransform.h>
@@ -619,7 +620,9 @@ namespace dh::sne {
       }
 
       if(_embeddingRenderTask->getFocusButtonPressed()) {
-        std::cout << "FOCUS!\n";
+        _params->perplexity = _embeddingRenderTask->getPerplexity();
+        _params->k = _embeddingRenderTask->getK();
+        
       }
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp deletes and recreates buffers
       _buttonPrev = _button;
@@ -985,33 +988,12 @@ namespace dh::sne {
     // 2.
     // Count number of selected datapoints
     for (uint s = 0; s < 2; ++s) {
-      auto& program = _programs(ProgramType::eCountSelectedComp);
-      program.bind();
-
-      // Set uniforms
-      program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<uint>("selectionNumber", s + 1);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eSelectionCountReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eSelectionCount));
-      glAssert();
-
-      program.template uniform<uint>("iter", 0);
-      glDispatchCompute(128, 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      program.template uniform<uint>("iter", 1);
-      glDispatchCompute(1, 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
       uint selectionCountPrev = _selectionCounts[0];
-      glGetNamedBufferSubData(_buffers(BufferType::eSelectionCount), 0, sizeof(uint), &_selectionCounts[s]);
-      glAssert();
+      _selectionCounts[s] = dh::util::Reducer::instance().reduce<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
 
-      // Turn of force weighing if too many datapoints are selected at once, which is likely not what the user wants
+      // Turn off force weighing if too many datapoints are selected at once, which is likely not what the user wants
       if(_selectionCounts[0] - selectionCountPrev > _params->n / 500) { _embeddingRenderTask->setWeighForces(false); }
     }
 
