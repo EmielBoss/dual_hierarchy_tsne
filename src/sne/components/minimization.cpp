@@ -183,7 +183,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
-      glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are labeled
       glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
@@ -505,6 +505,15 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  void Minimization<D, DD>::deselect() {
+    std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
+    _selectionRenderTask->setSelectionCounts(_selectionCounts);
+    _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
+    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
+    if(_params->imageDataset) { clearTextures(); }
+  }
+
+  template <uint D, uint DD>
   void Minimization<D, DD>::comp() {
     while (_iteration < _params->iterations) {
       compIteration();
@@ -543,13 +552,7 @@ namespace dh::sne {
     }
 
     // Deselect
-    if(_input.d) {
-      std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
-      _selectionRenderTask->setSelectionCounts(_selectionCounts);
-      _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
-      if(_params->imageDataset) { clearTextures(); }
-    }
+    if(_input.d) { deselect(); }
     
     // Clear translations if not translating
     if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -620,11 +623,19 @@ namespace dh::sne {
       }
 
       if(_embeddingRenderTask->getFocusButtonPressed()) {
-        _params->perplexity = _embeddingRenderTask->getPerplexity();
-        _params->k = _embeddingRenderTask->getK();
-        
+        uint n = _params->n;
+        _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
+        _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
+        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
+        deselect();
+        _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because Reducer::remove() creates new buffers
+        restartMinimization();
       }
-      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp deletes and recreates buffers
       _buttonPrev = _button;
     }
 

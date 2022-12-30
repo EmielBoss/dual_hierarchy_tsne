@@ -139,12 +139,10 @@ namespace dh::vis {
     return *this;
   }
 
-  void SelectionRenderTask::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+  void SelectionRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
     if (!enable) {
       return;
     }
-
-    _canDrawLabels = (labelsHandle > 0); // Used for showing selection mode options
 
     _program.bind();
 
@@ -172,6 +170,7 @@ namespace dh::vis {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_textures.size()-1]);
       glTextureSubImage2D(_textures[_textures.size()-1], 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
+    glAssert();
 
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       if (_canDrawLabels) {

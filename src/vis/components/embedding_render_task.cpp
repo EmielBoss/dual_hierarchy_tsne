@@ -67,7 +67,6 @@ namespace dh::vis {
     _classTextures(classTextures),
     _classCounts(classCounts),
     _params(params),
-    _canDrawLabels(false),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
     _weightFixed(params->k),
@@ -208,14 +207,11 @@ namespace dh::vis {
   }
 
   template <uint D>
-  void EmbeddingRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+  void EmbeddingRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
 
     if (!enable) {
       return;
     }
-
-    // Only allow drawing labels if a buffer is provided with said labels
-    _canDrawLabels = (labelsHandle > 0);
 
     // Time-based effect for the secondary selection
     int ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -230,13 +226,13 @@ namespace dh::vis {
     _program.template uniform<float>("pointOpacity", _pointOpacity);
     _program.template uniform<float>("pointRadius", _pointRadius);
     _program.template uniform<uint>("colorMapping", _colorMapping);
-    _program.template uniform<bool>("canDrawLabels", _canDrawLabels);
+    _program.template uniform<bool>("canDrawLabels", _minimizationBuffers.labels > 0);
     _program.template uniform<bool>("selectLabeledOnly", _selectLabeledOnly);
     _program.template uniform<float>("divisor", divisor);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, labelsHandle);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.labels);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labeled);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.disabled);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.selection);
@@ -258,7 +254,7 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-      if (_canDrawLabels) {
+      if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");
         if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
         ImGui::SameLine();
@@ -290,7 +286,7 @@ namespace dh::vis {
   // Draws the class list
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
-    if(!_canDrawLabels) { return; }
+    if(_minimizationBuffers.labels == 0) { return; }
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params->nClasses; ++i) {
         if(_params->imageDataset) { ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine(); }

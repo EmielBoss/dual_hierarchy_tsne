@@ -175,7 +175,7 @@ void sne() {
   dh::util::GLWindow window(info);
 
   // Create necessary components
-  dh::vis::Renderer renderer(&params, axisMapping.data(), window, labels);
+  dh::vis::Renderer renderer(&params, axisMapping.data(), window);
   dh::sne::SNE sne(&params, axisMapping, data, labels);
 
   // If visualization is requested, minimize and render at the same time

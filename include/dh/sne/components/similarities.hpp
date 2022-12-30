@@ -58,9 +58,9 @@ namespace dh::sne {
 
     // Compute similarities
     void comp();
-    void recomp(GLuint selectedBufferHandle);
-    void weighSimilarities(float weight, GLuint selectedBufferHandle, bool interOnly = false);
-    void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectedBufferHandle, uint nSelected, GLuint labelsBufferHandle);
+    void recomp(GLuint selectionBufferHandle, float perplexity, uint k);
+    void weighSimilarities(float weight, GLuint selectionBufferHandle, bool interOnly = false);
+    void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
 
   private:
@@ -71,7 +71,6 @@ namespace dh::sne {
       eSimilarities,
       eSimilaritiesOriginal,
       eLayout,
-      eScan,
       eAttributeWeights,
       
       Length
@@ -83,6 +82,7 @@ namespace dh::sne {
       eNeighbors,
       eSimilarities,
       eSizes,
+      eScan,
       eCounts,
       eWeightedAttributeIndices,
 

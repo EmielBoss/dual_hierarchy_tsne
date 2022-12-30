@@ -33,6 +33,7 @@ namespace dh::sne {
     GLuint embeddingRel;
     GLuint field;
     GLuint bounds;
+    GLuint labels;
     GLuint labeled;
     GLuint selection;
     GLuint fixed;

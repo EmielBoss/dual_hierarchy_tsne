@@ -155,7 +155,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  void AxesRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+  void AxesRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
     if (!enable) {
       return;
     }

@@ -50,7 +50,7 @@ namespace dh::vis {
     AxesRenderTask(AxesRenderTask&&) noexcept;
     AxesRenderTask& operator=(AxesRenderTask&&) noexcept;
 
-    void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
+    void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
     std::vector<char> getAxisMapping() { return _axisMapping; }
     int getSelectedIndex() { return _selectedIndex; }

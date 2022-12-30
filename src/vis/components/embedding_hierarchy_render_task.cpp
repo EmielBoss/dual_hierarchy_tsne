@@ -167,7 +167,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  void EmbeddingHierarchyRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) {
+  void EmbeddingHierarchyRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
     if (!enable) {
       return;
     }

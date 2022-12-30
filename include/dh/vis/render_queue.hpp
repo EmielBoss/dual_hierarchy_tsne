@@ -41,7 +41,7 @@ namespace dh::vis {
     RenderTask(int priority, const std::string& name);
 
     // Override and implement a render task to be handled by the renderer
-    virtual void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) = 0;
+    virtual void render(glm::mat4 model_view, glm::mat4 proj) = 0;
     virtual void drawImGuiComponent() = 0;
     virtual void drawImGuiComponentSecondary() { return; } // Optional component in the secondary (right) window
 

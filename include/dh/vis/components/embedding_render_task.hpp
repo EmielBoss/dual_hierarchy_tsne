@@ -51,7 +51,7 @@ namespace dh::vis {
     EmbeddingRenderTask(EmbeddingRenderTask&&) noexcept;
     EmbeddingRenderTask& operator=(EmbeddingRenderTask&&) noexcept;
 
-    void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
+    void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
     
@@ -65,6 +65,7 @@ namespace dh::vis {
     bool getFocusButtonPressed() { return _buttonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
+    void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
 
   private:
     enum class BufferType {
@@ -79,7 +80,6 @@ namespace dh::vis {
     sne::Params* _params;
 
     // ImGui state
-    bool _canDrawLabels;
     bool _weighForces;
     float _weightFixed;
     float _weightFalloff;
@@ -120,7 +120,6 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._params, b._params);
-      swap(a._canDrawLabels, b._canDrawLabels);
       swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
       swap(a._weightFalloff, b._weightFalloff);

@@ -39,11 +39,21 @@ namespace dh::util {
     Length
   };
 
+  enum class BufferRemoveType {
+    eCumSum,
+    eRemoved,
+
+    Length
+  };
+
   enum class ProgramType {
     eAccumulatePerDatapointFloatComp,
     eAccumulatePerDatapointUintComp,
     eReduceFloatComp,
     eReduceUintComp,
+
+    eRemoveFloatComp,
+    eRemoveUintComp,
 
     Length,
   };
@@ -67,7 +77,8 @@ namespace dh::util {
       // largeBuffer means larger than _params->n, in which case its contents are first accumulated per (selected) datapoint
       // If largeBuffer, layoutBuffer and neighborBuffer need to be > 0 as well
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
-      template <typename T> T reduce(GLuint bufferToReduce, uint n, T countVal = 0, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
+      template <typename T> T reduce(GLuint& bufferToReduce, uint n, T countVal = 0, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
+      template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
 
       bool isInit() const { return _isInit; }
 
@@ -82,5 +93,6 @@ namespace dh::util {
       // Objects
       util::EnumArray<ProgramType, util::GLProgram> _programs;
       util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
+      util::EnumArray<BufferRemoveType, GLuint> _buffersRemove;
   };
 } // dh::util

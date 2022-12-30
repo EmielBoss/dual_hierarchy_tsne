@@ -67,6 +67,7 @@ namespace dh::sne {
 
     void average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance = false, GLuint subtractorBuffer = 0);
     void initializeEmbeddingRandomly(int seed);
+    void deselect();
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
@@ -225,6 +226,7 @@ namespace dh::sne {
         _buffers(BufferType::eEmbeddingRelative),
         _buffers(BufferType::eField),
         _buffers(BufferType::eBounds),
+        _buffers(BufferType::eLabels),
         _buffers(BufferType::eLabeled),
         _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),

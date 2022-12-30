@@ -216,7 +216,6 @@ namespace dh::sne {
     {
       const std::vector<float> ones(_params->nHighDims, 1.0f);
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), _dataPtr, 0); // Original dataset
-      glNamedBufferStorage(_buffers(BufferType::eScan), _params->n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params->n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
       glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params->nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();
@@ -252,8 +251,9 @@ namespace dh::sne {
       std::vector<uint> zeroes(_params->n * _params->k, 0);
       glNamedBufferStorage(_buffersTemp(BufferTempType::eDistances), _params->n * _params->k * sizeof(float), nullptr, 0); // n * k floats of neighbor distances; every k'th element is 0
       glNamedBufferStorage(_buffersTemp(BufferTempType::eNeighbors), _params->n * _params->k * sizeof(uint), nullptr, 0); // n * k uints of neighbor indices (ranging from 0 to n-1); every k'th element is vector index itself (so it's actually k-1 NN)
-      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params->n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
       glNamedBufferStorage(_buffersTemp(BufferTempType::eSimilarities), _params->n * _params->k * sizeof(float), zeroes.data(), 0); // n * k floats of neighbor similarities; every k'th element is 0
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eSizes), _params->n * sizeof(uint), zeroes.data(), 0); // n uints of (expanded) neighbor set sizes; every element is k-1 plus its number of "unregistered neighbors" that have it as neighbor but that it doesn't reciprocate
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eScan), _params->n * sizeof(uint), nullptr, 0); // Prefix sum/inclusive scan over expanded neighbor set sizes (eSizes). (This should be a temp buffer, but that yields an error)
       glNamedBufferStorage(_buffersTemp(BufferTempType::eCounts), _params->n * sizeof(uint), zeroes.data(), 0);
     }
     
@@ -346,9 +346,9 @@ namespace dh::sne {
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
 
     {
-      util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffers(BufferType::eScan), _params->n);
+      util::InclusiveScan scan(_buffersTemp(BufferTempType::eSizes), _buffersTemp(BufferTempType::eScan), _params->n);
       scan.comp();
-      glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
+      glGetNamedBufferSubData(_buffersTemp(BufferTempType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     }
 
     // Initialize permanent buffer objects
@@ -375,7 +375,7 @@ namespace dh::sne {
       program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eScan));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersTemp(BufferTempType::eScan));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLayout));
 
       // Dispatch shader
@@ -485,8 +485,19 @@ namespace dh::sne {
     glPollTimers(_timers.size(), _timers.data());
   }
 
-  void Similarities::recomp(GLuint selectedBufferHandlee) {
-
+  void Similarities::recomp(GLuint selectionBufferHandle, float perplexity, uint k) {
+    _params->n = dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, selectionBufferHandle);
+    _params->perplexity = perplexity;
+    _params->k = k;
+    glDeleteBuffers(1, &_buffers(BufferType::eNeighbors));
+    glCreateBuffers(1, &_buffers(BufferType::eNeighbors));
+    glDeleteBuffers(1, &_buffers(BufferType::eSimilarities));
+    glCreateBuffers(1, &_buffers(BufferType::eSimilarities));
+    glDeleteBuffers(1, &_buffers(BufferType::eSimilaritiesOriginal));
+    glCreateBuffers(1, &_buffers(BufferType::eSimilaritiesOriginal));
+    glDeleteBuffers(1, &_buffers(BufferType::eDistancesL1));
+    glCreateBuffers(1, &_buffers(BufferType::eDistancesL1));
+    comp();
   }
 
   void Similarities::weighSimilarities(float weight, GLuint selectionBufferHandle, bool interOnly) {

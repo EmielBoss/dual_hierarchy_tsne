@@ -51,7 +51,7 @@ namespace dh::vis {
 
     void averageSelectedImages();
     void clearSelection(bool imageDataset);
-    void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle = 0) override;
+    void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
 

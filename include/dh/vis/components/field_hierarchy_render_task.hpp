@@ -50,7 +50,7 @@ namespace dh::vis {
     FieldHierarchyRenderTask(FieldHierarchyRenderTask&&) noexcept;
     FieldHierarchyRenderTask& operator=(FieldHierarchyRenderTask&&) noexcept;
 
-    void render(glm::mat4 model_view, glm::mat4 proj, GLuint labelsHandle) override;
+    void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
 
   private:

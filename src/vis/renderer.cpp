@@ -47,12 +47,11 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(sne::Params* params, char* axisMapping, const util::GLWindow& window, const std::vector<int>& labels)
+  Renderer::Renderer(sne::Params* params, char* axisMapping, const util::GLWindow& window)
   : _isInit(false),
     _params(params),
     _axisMapping(axisMapping),
     _windowHandle(&window),
-    _labelsHandle(0),
     _fboSize(0) {
     
     // Setup ImGui
@@ -87,12 +86,6 @@ namespace dh::vis {
     glCreateFramebuffers(1, &_fboHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboColorTextureHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboDepthTextureHandle);
-    _labeledData = false;
-    if (labels.size() > 0) {
-      _labeledData = true;
-      glCreateBuffers(1, &_labelsHandle);
-      glNamedBufferStorage(_labelsHandle, labels.size() * sizeof(int), labels.data(), 0);    
-    }
     glAssert();
     
     _isInit = true;
@@ -113,7 +106,6 @@ namespace dh::vis {
       glDeleteTextures(1, &_fboColorTextureHandle);
       glDeleteTextures(1, &_fboDepthTextureHandle);
       glDeleteFramebuffers(1, &_fboHandle);
-      glDeleteBuffers(1, &_labelsHandle);
 
       _isInit = false;
     }
@@ -197,7 +189,7 @@ namespace dh::vis {
 
     // Process all tasks in render queue
     for (auto& ptr : RenderQueue::instance().queue()) {
-      ptr->render(model_view, proj, _labelsHandle);
+      ptr->render(model_view, proj);
       glAssert();
     }
 
