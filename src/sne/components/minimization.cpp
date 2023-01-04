@@ -627,6 +627,7 @@ namespace dh::sne {
         _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
         _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
         dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
+        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
         dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
         dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
         dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));

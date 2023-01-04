@@ -56,6 +56,7 @@ namespace dh::vis {
     void drawImGuiComponentSecondary() override;
     
     void generateClassColors();
+    void createVAO();
     uint getColorMapping() { return _colorMapping; }
     bool getWeighForces() { return _weighForces; }
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
@@ -65,7 +66,10 @@ namespace dh::vis {
     bool getFocusButtonPressed() { return _buttonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
-    void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
+    void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
+      _minimizationBuffers = minimizationBuffers;
+      createVAO(); // Recreate VAO with updated embedding buffer
+    }
 
   private:
     enum class BufferType {

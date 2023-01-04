@@ -54,7 +54,6 @@ void main() {
   if(Fixed[i] == 1) {
     if(translationFinished) { return; }
     Positions[i] = PositionsRelative[i] * range + minBounds;
-    PositionsRelativeBeforeTranslation[i] * range + minBounds;
     return;
   }
 

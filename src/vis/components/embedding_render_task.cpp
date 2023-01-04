@@ -102,33 +102,7 @@ namespace dh::vis {
       glAssert();
     }
 
-    // Initialize vertex array object
-    {
-      glCreateVertexArrays(1, &_vaoHandle);
-
-      // Specify vertex buffers and element buffer
-      constexpr uint embeddingStride = (D == 2) ? 2 : 4;
-      glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));                   // Quad positions
-      glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embeddingRel, 0, embeddingStride * sizeof(float));    // Embedding positions
-      glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                            // Quad elements/indices
-
-      // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
-      glVertexArrayBindingDivisor(_vaoHandle, 0, 0);
-      glVertexArrayBindingDivisor(_vaoHandle, 1, 1);
-      
-      // Specify vertex array data organization
-      constexpr uint embeddingSize = (D == 2) ? 2 : 3;
-      glVertexArrayAttribFormat(_vaoHandle, 0, 2, GL_FLOAT, GL_FALSE, 0);
-      glVertexArrayAttribFormat(_vaoHandle, 1, embeddingSize, GL_FLOAT, GL_FALSE, 0);
-
-      // Other VAO properties
-      glEnableVertexArrayAttrib(_vaoHandle, 0);
-      glEnableVertexArrayAttrib(_vaoHandle, 1);
-      glVertexArrayAttribBinding(_vaoHandle, 0, 0);
-      glVertexArrayAttribBinding(_vaoHandle, 1, 1);
-      
-      glAssert();
-    }
+    createVAO();
 
     _classNames = std::vector<std::string>(_params->nClasses, "");
     dh::util::readTxtClassNames(_params->datasetName + ".txt", _classNames, _params->nClasses);
@@ -156,6 +130,36 @@ namespace dh::vis {
   EmbeddingRenderTask<D>& EmbeddingRenderTask<D>::operator=(EmbeddingRenderTask<D>&& other) noexcept {
     swap(*this, other);
     return *this;
+  }
+
+  // (Re)create and initialize VAO
+  template <uint D>
+  void EmbeddingRenderTask<D>::createVAO() {
+    glDeleteVertexArrays(1, &_vaoHandle);
+    glCreateVertexArrays(1, &_vaoHandle);
+
+    // Specify vertex buffers and element buffer
+    constexpr uint embeddingStride = (D == 2) ? 2 : 4;
+    glVertexArrayVertexBuffer(_vaoHandle, 0, _buffers(BufferType::ePositions), 0, sizeof(glm::vec2));                   // Quad positions
+    glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embeddingRel, 0, embeddingStride * sizeof(float));    // Embedding positions
+    glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                            // Quad elements/indices
+
+    // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
+    glVertexArrayBindingDivisor(_vaoHandle, 0, 0);
+    glVertexArrayBindingDivisor(_vaoHandle, 1, 1);
+    
+    // Specify vertex array data organization
+    constexpr uint embeddingSize = (D == 2) ? 2 : 3;
+    glVertexArrayAttribFormat(_vaoHandle, 0, 2, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(_vaoHandle, 1, embeddingSize, GL_FLOAT, GL_FALSE, 0);
+
+    // Other VAO properties
+    glEnableVertexArrayAttrib(_vaoHandle, 0);
+    glEnableVertexArrayAttrib(_vaoHandle, 1);
+    glVertexArrayAttribBinding(_vaoHandle, 0, 0);
+    glVertexArrayAttribBinding(_vaoHandle, 1, 1);
+    
+    glAssert();
   }
 
   template <uint D>
