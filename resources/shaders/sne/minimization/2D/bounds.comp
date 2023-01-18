@@ -104,6 +104,11 @@ void main() {
       vec2 _minBounds = min_local - padding;
       vec2 _maxBounds = max_local + padding;
       vec2 _range = (_maxBounds - _minBounds);
+      if(length(_range) < 0.1) {
+        _minBounds *= 100;
+        _maxBounds *= 100;
+        _range = (_maxBounds - _minBounds);
+      }
 
       maxBounds = _maxBounds;
       minBounds = _minBounds;
