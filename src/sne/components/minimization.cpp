@@ -322,7 +322,9 @@ namespace dh::sne {
     _iteration = 0;
     restartExaggeration(_params->nExaggerationIters);
     const std::vector<vec> zerovecs(_params->n, vec(0));
+    const std::vector<vec> unitvecs(_params->n, vec(1));
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+    glClearNamedBufferData(_buffers(BufferType::eGain), GL_R32F, GL_RED, GL_FLOAT, unitvecs.data());
   }
 
   // Restarts the exaggeration by pushing the exaggeration end iteration further ahead
