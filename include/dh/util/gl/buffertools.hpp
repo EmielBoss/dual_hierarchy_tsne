@@ -55,17 +55,19 @@ namespace dh::util {
     eRemoveFloatComp,
     eRemoveUintComp,
 
+    eSetUintComp,
+
     Length,
   };
 
-  class Reducer {
+  class BufferTools {
     public:
-      // Accessor; there is one Reducer used by the util library
+      // Accessor; there is one BufferTools used by the util library
       // Ergo, InputQueue implements a singleton pattern, but
       // with controllable initialization/destruction. It is not 
-      // functional for the sne lib until Reducer::instance().init() has been called.
-      static Reducer& instance() {
-        static Reducer instance;
+      // functional for the sne lib until BufferTools::instance().init() has been called.
+      static BufferTools& instance() {
+        static BufferTools instance;
         return instance;
       }
 
@@ -79,13 +81,14 @@ namespace dh::util {
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
       template <typename T> T reduce(GLuint& bufferToReduce, uint n, T countVal = 0, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
       template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+      template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
 
       bool isInit() const { return _isInit; }
 
     private:
       // Hidden constr/destr
-      Reducer();
-      ~Reducer();
+      BufferTools();
+      ~BufferTools();
 
       // State
       bool _isInit;

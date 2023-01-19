@@ -33,7 +33,7 @@
 #include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
-#include "dh/util/gl/reduce.hpp"
+#include "dh/util/gl/buffertools.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/util/cu/knn.cuh"
 #include <faiss/VectorTransform.h>
@@ -100,7 +100,6 @@ namespace dh::sne {
       _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_count.comp"));
       _programs(ProgramType::eAverageComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/average.comp"));
       _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/difference.comp"));
-      _programs(ProgramType::eDisableComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/disable.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -572,7 +571,11 @@ namespace dh::sne {
     if(_input.mouseLeft) { compIterationSelect(); } // Select
     if(_selectionRenderTask->getSelectAll()) { compIterationSelect(true); } // Select all
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
-    if(_input.del) { compIterationDisable(); } // Disable
+    if(_input.del) {
+      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
+      compIterationSelect(true);
+    } // Disable
     if(_input.ins) { glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
 
     _mousePosClipPrev = _input.mousePosClip;
@@ -628,15 +631,15 @@ namespace dh::sne {
         uint n = _params->n;
         _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
         _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
-        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
-        dh::util::Reducer::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
+        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
         deselect();
-        _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because Reducer::remove() creates new buffers
+        _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
         restartMinimization();
       }
       _buttonPrev = _button;
@@ -995,15 +998,14 @@ namespace dh::sne {
       glAssert();
     } else
     if(_selectionRenderTask->getSelectAll()) {
-      const std::vector<int> allSelected(_params->n, sn);
-      glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, allSelected.data());
+      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
     }
 
     // 2.
     // Count number of selected datapoints
     for (uint s = 0; s < 2; ++s) {
       uint selectionCountPrev = _selectionCounts[0];
-      _selectionCounts[s] = dh::util::Reducer::instance().reduce<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
+      _selectionCounts[s] = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
 
@@ -1074,27 +1076,6 @@ namespace dh::sne {
     glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationDisable() {
-
-    auto& program = _programs(ProgramType::eDisableComp);
-    program.bind();
-
-    // Set uniform
-    program.template uniform<uint>("nPoints", _params->n);
-
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
-
-    // Dispatch shader
-    glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    glAssert();
-
-    compIterationSelect(true);
   }
 
   // Template instantiations for 2/3 dimensions

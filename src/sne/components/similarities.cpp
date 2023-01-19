@@ -27,7 +27,7 @@
 #include "dh/util/logger.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
-#include "dh/util/gl/reduce.hpp"
+#include "dh/util/gl/buffertools.hpp"
 #include "dh/util/io.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
@@ -224,7 +224,7 @@ namespace dh::sne {
     _isInit = true;
     Logger::rest() << prefix << "Initialized";
 
-    dh::util::Reducer::instance().init();
+    dh::util::BufferTools::instance().init();
   }
 
   Similarities::~Similarities() {
@@ -486,7 +486,7 @@ namespace dh::sne {
   }
 
   void Similarities::recomp(GLuint selectionBufferHandle, float perplexity, uint k) {
-    _params->n = dh::util::Reducer::instance().remove<float>(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, selectionBufferHandle);
+    _params->n = dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, selectionBufferHandle);
     _params->perplexity = perplexity;
     _params->k = k;
     glDeleteBuffers(1, &_buffers(BufferType::eNeighbors));
@@ -556,8 +556,8 @@ namespace dh::sne {
 
     // Renormalizing the similarities
     {
-      float simSumOrg = dh::util::Reducer::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::Reducer::instance().reduce<float>(_buffers(BufferType::eSimilarities), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
       float factor = simSumOrg / simSumNew;
       weighSimilarities(factor, selectionBufferHandle);
     }

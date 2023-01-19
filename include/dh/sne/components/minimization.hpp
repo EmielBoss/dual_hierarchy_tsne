@@ -90,7 +90,6 @@ namespace dh::sne {
     void compIterationMinimize();                                               // Compute the minimization part of a single iteration
     void compIterationSelect(bool skipEval = false);                            // Compute the selection part of a single iteration
     void compIterationTranslate();                                              // Compute the translation part of a single iteration
-    void compIterationDisable();
 
   private:
     enum class BufferType {
@@ -149,7 +148,6 @@ namespace dh::sne {
       eAverageComp,
       eDifferenceComp,
       eTranslationComp,
-      eDisableComp,
 
       Length
     };

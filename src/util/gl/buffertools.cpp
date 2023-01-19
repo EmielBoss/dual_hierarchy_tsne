@@ -25,12 +25,12 @@
 #include <resource_embed/resource_embed.hpp>
 #include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
-#include "dh/util/gl/reduce.hpp"
+#include "dh/util/gl/buffertools.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 
 namespace dh::util {
 
-  void Reducer::init() {
+  void BufferTools::init() {
     if (_isInit) {
       return;
     }
@@ -45,6 +45,8 @@ namespace dh::util {
       _programs(ProgramType::eRemoveFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/remove_float.comp"));
       _programs(ProgramType::eRemoveUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/remove_uint.comp"));
 
+      _programs(ProgramType::eSetUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/set_uint.comp"));
+
       for (auto& program : _programs) {
         program.link();
       }
@@ -54,7 +56,7 @@ namespace dh::util {
     _isInit = true;
   }
 
-  void Reducer::dstr() {
+  void BufferTools::dstr() {
     if (_isInit) {
       return;
     }
@@ -62,16 +64,16 @@ namespace dh::util {
     _isInit = false;
   }
 
-  Reducer::Reducer() : _isInit(false) { }
+  BufferTools::BufferTools() : _isInit(false) { }
 
-  Reducer::~Reducer() {
+  BufferTools::~BufferTools() {
     if (_isInit) {
       dstr();
     }
   }
   
   template<typename T>
-  T Reducer::reduce(GLuint& bufferToReduce, uint n, T countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer) {
+  T BufferTools::reduce(GLuint& bufferToReduce, uint n, T countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer) {
     glCreateBuffers(_buffersReduce.size(), _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * sizeof(T), nullptr, 0);
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
@@ -128,7 +130,7 @@ namespace dh::util {
   }
 
   template <typename T>
-  uint Reducer::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer) {
+  uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer) {
     glCreateBuffers(_buffersRemove.size(), _buffersRemove.data());
     glNamedBufferStorage(_buffersRemove(BufferRemoveType::eCumSum), n * sizeof(T), nullptr, 0);
 
@@ -170,9 +172,30 @@ namespace dh::util {
     }
   }
 
+  template <typename T>
+  void BufferTools::set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer) {
+    auto& program = _programs(ProgramType::eSetUintComp);
+    program.bind();
+
+    // Set uniform
+    program.template uniform<uint>("nPoints", n);
+    program.template uniform<T>("maskVal", maskVal);
+    program.template uniform<T>("setVal", setVal);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, maskBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferToSet);
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
   // Template instantiations for float, and uint
-  template float Reducer::reduce<float>(GLuint& bufferToReduce, uint n, float countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
-  template uint Reducer::reduce<uint>(GLuint& bufferToReduce, uint n, uint countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
-  template uint Reducer::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
-  template uint Reducer::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+  template float BufferTools::reduce<float>(GLuint& bufferToReduce, uint n, float countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+  template uint BufferTools::reduce<uint>(GLuint& bufferToReduce, uint n, uint countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+  template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+  template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+  template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);
 }

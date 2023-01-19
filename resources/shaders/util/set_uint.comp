@@ -26,17 +26,16 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict buffer Sel { int selection[]; };
-layout(binding = 1, std430) restrict writeonly buffer Dis { uint disabled[]; };
+layout(binding = 0, std430) restrict readonly buffer Mask { int mask[]; };
+layout(binding = 1, std430) restrict writeonly buffer BufferToSet { uint bufferToSet[]; };
 
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform uint maskVal;
+layout(location = 2) uniform uint setVal;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  if(selection[i] == 1) {
-    disabled[i] = int(true);
-    selection[i] = int(false);
-  }
+  if(mask[i] == maskVal) { bufferToSet[i] = setVal; }
 }
