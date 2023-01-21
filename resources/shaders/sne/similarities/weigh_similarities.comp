@@ -42,7 +42,8 @@ layout(binding = 3, std430) restrict buffer Sims { float similaritiesBuffer[]; }
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform float weight;
-layout(location = 2) uniform bool interOnly;
+layout(location = 2) uniform bool weighAll;
+layout(location = 3) uniform bool interOnly;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -51,12 +52,13 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if (i >= nPoints || (!weighAll && selectionBuffer[i] == 0)) { return; }
   
   Layout l = layoutBuffer[i];
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if(!interOnly && selectionBuffer[j] == 1 ||
+    if( weighAll ||
+       !interOnly && selectionBuffer[j] == 1 ||
         interOnly && selectionBuffer[j] >  0 && selectionBuffer[i] != selectionBuffer[j]) {
       similaritiesBuffer[ij] *= weight;
     }

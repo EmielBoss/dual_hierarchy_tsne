@@ -31,8 +31,9 @@ layout(binding = 1, std430) restrict buffer BufferReduce { uint bufferReduce[128
 layout(binding = 2, std430) restrict writeonly buffer BufferReduced { uint bufferReduced; };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint countVal;
-layout(location = 2) uniform uint iter;
+layout(location = 1) uniform bool sumAll;
+layout(location = 2) uniform uint countVal;
+layout(location = 3) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared uint reduction_array[halfGroupSize];
@@ -45,7 +46,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(countVal == 0) { sum += bufferToReduce[i]; } else
+      if(sumAll) { sum += bufferToReduce[i]; } else
       if(bufferToReduce[i] == countVal) { sum++; }
     }
   } else if (iter == 1) {

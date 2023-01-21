@@ -106,6 +106,7 @@ namespace dh::util {
     program.bind();
   
     program.template uniform<uint>("nPoints", n);
+    program.template uniform<bool>("sumAll", countVal == -1);
     program.template uniform<T>("countVal", countVal);
 
     // Set buffer bindings

@@ -59,12 +59,8 @@ namespace dh::vis {
     void drawImGuiTexture(GLuint textureHandle);
     void drawImGuiTextureControls();
     void drawImPlotBarPlot(uint selectionIndex);
-    void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
-    void setInput(dh::vis::Input input) { _input = input; }
 
     float getBufferValue(GLuint buffer, int index);
-    bool getHoveringTexture() { return _hoveringTexture; }
-    int getSelectedDatapoint() { return _selectedDatapoint; }
 
   private:
     enum class BufferType {
@@ -134,6 +130,10 @@ namespace dh::vis {
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
     float getOpenedTextureIndex() { return _currentSelectionTab * 2 + _currentTypeTab; }
+    void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
+    void setInput(dh::vis::Input input) { _input = input; }
+    bool getHoveringTexture() { return _hoveringTexture; }
+    int getSelectedDatapoint() { return _selectedDatapoint; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {

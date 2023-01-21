@@ -571,12 +571,21 @@ namespace dh::sne {
     if(_input.mouseLeft) { compIterationSelect(); } // Select
     if(_selectionRenderTask->getSelectAll()) { compIterationSelect(true); } // Select all
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
-    if(_input.del) {
+    
+    if(_input.del) { // Disable
+      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      float fracDisabled = (float) _selectionCounts[0] / (float) nEnabled;
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
       compIterationSelect(true);
-    } // Disable
-    if(_input.ins) { glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+      _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
+    }
+    if(_input.ins) { // Enable
+      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      float fracEnabled = (float) nEnabled / (float) _params->n;
+      _similarities->weighSimilarities(fracEnabled);
+      glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+    }
 
     _mousePosClipPrev = _input.mousePosClip;
     _mouseLeftPrev = _input.mouseLeft;

@@ -506,6 +506,7 @@ namespace dh::sne {
 
     program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<float>("weight", weight);
+    program.template uniform<bool>("weighAll", selectionBufferHandle == 0);
     program.template uniform<bool>("interOnly", interOnly);
 
     // Set buffer bindings
@@ -556,8 +557,8 @@ namespace dh::sne {
 
     // Renormalizing the similarities
     {
-      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), _params->n, 0, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), _params->n, -1, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), _params->n, -1, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
       float factor = simSumOrg / simSumNew;
       weighSimilarities(factor, selectionBufferHandle);
     }
