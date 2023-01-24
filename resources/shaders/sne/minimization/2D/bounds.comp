@@ -105,8 +105,9 @@ void main() {
       vec2 _maxBounds = max_local + padding;
       vec2 _range = (_maxBounds - _minBounds);
       if(length(_range) < 0.1) {
-        _minBounds *= 100;
-        _maxBounds *= 100;
+        vec2 center = 0.5f * (_maxBounds + _minBounds);
+        _minBounds = center - length(_range) * 100;
+        _maxBounds = center + length(_range) * 100;
         _range = (_maxBounds - _minBounds);
       }
 
