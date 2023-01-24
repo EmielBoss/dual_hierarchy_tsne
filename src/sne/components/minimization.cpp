@@ -506,12 +506,18 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::deselect() {
+  void Minimization<D, DD>::deselectSelection() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
     if(_params->imageDataset) { clearTextures(); }
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::invertSelection() {
+    dh::util::BufferTools::instance().flip<uint>(_buffers(BufferType::eSelection), _params->n);
+    compIterationSelect(true);
   }
 
   template <uint D, uint DD>
@@ -553,7 +559,7 @@ namespace dh::sne {
     }
 
     // Deselect
-    if(_input.d) { deselect(); }
+    if(_input.d) { deselectSelection(); }
     
     // Clear translations if not translating
     if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -569,7 +575,7 @@ namespace dh::sne {
     if(_input.e) { restartExaggeration(3); } // Re-exaggerate
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
     if(_input.mouseLeft) { compIterationSelect(); } // Select
-    if(_selectionRenderTask->getSelectAll()) { compIterationSelect(true); } // Select all
+    if(_selectionRenderTask->getButtonPressed() == 20) { compIterationSelect(true); } // Select all
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
@@ -628,11 +634,14 @@ namespace dh::sne {
           mirrorWeightsToOverlay();
           _weightedAttributeIndices = std::set<uint>();
         }
-        if(_button == 5) { // Invert selection
+        if(_button == 5) { // Invert attribute weights
           invertAttributeWeights();
         }
-        if(_button == 6) { // Refine selection
+        if(_button == 6) { // Refine attribute weights
           refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
+        }
+        if(_button == 30) { // Invert selection
+          invertSelection();
         }
       }
 
@@ -647,7 +656,7 @@ namespace dh::sne {
         dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
         dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
         dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
-        deselect();
+        deselectSelection();
         _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
         restartMinimization();
       }
@@ -1006,7 +1015,7 @@ namespace dh::sne {
 
       glAssert();
     } else
-    if(_selectionRenderTask->getSelectAll()) {
+    if(_selectionRenderTask->getButtonPressed() == 20) {
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
     }
 

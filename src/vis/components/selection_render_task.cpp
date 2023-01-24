@@ -62,7 +62,6 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _draggedTexel(-1),
     _buttonPressed(0),
-    _selectAll(false),
     _selectedDatapoint(0),
     _attributeWeight(0.f),
     _texelBrushRadius(1),
@@ -182,24 +181,22 @@ namespace dh::vis {
 
       ImGui::InputInt("Select individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
 
-      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::Text("Similarity weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
-
-      ImGui::Text("No. of sel. points: %i", _selectionCounts[0]);
-      if(ImGui::SameLine(); ImGui::Button("Select all")) { _selectAll = true; }
-      else { _selectAll = false; }
       _buttonPressed = 0;
-      if(ImGui::SameLine(); ImGui::Button("Apply weight")) { _buttonPressed = 1; }
+      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+      ImGui::Text("Sim. weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
+      if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
-      ImGui::Spacing();
-
       if(_selectionCounts[1] > 0) {
-        ImGui::Text("No. of sel. points (secondary): %i", _selectionCounts[1]);
-        if(ImGui::SameLine(); ImGui::Button("Apply  weight")) { _buttonPressed = 10; }
+        if(ImGui::SameLine(); ImGui::Button("Inter")) { _buttonPressed = 10; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
-      } else {
-        ImGui::Dummy(ImVec2(0.0f, 19.0f));
-      }
+      } else { ImGui::SameLine(); ImGui::Dummy(ImVec2(43.0f, 19.0f)); }
+
+      ImGui::Text("Select:");
+      if(ImGui::SameLine(); ImGui::Button("all")) { _buttonPressed = 20; }
+      if(ImGui::SameLine(); ImGui::Button("inverse")) { _buttonPressed = 30; }
+
+      ImGui::Text("Selection size (primary): %i", _selectionCounts[0]);
+      ImGui::Text("Selection size (secondary): %i", _selectionCounts[1]);
     }
 
     if (ImGui::BeginTabBar("Selection tabs")) {

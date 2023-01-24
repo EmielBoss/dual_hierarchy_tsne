@@ -100,7 +100,6 @@ namespace dh::vis {
     float _autoselectPercentage;
     uint _buttonPressed;
     int _selectedDatapoint;
-    bool _selectAll;
     bool _hoveringTexture;
     uint _textureTabOpened;
     bool _plotError;
@@ -124,7 +123,6 @@ namespace dh::vis {
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     int getDraggedTexel() { return _draggedTexel; }
     uint getButtonPressed() { return _buttonPressed; }
-    bool getSelectAll() { return _selectAll; }
     float getAttributeWeight() { return _attributeWeight; }
     int getTexelBrushRadius() { return _texelBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
@@ -148,7 +146,6 @@ namespace dh::vis {
       swap(a._mousePosScreen, b._mousePosScreen);
       swap(a._draggedTexel, b._draggedTexel);
       swap(a._buttonPressed, b._buttonPressed);
-      swap(a._selectAll, b._selectAll);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._attributeWeight, b._attributeWeight);
       swap(a._texelBrushRadius, b._texelBrushRadius);

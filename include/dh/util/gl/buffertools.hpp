@@ -57,6 +57,8 @@ namespace dh::util {
 
     eSetUintComp,
 
+    eFlipUintComp,
+
     Length,
   };
 
@@ -82,6 +84,7 @@ namespace dh::util {
       template <typename T> T reduce(GLuint& bufferToReduce, uint n, T countVal = -1, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
       template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
+      template <typename T> void flip(GLuint& bufferToFlip, uint n);
 
       bool isInit() const { return _isInit; }
 

@@ -47,6 +47,8 @@ namespace dh::util {
 
       _programs(ProgramType::eSetUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/set_uint.comp"));
 
+      _programs(ProgramType::eFlipUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/flip_uint.comp"));
+
       for (auto& program : _programs) {
         program.link();
       }
@@ -193,10 +195,28 @@ namespace dh::util {
     glAssert();
   }
 
+  template <typename T>
+  void BufferTools::flip(GLuint& bufferToFlip, uint n) {
+    auto& program = _programs(ProgramType::eFlipUintComp);
+    program.bind();
+
+    // Set uniform
+    program.template uniform<uint>("nPoints", n);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToFlip);
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
   // Template instantiations for float, and uint
   template float BufferTools::reduce<float>(GLuint& bufferToReduce, uint n, float countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template uint BufferTools::reduce<uint>(GLuint& bufferToReduce, uint n, uint countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
   template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
   template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);
+  template void BufferTools::flip<uint>(GLuint& bufferToFlip, uint n);
 }
