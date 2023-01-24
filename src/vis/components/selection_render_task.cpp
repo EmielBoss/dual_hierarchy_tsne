@@ -324,8 +324,9 @@ namespace dh::vis {
   void SelectionRenderTask::drawImGuiComponentSecondary() {
     if (ImGui::CollapsingHeader("Hotkeys", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Text("Scroll: brush size");
-      ImGui::Text("Left mouse button (hold): move and fix selection"); if(_input.mouseLeft) { ImGui::SameLine(); ImGui::Text(" <"); }
-      ImGui::Text("Right mouse button (hold): select datapoints"); if(_input.mouseRight) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Left mouse button (hold): select datapoints"); if(_input.mouseLeft) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Middle mouse button (hold): deselect datapoints"); if(_input.mouseMiddle) { ImGui::SameLine(); ImGui::Text(" <"); }
+      ImGui::Text("Right mouse button (hold): move and fix selection"); if(_input.mouseRight) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("S (hold): secondary select"); if(_input.s) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("D (press): deselect"); if(_input.d) { ImGui::SameLine(); ImGui::Text(" <"); }
       ImGui::Text("F (press): unfix datapoints"); if(_input.f) { ImGui::SameLine(); ImGui::Text(" <"); }

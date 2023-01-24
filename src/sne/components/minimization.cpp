@@ -574,7 +574,7 @@ namespace dh::sne {
     if(_input.r) { restartMinimization(); } // Restart
     if(_input.e) { restartExaggeration(3); } // Re-exaggerate
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
-    if(_input.mouseLeft) { compIterationSelect(); } // Select
+    if(_input.mouseLeft || _input.mouseMiddle) { compIterationSelect(); } // Select
     if(_selectionRenderTask->getButtonPressed() == 20) { compIterationSelect(true); } // Select all
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
@@ -594,7 +594,6 @@ namespace dh::sne {
     }
 
     _mousePosClipPrev = _input.mousePosClip;
-    _mouseLeftPrev = _input.mouseLeft;
     _mouseRightPrev = _input.mouseRight;
 
     if(_params->imageDataset) {
@@ -1002,6 +1001,7 @@ namespace dh::sne {
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
       program.template uniform<float, 4, 4>("model_view", DD == 2 ? _model_view_2D : _model_view_3D);
       program.template uniform<float, 4, 4>("proj", DD == 2 ? _proj_2D : _proj_3D);
+      program.template uniform<bool>("deselect", _input.mouseMiddle);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbeddingRelative));

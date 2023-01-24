@@ -190,7 +190,6 @@ namespace dh::sne {
     std::vector<uint> _selectionCounts;
     float _selectionRadiusRel;
     uint _selectedDatapointPrev;
-    bool _mouseLeftPrev;
     bool _mouseRightPrev;
     glm::vec2 _mousePosClipPrev;
     glm::mat4 _model_view_2D;
