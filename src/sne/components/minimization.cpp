@@ -643,6 +643,7 @@ namespace dh::sne {
           invertSelection();
         }
       }
+      _buttonPrev = _button;
 
       if(_embeddingRenderTask->getFocusButtonPressed()) {
         uint n = _params->n;
@@ -659,7 +660,12 @@ namespace dh::sne {
         _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
         restartMinimization();
       }
-      _buttonPrev = _button;
+
+      if(_embeddingRenderTask->getClassButtonPressed() >= 0) {
+        int classToSelect = _embeddingRenderTask->getClassButtonPressed();
+        dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
+        compIterationSelect(true);
+      }
     }
 
     // Select individual datapoints if int field input changed
@@ -979,6 +985,15 @@ namespace dh::sne {
                                 : "Done!";
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params->iterations));
+    }
+
+    if(_input.ctrl) {
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbedding), _params->n, D, "emb");
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbeddingRelative), _params->n, D, "rel");
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eBounds), 4, D, "bnd");
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eField), _params->n, 4, "fld");
+      dh::util::writeGLBuffer<float>(_similaritiesBuffers.similarities, _params->n, 10, "sim");
+      dh::util::writeGLBuffer<float>(_similaritiesBuffers.dataset, _params->n, 10, "dat");
     }
   }
 

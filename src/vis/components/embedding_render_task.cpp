@@ -75,7 +75,8 @@ namespace dh::vis {
     _numClustersPrev(params->nClusters),
     _pointRadius(0.003f),
     _pointOpacity(1.0f),
-    _buttonPressed(false),
+    _focusButtonPressed(false),
+    _classButtonPressed(-1),
     _perplexity(params->perplexity),
     _k((int) _params->k) {
     // Enable/disable render task by default
@@ -276,12 +277,12 @@ namespace dh::vis {
       ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
 
-      _buttonPressed = false;
+      _focusButtonPressed = false;
       ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params->kMax, 3 * (uint)(_perplexity) + 1); }
       ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params->kMax);
-      if(ImGui::SameLine(); ImGui::Button("Focus")) { _buttonPressed = true; }
+      if(ImGui::SameLine(); ImGui::Button("Focus")) { _focusButtonPressed = true; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
       ImGui::PopItemWidth();
     }
@@ -291,13 +292,16 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
     if(_minimizationBuffers.labels == 0) { return; }
+    _classButtonPressed = -1;
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params->nClasses; ++i) {
-        if(_params->imageDataset) { ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine(); }
+        if(_params->imageDataset) {
+          if(ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0)) { _classButtonPressed = i; }
+        }
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
         std::string leadingZeros = i < 10 ? "0" : "";
         std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " " + _classNames[i];
-        if(ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
+        if(ImGui::SameLine(); ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
           glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
           _colors[i] = colorUpdated;
           glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);

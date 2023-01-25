@@ -63,7 +63,8 @@ namespace dh::vis {
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
     float getPerplexity() { return _perplexity; }
-    bool getFocusButtonPressed() { return _buttonPressed; }
+    bool getFocusButtonPressed() { return _focusButtonPressed; }
+    int getClassButtonPressed() { return _classButtonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
@@ -95,7 +96,8 @@ namespace dh::vis {
     float _pointOpacity;
     float _perplexity;
     int _k;
-    bool _buttonPressed;
+    bool _focusButtonPressed;
+    int _classButtonPressed;
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
     std::vector<std::string> _classNames;
@@ -134,7 +136,8 @@ namespace dh::vis {
       swap(a._pointOpacity, b._pointOpacity);
       swap(a._perplexity, b._perplexity);
       swap(a._k, b._k);
-      swap(a._buttonPressed, b._buttonPressed);
+      swap(a._focusButtonPressed, b._focusButtonPressed);
+      swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
       swap(a._classTextures, b._classTextures);
