@@ -39,6 +39,7 @@ layout(binding = 7, std430) restrict readonly buffer Bounds {
   vec2 range;
   vec2 invRange;
 };
+layout(binding = 8, std430) restrict buffer BoundsSel { vec2 boundsSel[2]; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec2 shiftRel;
@@ -49,9 +50,10 @@ layout(location = 5) uniform float weight;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if(i < 2) { boundsSel[i] += shiftRel; }
+  if(i >= nPoints || selectionBuffer[i] == 0) { return; }
 
-  if (translationStarted || translationFinished) {
+  if (translationStarted) {
     vec2 positionRelative = (positionsBuffer[i] - minBounds) * invRange;
     positionsRelativeBuffer[i] = positionRelative;
     positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
@@ -61,4 +63,9 @@ void main() {
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
   if(weighForces) { weightsBuffer[i] = weight; }
+
+  if(translationFinished) {
+    positionsRelativeBuffer[i] -= min(vec2(0.f), boundsSel[0]);
+    positionsRelativeBuffer[i] -= max(vec2(0.f), boundsSel[1] - 1.f);
+  }
 }

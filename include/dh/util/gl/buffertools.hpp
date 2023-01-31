@@ -47,10 +47,13 @@ namespace dh::util {
   };
 
   enum class ProgramType {
-    eAccumulatePerDatapointFloatComp,
-    eAccumulatePerDatapointUintComp,
-    eReduceFloatComp,
-    eReduceUintComp,
+    eReduceSumPerDatapointFloatComp,
+    eReduceSumPerDatapointUintComp,
+    eReduceSumFloatComp,
+    eReduceSumUintComp,
+
+    eReduceMinVec2Comp,
+    eReduceMaxVec2Comp,
 
     eRemoveFloatComp,
     eRemoveUintComp,
@@ -81,7 +84,8 @@ namespace dh::util {
       // largeBuffer means larger than _params->n, in which case its contents are first accumulated per (selected) datapoint
       // If largeBuffer, layoutBuffer and neighborBuffer need to be > 0 as well
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
-      template <typename T> T reduce(GLuint& bufferToReduce, uint n, T countVal = -1, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
+      template <typename T> T reduceSum(GLuint& bufferToReduce, uint n, T countVal = -1, bool largeBuffer = false, GLuint selectionBuffer = 0, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
+      template <typename T> T reduceMinMax(GLuint& bufferToReduce, uint n, bool minOrMax, GLuint selectionBuffer = 0);
       template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
       template <typename T> void flip(GLuint& bufferToFlip, uint n);

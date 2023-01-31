@@ -165,6 +165,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), unitvecs.data(), 0);
+      glNamedBufferStorage(_buffers(BufferType::eBoundsSelection), 2 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eZ), 2 * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eZReduce), 128 * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eField), _params->n * 4 * sizeof(float), nullptr, 0);
@@ -187,8 +188,6 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glAssert();
-
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, "dat");
 
       // Initialize buffers for the average/variance of attributes of the selected datapoints
       glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
@@ -581,7 +580,7 @@ namespace dh::sne {
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
-      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
       float fracDisabled = (float) _selectionCounts[0] / (float) nEnabled;
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
@@ -589,7 +588,7 @@ namespace dh::sne {
       _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
     }
     if(_input.ins) { // Enable
-      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
       glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
@@ -713,7 +712,6 @@ namespace dh::sne {
 
       // Set uniforms
       program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<float>("padding", 0.0f);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -872,7 +870,6 @@ namespace dh::sne {
       program.template uniform<float>("minGain", _params->minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
-      program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -987,17 +984,6 @@ namespace dh::sne {
       util::ProgressBar progressBar(prefix + "Computing...", postfix);
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params->iterations));
     }
-
-    if(_input.ctrl || _iteration < 2) {
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbedding), _params->n, D, "emb");
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbeddingRelative), _params->n, D, "rel");
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eGradients), _params->n, D, "grd");
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eBounds), 4, D, "bnd");
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eField), _params->n, 4, "fld");
-      dh::util::writeGLBuffer<float>(_buffers(BufferType::eDataset), _params->n / 10000, _params->nHighDims, "datmin");
-      dh::util::writeGLBuffer<float>(_similaritiesBuffers.dataset, _params->n / 10000, _params->nHighDims, "datsim");
-      dh::util::writeGLBuffer<float>(_similaritiesBuffers.similarities, _params->n / 10000, _params->k, "sim");
-    }
   }
 
   template <uint D, uint DD>
@@ -1041,7 +1027,7 @@ namespace dh::sne {
     // Count number of selected datapoints
     for (uint s = 0; s < 2; ++s) {
       uint selectionCountPrev = _selectionCounts[0];
-      _selectionCounts[s] = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
+      _selectionCounts[s] = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
 
@@ -1079,6 +1065,13 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::compIterationTranslate() {
 
+    if(!_mouseRightPrev) {
+      glm::vec2 min = dh::util::BufferTools::instance().reduceMinMax<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), _params->n, true, _buffers(BufferType::eSelection));
+      glm::vec2 max = dh::util::BufferTools::instance().reduceMinMax<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), _params->n, false, _buffers(BufferType::eSelection));
+      glNamedBufferSubData(_buffers(BufferType::eBoundsSelection), 0 * sizeof(vec), sizeof(vec), &min);
+      glNamedBufferSubData(_buffers(BufferType::eBoundsSelection), 1 * sizeof(vec), sizeof(vec), &max);
+    }
+
     glm::vec4 mousePosRel = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_input.mousePosClip, 0.9998, 1);
     glm::vec4 mousePosRelPrev = glm::inverse(_proj_2D * _model_view_2D) * glm::vec4(_mousePosClipPrev, 0.9998, 1);
     vec shiftRel = mousePosRel - mousePosRelPrev;
@@ -1107,6 +1100,7 @@ namespace dh::sne {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eTranslating));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eWeights));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eBoundsSelection));
 
     // Dispatch shader
     glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);

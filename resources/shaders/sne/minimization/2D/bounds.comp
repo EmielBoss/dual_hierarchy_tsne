@@ -43,8 +43,7 @@ layout(binding = 4, std430) restrict buffer Bounds {
 
 // Uniform bindings
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform float padding;
-layout(location = 2) uniform uint iter;
+layout(location = 1) uniform uint iter;
 
 // Constants, shared memory
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
@@ -99,14 +98,13 @@ void main() {
       minBoundsReduceAdd[gl_WorkGroupID.x] = min_local;
       maxBoundsReduceAdd[gl_WorkGroupID.x] = max_local;
     } else if (iter == 1) {
-      vec2 padding = (max_local - min_local) * 0.5f * padding;
-      vec2 _minBounds = min_local - padding;
-      vec2 _maxBounds = max_local + padding;
+      vec2 _minBounds = min_local;
+      vec2 _maxBounds = max_local;
       vec2 _range = (_maxBounds - _minBounds);
-      if(length(_range) < 0.1) {
+      if(_range.x < 0.1 || _range.y < 0.1) {
         vec2 center = 0.5f * (_maxBounds + _minBounds);
-        _minBounds = center - length(_range) * 100;
-        _maxBounds = center + length(_range) * 100;
+        _minBounds = center - 100;
+        _maxBounds = center + 100;
         _range = (_maxBounds - _minBounds);
       }
 

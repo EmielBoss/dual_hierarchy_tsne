@@ -37,10 +37,13 @@ namespace dh::util {
 
     // Initialize shader programs
     {
-      _programs(ProgramType::eAccumulatePerDatapointFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/accumulate_per_datapoint_float.comp"));
-      _programs(ProgramType::eAccumulatePerDatapointUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/accumulate_per_datapoint_uint.comp"));
-      _programs(ProgramType::eReduceFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_float.comp"));
-      _programs(ProgramType::eReduceUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_uint.comp"));
+      _programs(ProgramType::eReduceSumPerDatapointFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_sum_per_datapoint_float.comp"));
+      _programs(ProgramType::eReduceSumPerDatapointUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_sum_per_datapoint_uint.comp"));
+      _programs(ProgramType::eReduceSumFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_sum_float.comp"));
+      _programs(ProgramType::eReduceSumUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_sum_uint.comp"));
+
+      _programs(ProgramType::eReduceMinVec2Comp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_min_vec2.comp"));
+      _programs(ProgramType::eReduceMaxVec2Comp).addShader(util::GLShaderType::eCompute, rsrc::get("util/reduce_max_vec2.comp"));
 
       _programs(ProgramType::eRemoveFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/remove_float.comp"));
       _programs(ProgramType::eRemoveUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/remove_uint.comp"));
@@ -75,7 +78,7 @@ namespace dh::util {
   }
   
   template<typename T>
-  T BufferTools::reduce(GLuint& bufferToReduce, uint n, T countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer) {
+  T BufferTools::reduceSum(GLuint& bufferToReduce, uint n, T countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer) {
     glCreateBuffers(_buffersReduce.size(), _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * sizeof(T), nullptr, 0);
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
@@ -84,8 +87,8 @@ namespace dh::util {
       glNamedBufferStorage(_buffersReduce(BufferReduceType::eAccumulationPerDatapoint), n * sizeof(T), nullptr, 0);
 
       dh::util::GLProgram& program = std::is_same<T, float>::value
-                                    ? _programs(ProgramType::eAccumulatePerDatapointFloatComp)
-                                    : _programs(ProgramType::eAccumulatePerDatapointUintComp);
+                                    ? _programs(ProgramType::eReduceSumPerDatapointFloatComp)
+                                    : _programs(ProgramType::eReduceSumPerDatapointUintComp);
       program.bind();
 
       program.template uniform<uint>("nPoints", n);
@@ -104,7 +107,7 @@ namespace dh::util {
       std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
     }
 
-    dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceFloatComp) : _programs(ProgramType::eReduceUintComp);
+    dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceSumFloatComp) : _programs(ProgramType::eReduceSumUintComp);
     program.bind();
   
     program.template uniform<uint>("nPoints", n);
@@ -127,6 +130,39 @@ namespace dh::util {
     T reducedValue = 0;
     glGetNamedBufferSubData(_buffersReduce(BufferReduceType::eReduced), 0, sizeof(T), &reducedValue);
     if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint)); }
+    glDeleteBuffers(_buffersReduce.size(), _buffersReduce.data());
+    glAssert();
+    return reducedValue;
+  }
+
+  template<typename T>
+  T BufferTools::reduceMinMax(GLuint& bufferToReduce, uint n, bool minOrMax, GLuint selectionBuffer) {
+    glCreateBuffers(_buffersReduce.size(), _buffersReduce.data());
+    glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * sizeof(T), nullptr, 0);
+    glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
+
+    dh::util::GLProgram& program = minOrMax ? _programs(ProgramType::eReduceMinVec2Comp) : _programs(ProgramType::eReduceMaxVec2Comp);
+    program.bind();
+  
+    program.template uniform<uint>("nPoints", n);
+    program.template uniform<bool>("selectedOnly", selectionBuffer > 0);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToReduce);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersReduce(BufferReduceType::eReduce));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersReduce(BufferReduceType::eReduced));
+
+    // Dispatch shader
+    program.template uniform<uint>("iter", 0);
+    glDispatchCompute(128, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    program.template uniform<uint>("iter", 1);
+    glDispatchCompute(1, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    T reducedValue;
+    glGetNamedBufferSubData(_buffersReduce(BufferReduceType::eReduced), 0, sizeof(T), &reducedValue);
     glDeleteBuffers(_buffersReduce.size(), _buffersReduce.data());
     glAssert();
     return reducedValue;
@@ -213,8 +249,9 @@ namespace dh::util {
   }
 
   // Template instantiations for float, and uint
-  template float BufferTools::reduce<float>(GLuint& bufferToReduce, uint n, float countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
-  template uint BufferTools::reduce<uint>(GLuint& bufferToReduce, uint n, uint countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+  template float BufferTools::reduceSum<float>(GLuint& bufferToReduce, uint n, float countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+  template uint BufferTools::reduceSum<uint>(GLuint& bufferToReduce, uint n, uint countVal, bool largeBuffer, GLuint selectionBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+  template glm::vec2 BufferTools::reduceMinMax<glm::vec2>(GLuint& bufferToReduce, uint n, bool minOrMax, GLuint selectionBuffer);
   template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
   template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
   template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);

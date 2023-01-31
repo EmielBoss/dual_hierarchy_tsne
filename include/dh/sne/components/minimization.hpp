@@ -99,6 +99,7 @@ namespace dh::sne {
       eEmbedding,
       eBounds,
       eBoundsReduce,
+      eBoundsSelection,
       eZ,
       eZReduce,
       eField,
