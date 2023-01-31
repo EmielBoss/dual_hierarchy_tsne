@@ -188,6 +188,8 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glAssert();
 
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, "dat");
+
       // Initialize buffers for the average/variance of attributes of the selected datapoints
       glCreateBuffers(_buffersSelectionAttributes.size(), _buffersSelectionAttributes.data());
       for(uint i = 0; i < _buffersSelectionAttributes.size() - 1; ++i) {
@@ -717,9 +719,8 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eEmbeddingRelativeBeforeTranslation));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eTranslating));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBoundsReduce));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eBounds));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eBoundsReduce));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       program.template uniform<uint>("iter", 0);
@@ -987,13 +988,15 @@ namespace dh::sne {
       progressBar.setProgress(static_cast<float>(_iteration) / static_cast<float>(_params->iterations));
     }
 
-    if(_input.ctrl) {
+    if(_input.ctrl || _iteration < 2) {
       dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbedding), _params->n, D, "emb");
       dh::util::writeGLBuffer<float>(_buffers(BufferType::eEmbeddingRelative), _params->n, D, "rel");
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eGradients), _params->n, D, "grd");
       dh::util::writeGLBuffer<float>(_buffers(BufferType::eBounds), 4, D, "bnd");
       dh::util::writeGLBuffer<float>(_buffers(BufferType::eField), _params->n, 4, "fld");
-      dh::util::writeGLBuffer<float>(_similaritiesBuffers.similarities, _params->n, 10, "sim");
-      dh::util::writeGLBuffer<float>(_similaritiesBuffers.dataset, _params->n, 10, "dat");
+      dh::util::writeGLBuffer<float>(_buffers(BufferType::eDataset), _params->n / 10000, _params->nHighDims, "datmin");
+      dh::util::writeGLBuffer<float>(_similaritiesBuffers.dataset, _params->n / 10000, _params->nHighDims, "datsim");
+      dh::util::writeGLBuffer<float>(_similaritiesBuffers.similarities, _params->n / 10000, _params->k, "sim");
     }
   }
 
