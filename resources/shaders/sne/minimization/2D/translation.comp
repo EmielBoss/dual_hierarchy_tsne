@@ -57,7 +57,7 @@ void main() {
     positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
   }
 
-  if(!translationFinished) { positionsRelativeBuffer[i] += shiftRel; }
+  positionsRelativeBuffer[i] += shiftRel;
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
   if(weighForces) { weightsBuffer[i] = weight; }
