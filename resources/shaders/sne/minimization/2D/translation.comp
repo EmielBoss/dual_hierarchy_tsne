@@ -30,7 +30,7 @@ layout(binding = 0, std430) restrict readonly buffer Selection { int selectionBu
 layout(binding = 1, std430) restrict readonly buffer Positions { vec2 positionsBuffer[]; };
 layout(binding = 2, std430) restrict buffer PosRel { vec2 positionsRelativeBuffer[]; };
 layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsRelativeBeforeTranslationBuffer[]; };
-layout(binding = 4, std430) restrict writeonly buffer Fixed { uint fixedBuffer[]; };
+layout(binding = 4, std430) restrict buffer Fixed { uint fixedBuffer[]; };
 layout(binding = 5, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
 layout(binding = 6, std430) restrict writeonly buffer Weights { float weightsBuffer[]; };
 layout(binding = 7, std430) restrict readonly buffer Bounds {
@@ -54,9 +54,13 @@ void main() {
   if(i >= nPoints || selectionBuffer[i] == 0) { return; }
 
   if (translationStarted) {
-    vec2 positionRelative = (positionsBuffer[i] - minBounds) * invRange;
-    positionsRelativeBuffer[i] = positionRelative;
-    positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
+    if(fixedBuffer[i] == 0) {
+      vec2 positionRelative = (positionsBuffer[i] - minBounds) * invRange;
+      positionsRelativeBuffer[i] = positionRelative;
+      positionsRelativeBeforeTranslationBuffer[i] = positionRelative;
+    } else {
+      positionsRelativeBeforeTranslationBuffer[i] = positionsRelativeBuffer[i];
+    }
   }
 
   positionsRelativeBuffer[i] += shiftRel;
