@@ -563,7 +563,20 @@ namespace dh::sne {
       weighSimilarities(factor, selectionBufferHandle);
     }
 
-    ///////// DEBUGGING /////////
+    defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    
+    glAssert();
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+  }
+
+  void Similarities::reset() {
+    glCopyNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), _buffers(BufferType::eSimilarities), 0, 0, _symmetricSize * sizeof(float));
+  }
+
+  void Similarities::defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle) {
+    glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+    std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
     
     std::vector<uint> neig(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
@@ -692,15 +705,6 @@ namespace dh::sne {
     //   attributeDistsRatios[d] += attributeDistsNeighbs[d] / attributeDistsPairs[d];
     // }
     // displayBarplot(attributeDistsRatios);
-
-    ///////// DEBUGGING /////////
-    
-    glAssert();
-    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
-  }
-
-  void Similarities::reset() {
-    glCopyNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), _buffers(BufferType::eSimilarities), 0, 0, _symmetricSize * sizeof(float));
   }
 
 } // dh::sne

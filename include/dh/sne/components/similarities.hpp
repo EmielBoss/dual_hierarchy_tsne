@@ -62,6 +62,7 @@ namespace dh::sne {
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
+    void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
   private:
     enum class BufferType {
