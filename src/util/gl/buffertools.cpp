@@ -112,7 +112,7 @@ namespace dh::util {
   
     program.template uniform<uint>("nPoints", n);
     program.template uniform<bool>("sumAll", countVal == -1);
-    program.template uniform<T>("countVal", countVal);
+    if(countVal >= 0) { program.template uniform<T>("countVal", countVal); }
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToReduce);
