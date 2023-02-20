@@ -70,9 +70,10 @@ namespace dh::vis {
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
     _weightFixed(params->k),
-    _weightFalloff(calculateFalloff(params->n, params->k, params->nClusters)),
-    _numClusters(params->nClusters),
-    _numClustersPrev(params->nClusters),
+    _weightFalloff(0.2),
+    // _weightFalloff(calculateFalloff(params->n, params->k, params->nClusters)),
+    // _numClusters(params->nClusters),
+    // _numClustersPrev(params->nClusters),
     _pointRadius(0.003f),
     _pointOpacity(1.0f),
     _focusButtonPressed(false),
@@ -273,8 +274,8 @@ namespace dh::vis {
       ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
       ImGui::SliderFloat("Fixed datapoint weight", &_weightFixed, 1.0f, _params->k * 5.0f);
       ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
-      ImGui::Text("or set the number of clusters you see:");
-      ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
+      // ImGui::Text("or set the number of clusters you see:");
+      // ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
 
       _focusButtonPressed = false;

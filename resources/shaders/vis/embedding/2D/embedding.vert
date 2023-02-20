@@ -62,8 +62,8 @@ layout(location = 7) uniform float divisor;
 
 void main() {
 
-  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 2.f : 1.f;
-  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 30.f : 1.f;
+  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 3.f : 1.f;
+  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 50.f : 1.f;
 
   // Calculate embedding position, fragment position
   embeddingRelOut = embeddingRelIn;
