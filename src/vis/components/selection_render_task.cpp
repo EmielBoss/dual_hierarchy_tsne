@@ -50,7 +50,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 8> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _texturedataBuffers(texturedataBuffers),
@@ -69,7 +69,8 @@ namespace dh::vis {
     _autoselectPercentage(0.1f),
     _textureTabOpened(0),
     _plotError(true),
-    _currentTypeTab(0) {
+    _currentTabUpper(0),
+    _currentTabLower(0) {
 
     // Initialize shader program
     {
@@ -116,9 +117,9 @@ namespace dh::vis {
         GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
         glTextureStorage2D(_textures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
       }
-      glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_textures[_textures.size()-1], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_textures[_textures.size()-1], 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
+      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
     }
 
 
@@ -166,8 +167,8 @@ namespace dh::vis {
         GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
         glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
       }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_textures.size()-1]);
-      glTextureSubImage2D(_textures[_textures.size()-1], 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_texturedataBuffers.size()-1]);
+      glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
     }
     glAssert();
 
@@ -200,19 +201,19 @@ namespace dh::vis {
     }
 
     if (ImGui::BeginTabBar("Selection tabs")) {
-      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection primary" : "Selection")) {
-        _currentSelectionTab = 0;
+      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selc pri" : "Selc")) {
+        _currentTabUpper = 0;
         ImGui::EndTabItem();
       }
 
       if(_selectionCounts[1] > 0) {
-        if (ImGui::BeginTabItem("Selection secondary")) {
-          _currentSelectionTab = 1;
+        if (ImGui::BeginTabItem("Selc sec")) {
+          _currentTabUpper = 1;
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Selection diff")) {
-          _currentSelectionTab = 2;
+        if (ImGui::BeginTabItem("Selc diff")) {
+          _currentTabUpper = 2;
           ImGui::EndTabItem();
         }
       }
@@ -222,21 +223,22 @@ namespace dh::vis {
     _draggedTexel = -1;
 
     if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-      drawImGuiTab(_currentSelectionTab, 0, "Average");
-      drawImGuiTab(_currentSelectionTab, 1, "Variance");
+      drawImGuiTab(_currentTabUpper, 0, "Average");
+      drawImGuiTab(_currentTabUpper, 1, "Variance");
       ImGui::EndTabBar();
     }
   }
 
-  void SelectionRenderTask::drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text) {
+  void SelectionRenderTask::drawImGuiTab(uint tabUpper, uint tabLower, const char* text) {
     if (ImGui::BeginTabItem(text)) {
       if(_params->imageDataset) {
-        drawImGuiTexture(selectionIndex * 2 + typeIndex);
+        drawImGuiTexture(tabUpper * 2 + tabLower);
         drawImGuiTextureControls();
       } else {
-        drawImPlotBarPlot(selectionIndex);
+        drawImPlotBarPlot(tabUpper);
       }
-      _currentTypeTab = typeIndex;
+      _currentTabUpper = tabUpper;
+      _currentTabLower = tabLower;
       ImGui::EndTabItem();
     }
   }
@@ -253,10 +255,9 @@ namespace dh::vis {
 
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
-    // ImGui::ImageButton((void*)(intptr_t)_textures[6], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
-      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures[6], ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
       _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params->imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params->imgHeight;
@@ -265,7 +266,7 @@ namespace dh::vis {
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
-      std::array<const char*, 6> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f"};
+      std::array<const char*, 7> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f"};
       float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params->imgDepth);
       ImGui::Text(prompts[index], texelValue);
       ImGui::EndTooltip();
@@ -297,15 +298,15 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
   }
 
-  void SelectionRenderTask::drawImPlotBarPlot(uint selectionIndex) {
+  void SelectionRenderTask::drawImPlotBarPlot(uint tabUpper) {
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##")) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2], 0, _params->nHighDims * sizeof(float), ys.data());
+      glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2], 0, _params->nHighDims * sizeof(float), ys.data());
       std::vector<float> errs(_params->nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[selectionIndex * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
+      glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
 
       ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 

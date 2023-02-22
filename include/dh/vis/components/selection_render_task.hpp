@@ -38,7 +38,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(std::array<GLuint, 7> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
+    SelectionRenderTask(std::array<GLuint, 8> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -70,13 +70,15 @@ namespace dh::vis {
       Length
     };
 
-    enum class SelectionAttributesType {
+    enum class TextureType {
       eAveragePrimary,
       eVariancePrimary,
       eAverageSecondary,
       eVarianceSecondary,
       eAverageDifference,
       eVarianceDifference,
+
+      ePairDiffs,
       eOverlay,
 
       Length
@@ -103,13 +105,13 @@ namespace dh::vis {
     bool _hoveringTexture;
     uint _textureTabOpened;
     bool _plotError;
-    uint _currentSelectionTab;
-    uint _currentTypeTab;
+    uint _currentTabUpper;
+    uint _currentTabLower;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<SelectionAttributesType, GLuint> _textures;
-    std::array<GLuint, 7> _texturedataBuffers;
+    util::EnumArray<TextureType, GLuint> _textures;
+    std::array<GLuint, 8> _texturedataBuffers;
     GLuint _attributeWeightsBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
@@ -127,7 +129,7 @@ namespace dh::vis {
     int getTexelBrushRadius() { return _texelBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
     float getAutoselectPercentage() { return _autoselectPercentage; }
-    float getOpenedTextureIndex() { return _currentSelectionTab * 2 + _currentTypeTab; }
+    uint getOpenedTextureIndex() { return _currentTabUpper * 2 + _currentTabLower; }
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
     bool getHoveringTexture() { return _hoveringTexture; }
@@ -152,6 +154,8 @@ namespace dh::vis {
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._plotError, b._plotError);
+      swap(a._currentTabUpper, b._currentTabUpper);
+      swap(a._currentTabLower, b._currentTabLower);
       swap(a._buffers, b._buffers);
       swap(a._texturedataBuffers, b._texturedataBuffers);
       swap(a._textures, b._textures);

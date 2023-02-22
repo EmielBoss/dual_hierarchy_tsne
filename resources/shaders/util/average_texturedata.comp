@@ -36,7 +36,7 @@ layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nPointsMasked;
 layout(location = 2) uniform uint nHighDims;
 layout(location = 3) uniform uint imgDepth;
-layout(location = 4) uniform uint maskNumber;
+layout(location = 4) uniform uint maskValue;
 layout(location = 5) uniform bool calcVariance;
 layout(location = 6) uniform uint iter;
 
@@ -55,8 +55,8 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
               i < nPoints;
               i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(!calcVariance && mask[i] == maskNumber) { sum +=     data[i * nHighDims + dim]; } else
-      if( calcVariance && mask[i] == maskNumber) { sum += pow(data[i * nHighDims + dim] - subtractor[texel * imgDepth + component], 2) ; }
+      if(!calcVariance && mask[i] == maskValue) { sum +=     data[i * nHighDims + dim]; } else
+      if( calcVariance && mask[i] == maskValue) { sum += pow(data[i * nHighDims + dim] - subtractor[texel * imgDepth + component], 2) ; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values

@@ -65,7 +65,6 @@ namespace dh::sne {
     Minimization(Minimization&&) noexcept;
     Minimization& operator=(Minimization&&) noexcept;
 
-    void average(GLuint maskBuffer, uint maskNumber, uint maskCount, GLuint averageBuffer, bool calcVariance = false, GLuint subtractorBuffer = 0);
     void initializeEmbeddingRandomly(int seed);
     void deselectSelection();
     void invertSelection();
@@ -113,7 +112,6 @@ namespace dh::sne {
       eSelection,
       eSelectionCount,
       eSelectionCountReduce,
-      eTextureDataReduce,
       eFixed,
       eTranslating,
       eWeights,
@@ -125,13 +123,15 @@ namespace dh::sne {
       Length
     };
 
-    enum class SelectionAttributesType {
+    enum class TextureType {
       eAveragePrimary,
       eVariancePrimary,
       eAverageSecondary,
       eVarianceSecondary,
       eAverageDifference,
       eVarianceDifference,
+
+      ePairDiffs,
       eOverlay,
 
       Length
@@ -147,7 +147,6 @@ namespace dh::sne {
       eNeighborhoodPreservationComp,
       eSelectionComp,
       eCountSelectedComp,
-      eAverageComp,
       eDifferenceComp,
       eTranslationComp,
 
@@ -189,6 +188,7 @@ namespace dh::sne {
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
     std::vector<uint> _selectionCounts;
+    uint _selectionCountLast;
     float _selectionRadiusRel;
     uint _selectedDatapointPrev;
     bool _mouseRightPrev;
@@ -205,7 +205,7 @@ namespace dh::sne {
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<SelectionAttributesType, GLuint> _buffersSelectionAttributes;
+    util::EnumArray<TextureType, GLuint> _buffersTextureData;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
 
@@ -256,7 +256,7 @@ namespace dh::sne {
       swap(a._iteration, b._iteration);
       swap(a._removeExaggerationIter, b._removeExaggerationIter);
       swap(a._buffers, b._buffers);
-      swap(a._buffersSelectionAttributes, b._buffersSelectionAttributes);
+      swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
