@@ -576,7 +576,6 @@ namespace dh::sne {
     if(_input.e) { restartExaggeration(3); } // Re-exaggerate
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
     if(_input.mouseLeft || _input.mouseMiddle) { compIterationSelect(); } // Select
-    if(_selectionRenderTask->getButtonPressed() == 20) { compIterationSelect(true); } // Select all
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
@@ -639,6 +638,10 @@ namespace dh::sne {
         }
         if(_button == 6) { // Refine attribute weights
           refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
+        }
+        if(_button == 20) {
+          dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
+          compIterationSelect(true);
         }
         if(_button == 30) { // Invert selection
           invertSelection();
@@ -1017,9 +1020,6 @@ namespace dh::sne {
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       glAssert();
-    } else
-    if(_selectionRenderTask->getButtonPressed() == 20) {
-      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
     }
 
     // 2.
