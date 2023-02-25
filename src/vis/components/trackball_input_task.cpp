@@ -74,7 +74,6 @@ namespace dh::vis {
     glm::vec3 right = glm::normalize(glm::cross(direction, glm::vec3(_up)));
     glm::vec3 up = glm::cross(right, direction);
     _changeOfBaseToCam = glm::transpose(glm::mat3(right, up, direction));
-    // std::cout << glm::to_string(glm::transpose(_changeOfBaseToCam)) << "\n";
   }
 
   void TrackballInputTask::mousePosInput(double xPos, double yPos) {

@@ -356,6 +356,7 @@ namespace dh::sne {
     glNamedBufferStorage(_buffers(BufferType::eNeighbors), _symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
     glNamedBufferStorage(_buffers(BufferType::eSimilarities), _symmetricSize * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT); // Corresponding similarities
     glNamedBufferStorage(_buffers(BufferType::eDistancesL1), _symmetricSize * sizeof(float), zeroes.data(), 0); // Corresponding distances
+    glNamedBufferStorage(_buffers(BufferType::eNeighborsSelected), _symmetricSize * sizeof(uint), nullptr, 0); // Buffer used only by Minimization; creating it here because here we know the size
     glAssert();
 
     // Update progress bar
@@ -453,7 +454,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eNeighbors));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistancesL1));
 
-      // Dispatch shader in batches of batchSize (selected) attriibutes
+      // Dispatch shader in batches of batchSize attriibutes
       uint batchSize = 5;
       for(uint b = 0; b * batchSize < _params->nHighDims; ++b) {
         program.template uniform<uint>("batchBegin", b * batchSize);

@@ -46,7 +46,7 @@ layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bound
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
 layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
-layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { int selection[]; };
+layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
 layout(binding = 5, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 layout(binding = 6, std430) restrict readonly buffer ColorBuffer { vec3 colors[]; };
 

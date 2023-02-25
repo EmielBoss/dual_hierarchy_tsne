@@ -73,7 +73,8 @@ namespace dh::sne {
       eSimilaritiesOriginal,
       eLayout,
       eAttributeWeights,
-      
+      eNeighborsSelected,
+
       Length
     };
 
@@ -135,7 +136,8 @@ namespace dh::sne {
         _buffers(BufferType::eSimilarities),
         _buffers(BufferType::eLayout),
         _buffers(BufferType::eNeighbors),
-        _buffers(BufferType::eAttributeWeights)
+        _buffers(BufferType::eAttributeWeights),
+        _buffers(BufferType::eNeighborsSelected)
       };
     }
 

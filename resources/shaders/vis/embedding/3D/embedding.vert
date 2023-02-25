@@ -60,7 +60,7 @@ layout(location = 3) out float multiplier;
 layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
-layout(binding = 3, std430) restrict readonly buffer SelectionBuffer { int selection[]; };
+layout(binding = 3, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
 layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations

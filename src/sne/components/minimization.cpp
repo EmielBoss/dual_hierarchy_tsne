@@ -67,6 +67,7 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
       _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_count.comp"));
       _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/difference.comp"));
+      _programs(ProgramType::ePairwiseAttrDiffsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -143,7 +144,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params->n * _params->k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params->n * _params->k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params->n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
@@ -153,6 +154,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::ePairwiseAttrDists), _params->n * _params->nHighDims * sizeof(float), nullptr, 0);
       glAssert();
 
       // Initialize buffers for the average/variance of attributes of the selected datapoints
@@ -287,9 +289,8 @@ namespace dh::sne {
     else { initializeEmbeddingRandomly(_params->seed); }
     _iteration = 0;
     restartExaggeration(_params->nExaggerationIters);
-    const std::vector<vec> zerovecs(_params->n, vec(0));
     const std::vector<vec> unitvecs(_params->n, vec(1));
-    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, zerovecs.data());
+    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, nullptr);
     glClearNamedBufferData(_buffers(BufferType::eGain), GL_R32F, GL_RED, GL_FLOAT, unitvecs.data());
   }
 
@@ -477,7 +478,7 @@ namespace dh::sne {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
-    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
+    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     if(_params->imageDataset) { clearTextures(); }
   }
 
@@ -615,6 +616,11 @@ namespace dh::sne {
       }
       _buttonPrev = _button;
 
+      // Force selection re-evaluaation when switching to the pairwise attr diff tab
+      uint openedTextureIndex = _selectionRenderTask->getOpenedTextureIndex();
+      if(openedTextureIndex > 5 && _openedTextureIndexPrev <= 5) { compIterationSelect(true); }
+      _openedTextureIndexPrev = openedTextureIndex;
+
       if(_embeddingRenderTask->getFocusButtonPressed()) {
         uint n = _params->n;
         _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
@@ -642,7 +648,7 @@ namespace dh::sne {
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
     if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
       uint sn = _input.s + 1; // Selection number
-      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(int), sizeof(int), &sn);
+      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
       compIterationSelect(true);
       _selectedDatapointPrev = selectedDatapoint;
     }
@@ -775,7 +781,7 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
-      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/sub21ee1group per datapoint
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
       timer.tock();
@@ -956,8 +962,8 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::compIterationSelect(bool skipEval) {
-    int si = _input.s; // Selection index
-    int sn = si + 1; // Selection number
+    uint si = _input.s; // Selection index
+    uint sn = si + 1; // Selection number
 
     // 1.
     // Compute selection (or select all)
@@ -967,7 +973,7 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<int>("selectionNumber", sn);
+      program.template uniform<uint>("selectionNumber", sn);
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
@@ -1003,7 +1009,7 @@ namespace dh::sne {
     // 3.
     // Calculate selection average and/or variance per attribute
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]); // Average
+      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
     }
     for(uint i = 0; i < 2; ++i) {
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]); // Variance
@@ -1023,6 +1029,34 @@ namespace dh::sne {
 
       glDispatchCompute(ceilDiv(_params->nHighDims, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
+
+    // 4.
+    // Compute pairwise attribute differences if conditions are met
+    if(_selectionRenderTask->getOpenedTextureIndex()) {
+      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+      glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+
+      auto &program = _programs(ProgramType::ePairwiseAttrDiffsComp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.layout);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.neighbors);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighborsSelected);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::ePairwiseAttrDists));
+
+      // Dispatch shader in batches of batchSize attributes
+      glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
+
+      uint nSelectedNeighbors = dh::util::BufferTools::instance().reduceSum<uint>(_similaritiesBuffers.neighborsSelected, _params->n, -1, true, _buffers(BufferType::eSelection), _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), 1, nSelectedNeighbors, _buffersTextureData(TextureType::ePairDiffs));
       glAssert();
     }
   }

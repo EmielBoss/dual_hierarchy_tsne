@@ -119,6 +119,7 @@ namespace dh::sne {
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eDisabled,
+      ePairwiseAttrDists,
 
       Length
     };
@@ -149,6 +150,7 @@ namespace dh::sne {
       eCountSelectedComp,
       eDifferenceComp,
       eTranslationComp,
+      ePairwiseAttrDiffsComp,
 
       Length
     };
@@ -188,7 +190,7 @@ namespace dh::sne {
     bool _selectOnlyLabeled;
     bool _selectOnlyLabeledPrev;
     std::vector<uint> _selectionCounts;
-    uint _selectionCountLast;
+    uint _openedTextureIndexPrev;
     float _selectionRadiusRel;
     uint _selectedDatapointPrev;
     bool _mouseRightPrev;

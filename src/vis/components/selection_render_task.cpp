@@ -225,6 +225,9 @@ namespace dh::vis {
     if (ImGui::BeginTabBar("Selection attributes type tabs")) {
       drawImGuiTab(_currentTabUpper, 0, "Average");
       drawImGuiTab(_currentTabUpper, 1, "Variance");
+      if(_currentTabUpper == 0) {
+        drawImGuiTab(3, 0, "Diff neighbs");
+      }
       ImGui::EndTabBar();
     }
   }

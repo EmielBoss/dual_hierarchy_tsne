@@ -86,7 +86,8 @@ namespace dh::util {
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
 
     if(largeBuffer) {
-      glNamedBufferStorage(_buffersReduce(BufferReduceType::eAccumulationPerDatapoint), n * sizeof(T), nullptr, 0);
+      std::vector<T> zeros(n, 0);
+      glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduceSumPerDatapoint), n * sizeof(T), zeros.data(), 0);
 
       dh::util::GLProgram& program = std::is_same<T, float>::value
                                     ? _programs(ProgramType::eReduceSumPerDatapointFloatComp)
@@ -101,12 +102,12 @@ namespace dh::util {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, layoutBuffer);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, neighborsBuffer);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferToReduce);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(n, 256u / 32u), 1, 1);
-      glAssert();
-      std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint));
+      glFinish();
+      std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint));
     }
 
     dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eReduceSumFloatComp) : _programs(ProgramType::eReduceSumUintComp);
@@ -131,7 +132,7 @@ namespace dh::util {
 
     T reducedValue = 0;
     glGetNamedBufferSubData(_buffersReduce(BufferReduceType::eReduced), 0, sizeof(T), &reducedValue);
-    if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eAccumulationPerDatapoint)); }
+    if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint)); }
     glDeleteBuffers(_buffersReduce.size(), _buffersReduce.data());
     glAssert();
     return reducedValue;

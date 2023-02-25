@@ -29,10 +29,10 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positionsRel[]; };
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
 layout(binding = 2, std430) restrict readonly buffer Dis { uint disabled[]; };
-layout(binding = 3, std430) restrict writeonly buffer Sel { int selection[]; };
+layout(binding = 3, std430) restrict writeonly buffer Sel { uint selection[]; };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform int selectionNumber;
+layout(location = 1) uniform uint selectionNumber;
 layout(location = 2) uniform vec2 mousePosClip;
 layout(location = 3) uniform float selectionRadiusRel;
 layout(location = 4) uniform bool selectOnlyLabeled;

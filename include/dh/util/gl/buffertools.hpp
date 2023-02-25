@@ -34,7 +34,7 @@ namespace dh::util {
   enum class BufferReduceType {
     eReduce,
     eReduced,
-    eAccumulationPerDatapoint,
+    eReduceSumPerDatapoint,
 
     Length
   };
