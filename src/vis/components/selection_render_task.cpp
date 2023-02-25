@@ -175,6 +175,7 @@ namespace dh::vis {
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       if (_canDrawLabels) {
         ImGui::Text("Selection mode:");
+        ImGui::SameLine();
         if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
         ImGui::SameLine();
         if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
@@ -257,13 +258,13 @@ namespace dh::vis {
     _textureTabOpened = index;
 
     ImGui::Spacing();
-    ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(256, 256), ImVec2(0,0), ImVec2(1,1), 0);
+    ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
       ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
       _hoveringTexture = true;
-      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 256 * _params->imgWidth;
-      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 256 * _params->imgHeight;
+      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 300 * _params->imgWidth;
+      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 300 * _params->imgHeight;
       uint hoveredTexel = teYel * _params->imgWidth + teXel;
 
       ImGui::BeginTooltip();
@@ -280,8 +281,8 @@ namespace dh::vis {
       _hoveringTexture = false;
       _draggedTexel = -1;
     }
-    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 256), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
-    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 256), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
+    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
+    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
     glAssert();
   }
 

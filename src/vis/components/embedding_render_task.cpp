@@ -262,9 +262,10 @@ namespace dh::vis {
 
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");
+        ImGui::SameLine();
         if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
         ImGui::SameLine();
-        if (ImGui::RadioButton("Neighborhood preservation", _colorMapping==ColorMapping::neighborhoodPreservation)) { _colorMapping = ColorMapping::neighborhoodPreservation; }
+        if (ImGui::RadioButton("Neighborhood preser.", _colorMapping==ColorMapping::neighborhoodPreservation)) { _colorMapping = ColorMapping::neighborhoodPreservation; }
         ImGui::SameLine();
         if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }
