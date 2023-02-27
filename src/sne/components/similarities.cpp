@@ -615,12 +615,10 @@ namespace dh::sne {
     // float multiplier = _params->nHighDims / weightedAttributeIndices.size();
     // std::cout << "\n\n" << multiplier << "\n\n";
     for(uint i = 0; i < _params->n; ++i) {
-      uint iClass = labl[i];
-      if(selc[i] != 1 || (iClass != classA && iClass != classB)) { continue; }
+      if(selc[i] != 1 || (labl[i] != classA && labl[i] != classB)) { continue; }
       for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
         uint j = neig[ij];
-        uint jClass = labl[j];
-        if(selc[j] != 1 || (jClass != classA && jClass != classB)) { continue; }
+        if(selc[j] != 1 || (labl[j] != classA && labl[j] != classB)) { continue; }
 
         for(uint d = 0; d < _params->nHighDims; ++d) {
           attributeDistsNeighbs[d] += std::abs(_dataPtr[i * _params->nHighDims + d] - _dataPtr[j * _params->nHighDims + d]) / dist[ij];
@@ -665,7 +663,7 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    // displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
+    displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
     
     //// Stuff for all pairs ////
 

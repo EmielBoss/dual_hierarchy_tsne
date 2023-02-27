@@ -69,6 +69,7 @@ namespace dh::vis {
     _classIsSet(_params->nClasses, false),
     _classesSet(),
     _setChanged(false),
+    _nSelectedNeighbors(0),
     _params(params),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
@@ -321,6 +322,12 @@ namespace dh::vis {
           if(ImGui::Button(label.c_str())) { unsetClass(i); }
         }
       }
+
+      if(_nSelectedNeighbors > 0) {
+        ImGui::Text("No. of selected neighbours: %u", _nSelectedNeighbors);
+        ImGui::SameLine();
+        if(_classesSet.size() == 2) { ImGui::Text("(interclass)"); } else { ImGui::Text("(all)"); }
+      } else { ImGui::Dummy(ImVec2(43.0f, 13.0f)); }
     }
   }
 

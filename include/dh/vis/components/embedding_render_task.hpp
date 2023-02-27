@@ -61,6 +61,7 @@ namespace dh::vis {
     void unsetClass(int i);
     std::set<int> getClassesSet() { return _classesSet; }
     bool getSetChanged() { return _setChanged; }
+    void setNumSelectedNeighbors(uint nSelectedNeighbors) { _nSelectedNeighbors = nSelectedNeighbors; }
     uint getColorMapping() { return _colorMapping; }
     bool getWeighForces() { return _weighForces; }
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
@@ -108,6 +109,7 @@ namespace dh::vis {
     std::vector<bool> _classIsSet;
     std::set<int> _classesSet;
     bool _setChanged;
+    uint _nSelectedNeighbors;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -153,6 +155,7 @@ namespace dh::vis {
       swap(a._classIsSet, b._classIsSet);
       swap(a._classesSet, b._classesSet);
       swap(a._setChanged, b._setChanged);
+      swap(a._nSelectedNeighbors, b._nSelectedNeighbors);
       swap(a._colorBuffer, b._colorBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

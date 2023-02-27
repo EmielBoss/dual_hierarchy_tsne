@@ -480,6 +480,7 @@ namespace dh::sne {
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
     if(_params->imageDataset) { clearTextures(); }
+    _embeddingRenderTask->setNumSelectedNeighbors(0);
   }
 
   template <uint D, uint DD>
@@ -1066,6 +1067,7 @@ namespace dh::sne {
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
 
       uint nSelectedNeighbors = dh::util::BufferTools::instance().reduceSum<uint>(_similaritiesBuffers.neighborsSelected, _params->n, -1, true, _buffers(BufferType::eSelection), _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      _embeddingRenderTask->setNumSelectedNeighbors(nSelectedNeighbors);
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), 1, nSelectedNeighbors, _buffersTextureData(TextureType::ePairDiffs));
       glAssert();
     }
