@@ -34,28 +34,41 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 4, std430) restrict buffer SNCt { uint neighborsSelectedBuffer[]; };
-layout(binding = 5, std430) restrict buffer PAtD { float pairwiseAttrDistsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Labl { int labelBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 5, std430) restrict buffer SNCt { uint neighborsSelectedBuffer[]; };
+layout(binding = 6, std430) restrict buffer PAtD { float pairwiseAttrDistsBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
+layout(location = 2) uniform bool classesSet;
+layout(location = 3) uniform int classA;
+layout(location = 4) uniform int classB;
 
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nHighDims;
   const uint d = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) % nHighDims;
 
-  if (i >= nPoints || d >= nHighDims || selectionBuffer[i] == 0) { return; }
+  if (i >= nPoints ||
+      d >= nHighDims ||
+      selectionBuffer[i] != 1 ||
+      (classesSet && labelBuffer[i] != classA && labelBuffer[i] != classB)) {
+    return;
+  }
   
   Layout l = layoutBuffer[i];
 
   for (uint ij = l.offset; ij < l.offset + l.size; ij++) {
     uint j = neighborsBuffer[ij];
-    if(selectionBuffer[j] != 1) { continue; }
-    neighborsSelectedBuffer[ij] = 1;
+    if(selectionBuffer[j] != 1 ||
+      (classesSet && labelBuffer[j] != classA && labelBuffer[j] != classB) ||
+      (classesSet && labelBuffer[i] == labelBuffer[j])) {
+      continue;
+    }
 
+    neighborsSelectedBuffer[ij] = 1;
     pairwiseAttrDistsBuffer[i * nHighDims + d] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
   }
 }

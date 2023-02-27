@@ -618,7 +618,7 @@ namespace dh::sne {
 
       // Force selection re-evaluaation when switching to the pairwise attr diff tab
       uint openedTextureIndex = _selectionRenderTask->getOpenedTextureIndex();
-      if(openedTextureIndex > 5 && _openedTextureIndexPrev <= 5) { compIterationSelect(true); }
+      if(openedTextureIndex > 5 && _openedTextureIndexPrev <= 5 || _embeddingRenderTask->getSetChanged()) { compIterationSelect(true); }
       _openedTextureIndexPrev = openedTextureIndex;
 
       if(_embeddingRenderTask->getFocusButtonPressed()) {
@@ -1043,14 +1043,24 @@ namespace dh::sne {
 
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
+      std::set<int> classesSet = _embeddingRenderTask->getClassesSet();
+      if(classesSet.size() == 2) {
+        std::pair<int, int> classes(*classesSet.begin(), *std::next(classesSet.begin()));
+        program.template uniform<bool>("classesSet", true);
+        program.template uniform<int>("classA", classes.first);
+        program.template uniform<int>("classB", classes.second);
+      } else {
+        program.template uniform<bool>("classesSet", false);
+      }
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighborsSelected);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::ePairwiseAttrDists));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLabels));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighborsSelected);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::ePairwiseAttrDists));
 
       // Dispatch shader in batches of batchSize attributes
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);

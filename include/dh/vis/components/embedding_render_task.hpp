@@ -57,6 +57,10 @@ namespace dh::vis {
     
     void generateClassColors();
     void createVAO();
+    void setClass(int i);
+    void unsetClass(int i);
+    std::set<int> getClassesSet() { return _classesSet; }
+    bool getSetChanged() { return _setChanged; }
     uint getColorMapping() { return _colorMapping; }
     bool getWeighForces() { return _weighForces; }
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
@@ -101,6 +105,9 @@ namespace dh::vis {
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
     std::vector<std::string> _classNames;
+    std::vector<bool> _classIsSet;
+    std::set<int> _classesSet;
+    bool _setChanged;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -143,6 +150,9 @@ namespace dh::vis {
       swap(a._classTextures, b._classTextures);
       swap(a._classCounts, b._classCounts);
       swap(a._classNames, b._classNames);
+      swap(a._classIsSet, b._classIsSet);
+      swap(a._classesSet, b._classesSet);
+      swap(a._setChanged, b._setChanged);
       swap(a._colorBuffer, b._colorBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

@@ -66,6 +66,9 @@ namespace dh::vis {
     _minimizationBuffers(minimizationBuffers),
     _classTextures(classTextures),
     _classCounts(classCounts),
+    _classIsSet(_params->nClasses, false),
+    _classesSet(),
+    _setChanged(false),
     _params(params),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
@@ -295,6 +298,7 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
     if(_minimizationBuffers.labels == 0) { return; }
     _classButtonPressed = -1;
+    _setChanged = false;
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params->nClasses; ++i) {
         if(_params->imageDataset) {
@@ -308,8 +312,35 @@ namespace dh::vis {
           _colors[i] = colorUpdated;
           glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
         }
+        ImGui::SameLine();
+        if(!_classIsSet[i]) {
+          std::string label = "Set##" + std::to_string(i);
+          if(ImGui::Button(label.c_str())) { setClass(i); }
+        } else {
+          std::string label = "Unset##" + std::to_string(i);
+          if(ImGui::Button(label.c_str())) { unsetClass(i); }
+        }
       }
     }
+  }
+
+  template <uint D>
+  void EmbeddingRenderTask<D>::setClass(int c) {
+    if(_classesSet.size() == 2) {
+      int classPopped = *_classesSet.begin();
+      _classesSet.erase(_classesSet.begin());
+      _classIsSet[classPopped] = false;
+    }
+    _classIsSet[c] = true;
+    _classesSet.insert(c);
+    _setChanged = true;
+  }
+
+  template <uint D>
+  void EmbeddingRenderTask<D>::unsetClass(int c) {
+    _classIsSet[c] = false;
+    _classesSet.erase(c);
+    _setChanged = true;
   }
 
   // Template instantiations for 2/3 dimensions
