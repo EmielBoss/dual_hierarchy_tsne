@@ -27,13 +27,13 @@
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer BufferToReduce { float bufferToReduce[]; };
-layout(binding = 1, std430) restrict buffer BufferReduce { float bufferReduce[128]; };
-layout(binding = 2, std430) restrict writeonly buffer BufferReduced { float bufferReduced; };
+layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
+layout(binding = 2, std430) restrict buffer BufferReduce { float bufferReduce[128]; };
+layout(binding = 3, std430) restrict writeonly buffer BufferReduced { float bufferReduced; };
 
 layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform bool sumAll;
-layout(location = 2) uniform uint countVal;
-layout(location = 3) uniform uint iter;
+layout(location = 1) uniform bool selectedOnly;
+layout(location = 2) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared float reduction_array[halfGroupSize];
@@ -46,8 +46,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(sumAll) { sum += bufferToReduce[i]; } else
-      if(bufferToReduce[i] == countVal) { sum++; }
+      if(!selectedOnly || selection[i] == 1) { sum += bufferToReduce[i]; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values

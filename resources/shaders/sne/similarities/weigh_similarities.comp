@@ -57,9 +57,7 @@ void main() {
   Layout l = layoutBuffer[i];
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if( weighAll ||
-       !interOnly && selectionBuffer[j] == 1 ||
-        interOnly && selectionBuffer[j] >  0 && selectionBuffer[i] != selectionBuffer[j]) {
+    if(weighAll || selectionBuffer[j] > 0 && (!interOnly || selectionBuffer[i] != selectionBuffer[j])) {
       similaritiesBuffer[ij] *= weight;
     }
     similaritiesBuffer[ij] = max(similaritiesBuffer[ij], 0.f);

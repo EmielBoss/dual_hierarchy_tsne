@@ -547,7 +547,7 @@ namespace dh::sne {
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
-      uint nEnabled = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracDisabled = (float) _selectionCounts[0] / (float) nEnabled;
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
@@ -555,7 +555,7 @@ namespace dh::sne {
       _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
     }
     if(_input.ins) { // Enable
-      uint nEnabled = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eDisabled), _params->n, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
       glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
@@ -590,7 +590,7 @@ namespace dh::sne {
           autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
         }
         if(_button == 2) { // Recalc similarities
-          _similarities->weighSimilaritiesPerAttribute(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+          _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities
           _similarities->reset();
@@ -999,7 +999,7 @@ namespace dh::sne {
     // Count number of selected datapoints
     for (uint s = 0; s < 2; ++s) {
       uint selectionCountPrev = _selectionCounts[0];
-      _selectionCounts[s] = dh::util::BufferTools::instance().reduceSum<uint>(_buffers(BufferType::eSelection), _params->n, s + 1);
+      _selectionCounts[s] = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eSelection), 3, _params->n, 0, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
 
@@ -1066,7 +1066,7 @@ namespace dh::sne {
       // Dispatch shader in batches of batchSize attributes
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
 
-      uint nSelectedNeighbors = dh::util::BufferTools::instance().reduceSum<uint>(_similaritiesBuffers.neighborsSelected, _params->n, -1, true, _buffers(BufferType::eSelection), _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      uint nSelectedNeighbors = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _buffers(BufferType::eSelection), -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
       _embeddingRenderTask->setNumSelectedNeighbors(nSelectedNeighbors);
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), 1, nSelectedNeighbors, _buffersTextureData(TextureType::ePairDiffs));
       glAssert();
@@ -1077,8 +1077,8 @@ namespace dh::sne {
   void Minimization<D, DD>::compIterationTranslate() {
 
     if(!_mouseRightPrev) {
-      glm::vec2 min = dh::util::BufferTools::instance().reduceMinMax<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), _params->n, true, _buffers(BufferType::eSelection));
-      glm::vec2 max = dh::util::BufferTools::instance().reduceMinMax<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), _params->n, false, _buffers(BufferType::eSelection));
+      glm::vec2 min = dh::util::BufferTools::instance().reduce<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), 1, _params->n, _buffers(BufferType::eSelection));
+      glm::vec2 max = dh::util::BufferTools::instance().reduce<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), 2, _params->n, _buffers(BufferType::eSelection));
       glNamedBufferSubData(_buffers(BufferType::eBoundsSelection), 0 * sizeof(vec), sizeof(vec), &min);
       glNamedBufferSubData(_buffers(BufferType::eBoundsSelection), 1 * sizeof(vec), sizeof(vec), &max);
     }

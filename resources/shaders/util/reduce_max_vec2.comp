@@ -40,26 +40,26 @@ shared vec2 reduction_array[halfGroupSize];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  vec2 min_local = vec2(-1e38);
+  vec2 max_local = vec2(-1e38);
   if (iter == 0) {
     // First iteration mins all
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(!selectedOnly || selection[i] == 1) { min_local = max(bufferToReduce[i], min_local); }
+      if(!selectedOnly || selection[i] == 1) { max_local = max(bufferToReduce[i], max_local); }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
-    min_local = bufferReduce[lid];
+    max_local = bufferReduce[lid];
   }
 
   // Reduce add to a single value
   if (lid >= halfGroupSize) {
-    reduction_array[lid - halfGroupSize] = min_local;
+    reduction_array[lid - halfGroupSize] = max_local;
   }
   barrier();
   if (lid < halfGroupSize) {
-    reduction_array[lid] = max(min_local, reduction_array[lid]);
+    reduction_array[lid] = max(max_local, reduction_array[lid]);
   }
   for (uint i = halfGroupSize / 2; i > 1; i /= 2) {
     barrier();

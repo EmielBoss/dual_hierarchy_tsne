@@ -26,53 +26,53 @@
 
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer BufferToReduce { uint bufferToReduce[]; };
+layout(binding = 0, std430) restrict readonly buffer BufferToReduce { float bufferToReduce[]; };
 layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
-layout(binding = 2, std430) restrict buffer BufferReduce { uint bufferReduce[128]; };
-layout(binding = 3, std430) restrict writeonly buffer BufferReduced { uint bufferReduced; };
+layout(binding = 2, std430) restrict buffer BufferReduce { float bufferReduce[128]; };
+layout(binding = 3, std430) restrict writeonly buffer BufferReduced { float bufferReduced; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform bool selectedOnly;
 layout(location = 2) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
-shared uint reduction_array[halfGroupSize];
+shared float reduction_array[halfGroupSize];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  uint sum = 0;
+  float max_local = 1.175494351e-38F;
   if (iter == 0) {
-    // First iteration sums all
+    // First iteration mins all
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(!selectedOnly || selection[i] == 1) { sum += bufferToReduce[i]; }
+      if(!selectedOnly || selection[i] == 1) { max_local = max(bufferToReduce[i], max_local); }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
-    sum = bufferReduce[lid];
+    max_local = bufferReduce[lid];
   }
 
   // Reduce add to a single value
   if (lid >= halfGroupSize) {
-    reduction_array[lid - halfGroupSize] = sum;
+    reduction_array[lid - halfGroupSize] = max_local;
   }
   barrier();
   if (lid < halfGroupSize) {
-    reduction_array[lid] += sum;
+    reduction_array[lid] = max(max_local, reduction_array[lid]);
   }
   for (uint i = halfGroupSize / 2; i > 1; i /= 2) {
     barrier();
     if (lid < i) {
-      reduction_array[lid] += reduction_array[lid + i];
+      reduction_array[lid] = max(reduction_array[lid], reduction_array[lid + i]);
     }
   }
   barrier();
   if (lid < 1) {
     if (iter == 0) {
-      bufferReduce[gl_WorkGroupID.x] = reduction_array[0] + reduction_array[1];
+      bufferReduce[gl_WorkGroupID.x] = max(reduction_array[0], reduction_array[1]);
     } else if (iter == 1) {
-      bufferReduced = reduction_array[0] + reduction_array[1];
+      bufferReduced = max(reduction_array[0], reduction_array[1]);
     }
   }
 }

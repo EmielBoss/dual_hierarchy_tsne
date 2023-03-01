@@ -46,144 +46,6 @@ namespace dh::sne {
   float Similarities::average(std::vector<float> vec) {
     return std::accumulate(vec.begin(), vec.end(), 0.f) / vec.size();
   }
-
-  // Auxiliary function to create a window and display a scatterplot
-  void Similarities::displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative) {
-    std::vector<float> concat = intra;
-    concat.insert(concat.end(), inter.begin(), inter.end());
-
-    dh::util::GLWindowInfo info;
-    {
-      using namespace dh::util;
-      info.title = "Graphs";
-      info.width = 1500;
-      info.height = 1000;
-      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
-                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
-                  | GLWindowInfo::bFloating;
-    }
-    dh::util::GLWindow window(info);
-
-    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
-    IMGUI_CHECKVERSION();
-    ImGuiContext* ctx = ImGui::CreateContext();
-    ImGui::SetCurrentContext(ctx);
-    ImPlot::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
-    ImGui_ImplOpenGL3_Init("#version 460");
-    ImGui::StyleColorsDark();
-
-    window.setVsync(true);
-    window.setVisible(true);
-
-    std::cout << "Inter count: " << inter.size() << "\n";
-    std::cout << "Intra count: " << intra.size() << "\n";
-
-    ImPlotRange range = ImPlotRange(0, 1);
-    if(inter.size() > 0 && intra.size() > 0) {
-      auto [minInter, maxInter] = std::minmax_element(inter.begin(), inter.end());
-      auto [minIntra, maxIntra] = std::minmax_element(intra.begin(), intra.end());
-      ImPlotRange range = ImPlotRange(std::min(*minInter, *minIntra), std::max(*maxInter, *maxIntra));
-    }
-
-    int nBins = 100;
-
-    while(window.canDisplay()) {
-      window.processEvents();
-      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-      glClear(GL_COLOR_BUFFER_BIT);
-      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
-
-      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
-      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
-
-      ImGui::SliderInt("No. of bins", &nBins, 1, 1000);
-
-      if (ImPlot::BeginPlot("Inter/intra")) {
-        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
-        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
-        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
-        ImPlot::EndPlot();
-      }
-
-      if (ImPlot::BeginPlot("Combined")) {
-        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
-        ImPlot::EndPlot();
-      }
-
-      ImGui::End();
-
-      ImGui::Render(); // Finalize and render ImGui components
-      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-      window.display();
-    }
-  }
-
-    // Auxiliary function to create a window and display a scatterplot
-  void Similarities::displayBarplot(std::vector<float> ys) {
-    std::vector<float> xs(_params->nHighDims);
-    std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
-
-    dh::util::GLWindowInfo info;
-    {
-      using namespace dh::util;
-      info.title = "Graphs";
-      info.width = 1500;
-      info.height = 1000;
-      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
-                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
-                  | GLWindowInfo::bFloating;
-    }
-    dh::util::GLWindow window(info);
-
-    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
-    IMGUI_CHECKVERSION();
-    ImGuiContext* ctx = ImGui::CreateContext();
-    ImGui::SetCurrentContext(ctx);
-    ImPlot::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
-    ImGui_ImplOpenGL3_Init("#version 460");
-    ImGui::StyleColorsDark();
-
-    window.setVsync(true);
-    window.setVisible(true);
-
-    while(window.canDisplay()) {
-      window.processEvents();
-      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-      glClear(GL_COLOR_BUFFER_BIT);
-      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
-
-      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
-      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
-      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
-
-      if (ImPlot::BeginPlot("Barplot")) {
-        ImPlot::PlotBars("Total distance", xs.data(), ys.data(), _params->nHighDims, 1.f);
-        ImPlot::EndPlot();
-      }
-
-      ImGui::End();
-
-      ImGui::Render(); // Finalize and render ImGui components
-      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-      window.display();
-    }
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    ImGui::SetCurrentContext(ctxMain);
-    glAssert();
-  }
   
   Similarities::Similarities()
   : _isInit(false), _dataPtr(nullptr) {
@@ -203,7 +65,9 @@ namespace dh::sne {
       _programs(ProgramType::eNeighborsSortComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/neighbors_sort.comp"));
       _programs(ProgramType::eL1DistancesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/L1_distances.comp"));
       _programs(ProgramType::eWeighSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities.comp"));
-      _programs(ProgramType::eWeighSimilaritiesPerAttributeComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr.comp"));
+      _programs(ProgramType::eWeighSimilaritiesPerAttributeRatioComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_ratio.comp"));
+      _programs(ProgramType::eWeighSimilaritiesPerAttributeRangeComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_range.comp"));
+      _programs(ProgramType::eSubDistancesL1Comp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/subdistances.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -522,17 +386,17 @@ namespace dh::sne {
     glAssert();
   }
 
-  void Similarities::weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
+  void Similarities::weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
     if(weightedAttributeIndices.size() == 0) { return; }
     
-    // Create and initialize temp buffers. "...Sums" buffers aggregate link values per datapoint (i.e. each datapoint sums the values of its incident edges) 
+    // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
 
     // Weighting the similarities
     {
-      auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeComp);
+      auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeRatioComp);
       program.bind();
 
       program.template uniform<uint>("nPoints", _params->n);
@@ -558,14 +422,89 @@ namespace dh::sne {
 
     // Renormalizing the similarities
     {
-      float simSumOrg = dh::util::BufferTools::instance().reduceSum<float>(_buffers(BufferType::eSimilaritiesOriginal), _params->n, -1, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::BufferTools::instance().reduceSum<float>(_buffers(BufferType::eSimilarities), _params->n, -1, true, selectionBufferHandle, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
       float factor = simSumOrg / simSumNew;
       weighSimilarities(factor, selectionBufferHandle);
     }
 
     defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
+    glAssert();
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+  }
+
+  void Similarities::weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
+    if(weightedAttributeIndices.size() == 0) { return; }
+
+    // Create and initialize temp buffers
+    glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+    std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eSubDistancesL1), _symmetricSize * sizeof(float), nullptr, 0);
+    glClearNamedBufferData(_buffersTemp(BufferTempType::eSubDistancesL1), GL_R32F, GL_RED, GL_FLOAT, nullptr); // Initialize with all zeros
+
+    // Obtaining the subdistances across the weighted attributes
+    {
+      auto &program = _programs(ProgramType::eSubDistancesL1Comp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
+      program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eDistancesL1));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eAttributeWeights));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffersTemp(BufferTempType::eSubDistancesL1));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
+      glAssert();
+    }
+
+    float distMin = dh::util::BufferTools::instance().reduce<float>(_buffersTemp(BufferTempType::eSubDistancesL1), 1, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    float distMax = dh::util::BufferTools::instance().reduce<float>(_buffersTemp(BufferTempType::eSubDistancesL1), 2, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    
+    // Weighting the similarities
+    {
+      auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeRangeComp);
+      program.bind();
+
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<float>("distMin", distMin);
+      program.template uniform<float>("distRangeInv", 1.f / (distMax - distMin));
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eSubDistancesL1));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eSimilaritiesOriginal));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilarities));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
+      glAssert();
+    }
+
+    // Renormalizing the similarities
+    {
+      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float factor = simSumOrg / simSumNew;
+      weighSimilarities(factor, selectionBufferHandle);
+    }
+
+    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
@@ -578,7 +517,7 @@ namespace dh::sne {
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
-    
+
     std::vector<uint> neig(_symmetricSize);
     glGetNamedBufferSubData(_buffers(BufferType::eNeighbors), 0, _symmetricSize * sizeof(uint), neig.data());
     std::vector<float> sims(_symmetricSize);
@@ -663,7 +602,8 @@ namespace dh::sne {
       sumSims += sims[ij]; sumSimsPrev += simsO[ij];
     }
     std::cout << "Total differences in similarities pre vs. post: " << sumSimsPrev << " - " << sumSims << " = " << sumSimsPrev - sumSims << "\n";
-    displayHistogram(interDistsAttrRatios, intraDistsAttrRatios, false);
+    std::cout << std::flush;
+    displayHistogram(interDistsAttr, intraDistsAttr, false);
     
     //// Stuff for all pairs ////
 
@@ -704,6 +644,144 @@ namespace dh::sne {
     //   attributeDistsRatios[d] += attributeDistsNeighbs[d] / attributeDistsPairs[d];
     // }
     // displayBarplot(attributeDistsRatios);
+  }
+
+  // Auxiliary function to create a window and display a scatterplot
+  void Similarities::displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative) {
+    std::vector<float> concat = intra;
+    concat.insert(concat.end(), inter.begin(), inter.end());
+
+    dh::util::GLWindowInfo info;
+    {
+      using namespace dh::util;
+      info.title = "Graphs";
+      info.width = 1500;
+      info.height = 1000;
+      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
+                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
+                  | GLWindowInfo::bFloating;
+    }
+    dh::util::GLWindow window(info);
+
+    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+    ImPlot::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
+    ImGui_ImplOpenGL3_Init("#version 460");
+    ImGui::StyleColorsDark();
+
+    window.setVsync(true);
+    window.setVisible(true);
+
+    std::cout << "Inter count: " << inter.size() << "\n";
+    std::cout << "Intra count: " << intra.size() << "\n";
+
+    ImPlotRange range = ImPlotRange(0, 1);
+    if(inter.size() > 0 && intra.size() > 0) {
+      auto [minInter, maxInter] = std::minmax_element(inter.begin(), inter.end());
+      auto [minIntra, maxIntra] = std::minmax_element(intra.begin(), intra.end());
+      ImPlotRange range = ImPlotRange(std::min(*minInter, *minIntra), std::max(*maxInter, *maxIntra));
+    }
+
+    int nBins = 100;
+
+    while(window.canDisplay()) {
+      window.processEvents();
+      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
+      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+
+      ImGui::SliderInt("No. of bins", &nBins, 1, 1000);
+
+      if (ImPlot::BeginPlot("Inter/intra")) {
+        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
+        if(inter.size() > 0) { ImPlot::PlotHistogram("Inter", inter.data(), inter.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
+        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 0.5f);
+        if(intra.size() > 0) { ImPlot::PlotHistogram("Intra", intra.data(), intra.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
+        ImPlot::EndPlot();
+      }
+
+      if (ImPlot::BeginPlot("Combined")) {
+        if(concat.size() > 0) { ImPlot::PlotHistogram("All", concat.data(), concat.size(), nBins, 1.f, ImPlotRange(), relative ? ImPlotHistogramFlags_Density : 0); }
+        ImPlot::EndPlot();
+      }
+
+      ImGui::End();
+
+      ImGui::Render(); // Finalize and render ImGui components
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+      window.display();
+    }
+  }
+
+    // Auxiliary function to create a window and display a scatterplot
+  void Similarities::displayBarplot(std::vector<float> ys) {
+    std::vector<float> xs(_params->nHighDims);
+    std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
+
+    dh::util::GLWindowInfo info;
+    {
+      using namespace dh::util;
+      info.title = "Graphs";
+      info.width = 1500;
+      info.height = 1000;
+      info.flags = GLWindowInfo::bDecorated | GLWindowInfo::bFocused 
+                  | GLWindowInfo::bSRGB | GLWindowInfo::bResizable
+                  | GLWindowInfo::bFloating;
+    }
+    dh::util::GLWindow window(info);
+
+    ImGuiContext* ctxMain = ImGui::GetCurrentContext();
+    IMGUI_CHECKVERSION();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+    ImPlot::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
+    ImGui_ImplOpenGL3_Init("#version 460");
+    ImGui::StyleColorsDark();
+
+    window.setVsync(true);
+    window.setVisible(true);
+
+    while(window.canDisplay()) {
+      window.processEvents();
+      glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui_ImplOpenGL3_NewFrame(); // Start new frame for IMGUI
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+
+      ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+      ImGui::SetNextWindowSize(ImVec2(1500, 1500));
+      ImGui::Begin("Graphs", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+
+      if (ImPlot::BeginPlot("Barplot")) {
+        ImPlot::PlotBars("Total distance", xs.data(), ys.data(), _params->nHighDims, 1.f);
+        ImPlot::EndPlot();
+      }
+
+      ImGui::End();
+
+      ImGui::Render(); // Finalize and render ImGui components
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+      window.display();
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    ImGui::SetCurrentContext(ctxMain);
+    glAssert();
   }
 
 } // dh::sne

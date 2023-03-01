@@ -33,33 +33,34 @@ layout(binding = 3, std430) restrict writeonly buffer BufferReduced { uint buffe
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform bool selectedOnly;
-layout(location = 2) uniform uint iter;
+layout(location = 2) uniform uint valueToCount;
+layout(location = 3) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
 shared uint reduction_array[halfGroupSize];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  uint sum = 0;
+  uint count = 0;
   if (iter == 0) {
-    // First iteration sums all
+    // First iteration counts all
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(!selectedOnly || selection[i] == 1) { sum += bufferToReduce[i]; }
+      if(bufferToReduce[i] == valueToCount && (!selectedOnly || selection[i] == 1)) { count++; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values
-    sum = bufferReduce[lid];
+    count = bufferReduce[lid];
   }
 
   // Reduce add to a single value
   if (lid >= halfGroupSize) {
-    reduction_array[lid - halfGroupSize] = sum;
+    reduction_array[lid - halfGroupSize] = count;
   }
   barrier();
   if (lid < halfGroupSize) {
-    reduction_array[lid] += sum;
+    reduction_array[lid] += count;
   }
   for (uint i = halfGroupSize / 2; i > 1; i /= 2) {
     barrier();

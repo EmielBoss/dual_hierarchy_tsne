@@ -56,15 +56,15 @@ void main() {
   
   Layout l = layoutBuffer[i];
 
-  float sum = 0.f;
+  float min_local = 3.402823466e+38F;
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if(!selectedOnly || selectionBuffer[j] == 1) { sum += bufferToReduce[ij]; }
+    if(!selectedOnly || selectionBuffer[j] == 1) { min_local = min(bufferToReduce[ij], min_local); }
   }
-  sum = subgroupAdd(sum);
+  min_local = subgroupMin(min_local);
 
   if (thread < 1) {
-    accumulationPerDatapointBuffer[i] = sum;
+    accumulationPerDatapointBuffer[i] = min_local;
   }
 
 }

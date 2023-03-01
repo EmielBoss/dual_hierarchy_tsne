@@ -60,7 +60,8 @@ namespace dh::sne {
     void comp();
     void recomp(GLuint selectionBufferHandle, float perplexity, uint k);
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
-    void weighSimilaritiesPerAttribute(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
+    void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
+    void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void reset();
     void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
@@ -87,6 +88,7 @@ namespace dh::sne {
       eScan,
       eCounts,
       eWeightedAttributeIndices,
+      eSubDistancesL1,
 
       Length
     };
@@ -99,7 +101,9 @@ namespace dh::sne {
       eNeighborsSortComp,
       eL1DistancesComp,
       eWeighSimilaritiesComp,
-      eWeighSimilaritiesPerAttributeComp,
+      eWeighSimilaritiesPerAttributeRatioComp,
+      eWeighSimilaritiesPerAttributeRangeComp,
+      eSubDistancesL1Comp,
       
       Length
     };

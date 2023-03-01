@@ -66,7 +66,7 @@ namespace dh::vis {
     _attributeWeight(0.f),
     _texelBrushRadius(1),
     _similarityWeight(2.f),
-    _autoselectPercentage(0.1f),
+    _autoselectPercentage(0.025f),
     _textureTabOpened(0),
     _plotError(true),
     _currentTabUpper(0),
@@ -289,7 +289,7 @@ namespace dh::vis {
   void SelectionRenderTask::drawImGuiTextureControls() {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
-    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("\% of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
     if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }

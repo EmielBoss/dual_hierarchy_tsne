@@ -51,7 +51,7 @@ layout(location = 5) uniform float weight;
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if(i < 2) { boundsSel[i] += shiftRel; }
-  if(i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if(i >= nPoints || selectionBuffer[i] != 1) { return; }
 
   if (translationStarted) {
     if(fixedBuffer[i] == 0) {

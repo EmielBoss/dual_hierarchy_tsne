@@ -49,7 +49,7 @@ layout(location = 5) uniform float weightFixed;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
+  if (i >= nPoints || selectionBuffer[i] != 1) { return; }
 
   if (translationStarted || translationFinished) {
     vec3 positionRelative = (positionsBuffer[i] - minBounds) * invRange;
