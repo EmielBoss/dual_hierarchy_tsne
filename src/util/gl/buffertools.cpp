@@ -58,6 +58,8 @@ namespace dh::util {
 
       _programs(ProgramType::eAverageTexturedataComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/average_texturedata.comp"));
 
+      _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/difference.comp"));
+
       for (auto& program : _programs) {
         program.link();
       }
@@ -271,6 +273,24 @@ namespace dh::util {
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     glDeleteBuffers(1, _buffersReduce.data());
+    glAssert();
+  }
+
+  void BufferTools::difference(GLuint& buffer1, GLuint& buffer2, uint n, GLuint& bufferDifference) {
+    auto& program = _programs(ProgramType::eDifferenceComp);
+    program.bind();
+
+    // Set uniforms
+    program.template uniform<uint>("n", n);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer1);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buffer2);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bufferDifference);
+    glAssert();
+
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
 

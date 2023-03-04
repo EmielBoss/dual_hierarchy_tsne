@@ -50,7 +50,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 8> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 10> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _texturedataBuffers(texturedataBuffers),
@@ -202,21 +202,26 @@ namespace dh::vis {
     }
 
     if (ImGui::BeginTabBar("Selection tabs")) {
-      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selc pri" : "Selc")) {
+      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
         _currentTabUpper = 0;
         ImGui::EndTabItem();
       }
 
       if(_selectionCounts[1] > 0) {
-        if (ImGui::BeginTabItem("Selc sec")) {
+        if (ImGui::BeginTabItem("Selection sec")) {
           _currentTabUpper = 1;
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Selc diff")) {
+        if (ImGui::BeginTabItem("Selection diff")) {
           _currentTabUpper = 2;
           ImGui::EndTabItem();
         }
+      }
+
+      if (ImGui::BeginTabItem("Pairwise difference")) {
+        _currentTabUpper = 3;
+        ImGui::EndTabItem();
       }
       ImGui::EndTabBar();
     }
@@ -224,10 +229,13 @@ namespace dh::vis {
     _draggedTexel = -1;
 
     if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-      drawImGuiTab(_currentTabUpper, 0, "Average");
-      drawImGuiTab(_currentTabUpper, 1, "Variance");
-      if(_currentTabUpper == 0) {
-        drawImGuiTab(3, 0, "Diff neighbs");
+      if(_currentTabUpper < 3) {
+        drawImGuiTab(_currentTabUpper, 0, "Average");
+        drawImGuiTab(_currentTabUpper, 1, "Variance");
+      } else {
+        drawImGuiTab(_currentTabUpper, 0, "Between neighbs");
+        drawImGuiTab(_currentTabUpper, 1, "Between all");
+        drawImGuiTab(_currentTabUpper, 2, "Difference");
       }
       ImGui::EndTabBar();
     }
@@ -270,7 +278,7 @@ namespace dh::vis {
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
-      std::array<const char*, 7> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f"};
+      std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
       float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params->imgDepth);
       ImGui::Text(prompts[index], texelValue);
       ImGui::EndTooltip();

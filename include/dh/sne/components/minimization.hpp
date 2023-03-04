@@ -132,7 +132,9 @@ namespace dh::sne {
       eAverageDifference,
       eVarianceDifference,
 
-      ePairDiffs,
+      ePairwiseDiffsNei,
+      ePairwiseDiffsAll,
+      ePairwiseDiffsDif,
       eOverlay,
 
       Length
@@ -148,9 +150,9 @@ namespace dh::sne {
       eNeighborhoodPreservationComp,
       eSelectionComp,
       eCountSelectedComp,
-      eDifferenceComp,
       eTranslationComp,
-      ePairwiseAttrDiffsComp,
+      ePairwiseAttrDiffsNeiComp,
+      ePairwiseAttrDiffsAllComp,
 
       Length
     };
