@@ -63,6 +63,6 @@ void main() {
     uint j = neighborsBuffer[ij];
     if(selectionBuffer[j] != 1) { continue; }
     
-    similaritiesBuffer[ij] *= (1.f - (subdistancesBuffer[ij] - distMin) * distRangeInv) * 2.f;
+    similaritiesBuffer[ij] *= 1.f - (subdistancesBuffer[ij] - distMin) * distRangeInv;
   }
 }

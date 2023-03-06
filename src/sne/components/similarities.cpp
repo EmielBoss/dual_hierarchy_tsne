@@ -362,6 +362,8 @@ namespace dh::sne {
     glCreateBuffers(1, &_buffers(BufferType::eSimilaritiesOriginal));
     glDeleteBuffers(1, &_buffers(BufferType::eDistancesL1));
     glCreateBuffers(1, &_buffers(BufferType::eDistancesL1));
+    glDeleteBuffers(1, &_buffers(BufferType::eNeighborsSelected));
+    glCreateBuffers(1, &_buffers(BufferType::eNeighborsSelected));
     comp();
   }
 
