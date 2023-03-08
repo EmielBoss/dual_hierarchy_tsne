@@ -401,10 +401,11 @@ namespace dh::sne {
       auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeRatioComp);
       program.bind();
 
+      float mult = (_params->nHighDims / weightedAttributeIndices.size()) / (5.f * (1.f - weightedAttributeIndices.size() / _params->nHighDims) + 1);
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
       program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
-      program.template uniform<float>("multiplier", _params->nHighDims / weightedAttributeIndices.size() / 5.f);
+      program.template uniform<float>("multiplier", mult);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
@@ -430,7 +431,7 @@ namespace dh::sne {
       weighSimilarities(factor, selectionBufferHandle);
     }
 
-    defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
