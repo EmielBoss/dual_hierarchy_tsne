@@ -589,7 +589,10 @@ namespace dh::sne {
         if(_button == 15) { // Autoweigh top % of attributes
           autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
         }
-        if(_button == 2) { // Recalc similarities
+        if(_button == 2) { // Recalc similarities (ratio)
+          _similarities->weighSimilaritiesPerAttributeRatio(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+        }
+        if(_button == 25) { // Recalc similarities (range)
           _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
         }
         if(_button == 3) { // Reset similarities

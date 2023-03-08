@@ -298,16 +298,21 @@ namespace dh::vis {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
     ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
-    if(                   ImGui::Button("Recalc similarities")) { _buttonPressed = 2; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Reset similarities")) { _buttonPressed = 3; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+    
     if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
+
+    ImGui::Text("Similarities:");
+    if(ImGui::SameLine(); ImGui::Button("Recalc (ratio)")) { _buttonPressed = 2; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Recalc (range)")) { _buttonPressed = 25; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
   }
 
   void SelectionRenderTask::drawImPlotBarPlot(uint tabUpper) {
