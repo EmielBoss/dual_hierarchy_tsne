@@ -59,6 +59,8 @@ namespace dh::vis {
     void createVAO();
     void setClass(int i);
     void unsetClass(int i);
+
+    void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
     std::set<int> getClassesSet() { return _classesSet; }
     bool getSetChanged() { return _setChanged; }
     void setNumSelectedNeighbors(uint nSelectedNeighbors) { _nSelectedNeighbors = nSelectedNeighbors; }

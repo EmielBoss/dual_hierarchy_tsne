@@ -31,6 +31,8 @@ struct Bounds {
   vec2 invRange;
 };
 
+vec3 grey = vec3(150.f, 150.f, 150.f);
+
 // Input attributes
 layout(location = 0) in vec2 positionIn;
 layout(location = 1) in vec2 embeddingRelIn;
@@ -62,8 +64,8 @@ layout(location = 7) uniform float divisor;
 
 void main() {
 
-  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 3.f : 1.f;
-  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 50.f : 1.f;
+  multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 5.f : 1.f;
+  float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 5.f : 1.f;
 
   // Calculate embedding position, fragment position
   embeddingRelOut = embeddingRelIn;
@@ -74,31 +76,44 @@ void main() {
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
   if(disabled[gl_InstanceID] == 1) { gl_Position = vec4(1000.f, 1000.f, 1000.f, 1.f); }
 
-  // Calculate output color depending on color mapping, label and whether it is selected, whether to even draw labels
-  vec3 color;
-  const int label = labels[gl_InstanceID];
+  if(colorMapping == 0) { // None
+    vec3 color = grey;
+    if(!selectLabeledOnly) {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 200.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    } else {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 255.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    }
+  } else
   if(colorMapping == 1) { // Labels
-    int colorIndex = canDrawLabels && label >= 0 ? label : 9;
-    color = colors[colorIndex];
+    vec3 color = colors[canDrawLabels && labels[gl_InstanceID] >= 0 ? labels[gl_InstanceID] : 9];
+    if(!selectLabeledOnly) {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 200.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    } else {
+      if(selection[gl_InstanceID] == 0 && labeled[gl_InstanceID] == 0) { colorOut = vec4(grey / 400.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 0 && labeled[gl_InstanceID] == 1) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1 && labeled[gl_InstanceID] == 0) { colorOut = vec4(grey / 255.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 1 && labeled[gl_InstanceID] == 1) { colorOut = vec4(color / 255.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    }
   } else
   if(colorMapping == 2) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
-    color = vec3(255, (1-value) * 255, (1-value) * 200);
-  }
-  else {
-    color = colors[9];
+    vec3 color = vec3(255, (1-value) * 255, (1-value) * 200);
+    if(!selectLabeledOnly) {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 255.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    } else {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 255.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    }
   }
 
-  // Determine whether to output unselected color or selected color
-  if(selection[gl_InstanceID] == 1) {
-    if(selectLabeledOnly) { colorOut = vec4(color / divisor, pointOpacity); } else
-    if(colorMapping == 1) { colorOut = vec4(color / 200.0f, pointOpacity); } // Selected label color should be lighter
-    else { colorOut = vec4(color / 355.0f, pointOpacity); } // Selected color should be made darker
-  } else
-  if(selection[gl_InstanceID] == 2) {
-    colorOut = vec4(color / divisor, pointOpacity);
-  } else {
-    if(colorMapping == 1) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } // Unselected label color should be darker
-    else { colorOut = vec4(color / 255.0f, pointOpacity / divider); } // Unselected color should be normal
-  }
 }

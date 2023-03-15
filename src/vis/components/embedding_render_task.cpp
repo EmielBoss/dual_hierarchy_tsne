@@ -78,7 +78,7 @@ namespace dh::vis {
     // _weightFalloff(calculateFalloff(params->n, params->k, params->nClusters)),
     // _numClusters(params->nClusters),
     // _numClustersPrev(params->nClusters),
-    _pointRadius(0.003f),
+    _pointRadius(100.f / _params->n),
     _pointOpacity(1.0f),
     _focusButtonPressed(false),
     _classButtonPressed(-1),
@@ -225,7 +225,7 @@ namespace dh::vis {
 
     // Time-based effect for the secondary selection
     int ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    int looper = (ms / 2) % 510;
+    int looper = (std::abs(ms) / 2) % 510;
     float divisor = looper - std::max(0, looper * 2 - 510);
 
     _program.bind();

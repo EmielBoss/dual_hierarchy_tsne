@@ -474,7 +474,7 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::deselectSelection() {
+  void Minimization<D, DD>::deselect() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
@@ -484,8 +484,17 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::invertSelection() {
+  void Minimization<D, DD>::selectAll() {
+    dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
+    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
+    dh::util::writeGLBuffer<uint>(_buffers(BufferType::eSelection), _params->n, 1, "sel");
+    compIterationSelect(true);
+  }
+
+  template <uint D, uint DD>
+  void Minimization<D, DD>::selectInverse() {
     dh::util::BufferTools::instance().flip<uint>(_buffers(BufferType::eSelection), _params->n);
+    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
   }
 
@@ -528,7 +537,7 @@ namespace dh::sne {
     }
 
     // Deselect
-    if(_input.d) { deselectSelection(); }
+    if(_input.d) { deselect(); }
     
     // Clear translations if not translating
     if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
@@ -553,12 +562,14 @@ namespace dh::sne {
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
       compIterationSelect(true);
       _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
+      _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.01f));
     }
     if(_input.ins) { // Enable
       uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
       glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      _embeddingRenderTask->setPointRadius(100.f / _params->n);
     }
 
     _mousePosClipPrev = _input.mousePosClip;
@@ -598,12 +609,10 @@ namespace dh::sne {
         refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
       }
       if(_button == 20) { // Select all
-        dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
-        dh::util::writeGLBuffer<uint>(_buffers(BufferType::eSelection), _params->n, 1, "sel");
-        compIterationSelect(true);
+        selectAll();
       }
       if(_button == 30) { // Select inverse
-        invertSelection();
+        selectInverse();
       }
     }
     _buttonPrev = _button;
@@ -624,7 +633,7 @@ namespace dh::sne {
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
-      deselectSelection();
+      deselect();
       _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
       restartMinimization();
     }

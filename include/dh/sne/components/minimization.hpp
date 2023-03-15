@@ -66,8 +66,9 @@ namespace dh::sne {
     Minimization& operator=(Minimization&&) noexcept;
 
     void initializeEmbeddingRandomly(int seed);
-    void deselectSelection();
-    void invertSelection();
+    void deselect();
+    void selectAll();
+    void selectInverse();
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
