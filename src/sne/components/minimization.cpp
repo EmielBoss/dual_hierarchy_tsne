@@ -564,6 +564,86 @@ namespace dh::sne {
     _mousePosClipPrev = _input.mousePosClip;
     _mouseRightPrev = _input.mouseRight;
 
+    // Process attribute selection texture buttons
+    _button = _selectionRenderTask->getButtonPressed();
+    if(_button > 0 && _button != _buttonPrev) {
+      if(_button == 1) { // Apply similarity weight
+        _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+      }
+      if(_button == 10) { // Apply similarity weight to intersimilarities between selections
+        _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
+      }
+      if(_button == 15) { // Autoweigh top % of attributes
+        autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
+      }
+      if(_button == 2) { // Recalc similarities (ratio)
+        _similarities->weighSimilaritiesPerAttributeRatio(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+      }
+      if(_button == 25) { // Recalc similarities (range)
+        _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+      }
+      if(_button == 3) { // Reset similarities
+        _similarities->reset();
+      }
+      if(_button == 4) { // Clear attribute weights
+        const std::vector<float> ones(_params->nHighDims, 1.0f);
+        glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+        mirrorWeightsToOverlay();
+        _weightedAttributeIndices = std::set<uint>();
+      }
+      if(_button == 5) { // Invert attribute weights
+        invertAttributeWeights();
+      }
+      if(_button == 6) { // Refine attribute weights
+        refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
+      }
+      if(_button == 20) { // Select all
+        dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
+        dh::util::writeGLBuffer<uint>(_buffers(BufferType::eSelection), _params->n, 1, "sel");
+        compIterationSelect(true);
+      }
+      if(_button == 30) { // Select inverse
+        invertSelection();
+      }
+    }
+    _buttonPrev = _button;
+
+    // Force selection re-evaluaation when switching to the pairwise attr diff tab
+    uint openedTextureIndex = _selectionRenderTask->getOpenedTextureIndex();
+    if(openedTextureIndex > 5 && openedTextureIndex != _openedTextureIndexPrev || _embeddingRenderTask->getSetChanged()) { compIterationSelect(true); }
+    _openedTextureIndexPrev = openedTextureIndex;
+
+    if(_embeddingRenderTask->getFocusButtonPressed()) {
+      uint n = _params->n;
+      _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
+      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
+      dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
+      deselectSelection();
+      _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
+      restartMinimization();
+    }
+
+    if(_embeddingRenderTask->getClassButtonPressed() >= 0) {
+      int classToSelect = _embeddingRenderTask->getClassButtonPressed();
+      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
+      compIterationSelect(true);
+    }
+
+    // Select individual datapoints if int field input changed
+    uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
+    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
+      uint sn = _input.s + 1; // Selection number
+      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
+      compIterationSelect(true);
+      _selectedDatapointPrev = selectedDatapoint;
+    }
+
     if(_params->imageDataset) {
       // Draw dragselected attributes in texture
       _draggedTexel = _selectionRenderTask->getDraggedTexel();
@@ -576,85 +656,6 @@ namespace dh::sne {
         }
         _draggedTexelPrev = _draggedTexel;
       }
-
-      // Process attribute selection texture buttons
-      _button = _selectionRenderTask->getButtonPressed();
-      if(_button > 0 && _button != _buttonPrev) {
-        if(_button == 1) { // Apply similarity weight
-          _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
-        }
-        if(_button == 10) { // Apply similarity weight to intersimilarities between selections
-          _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
-        }
-        if(_button == 15) { // Autoweigh top % of attributes
-          autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
-        }
-        if(_button == 2) { // Recalc similarities (ratio)
-          _similarities->weighSimilaritiesPerAttributeRatio(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
-        }
-        if(_button == 25) { // Recalc similarities (range)
-          _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
-        }
-        if(_button == 3) { // Reset similarities
-          _similarities->reset();
-        }
-        if(_button == 4) { // Clear attribute weights
-          const std::vector<float> ones(_params->nHighDims, 1.0f);
-          glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
-          mirrorWeightsToOverlay();
-          _weightedAttributeIndices = std::set<uint>();
-        }
-        if(_button == 5) { // Invert attribute weights
-          invertAttributeWeights();
-        }
-        if(_button == 6) { // Refine attribute weights
-          refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
-        }
-        if(_button == 20) { // Select all
-          dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
-          compIterationSelect(true);
-        }
-        if(_button == 30) { // Select inverse
-          invertSelection();
-        }
-      }
-      _buttonPrev = _button;
-
-      // Force selection re-evaluaation when switching to the pairwise attr diff tab
-      uint openedTextureIndex = _selectionRenderTask->getOpenedTextureIndex();
-      if(openedTextureIndex > 5 && openedTextureIndex != _openedTextureIndexPrev || _embeddingRenderTask->getSetChanged()) { compIterationSelect(true); }
-      _openedTextureIndexPrev = openedTextureIndex;
-
-      if(_embeddingRenderTask->getFocusButtonPressed()) {
-        uint n = _params->n;
-        _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
-        _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
-        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
-        dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
-        deselectSelection();
-        _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
-        restartMinimization();
-      }
-
-      if(_embeddingRenderTask->getClassButtonPressed() >= 0) {
-        int classToSelect = _embeddingRenderTask->getClassButtonPressed();
-        dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
-        compIterationSelect(true);
-      }
-    }
-
-    // Select individual datapoints if int field input changed
-    uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
-    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
-      uint sn = _input.s + 1; // Selection number
-      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
-      compIterationSelect(true);
-      _selectedDatapointPrev = selectedDatapoint;
     }
 
     // Reset some stuff upon axis change
