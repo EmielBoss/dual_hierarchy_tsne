@@ -75,6 +75,7 @@ void main() {
   // Calculate vertex position
   gl_Position = proj * model_view * vec4(fragEmbeddingOut, 0, 1);
   if(disabled[gl_InstanceID] == 1) { gl_Position = vec4(1000.f, 1000.f, 1000.f, 1.f); }
+  if(selectLabeledOnly && labeled[gl_InstanceID] == 1) { gl_Position.z = 0.1f; }
 
   if(colorMapping == 0) { // None
     vec3 color = grey;

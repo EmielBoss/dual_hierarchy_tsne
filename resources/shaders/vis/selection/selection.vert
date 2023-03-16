@@ -32,5 +32,5 @@ layout(location = 0) uniform vec2 mousePosScreen;
 layout(location = 1) uniform int selectionRadiusScreen;
 
 void main() {
-  gl_Position = vec4(positionIn, 1.0, 1.0);
+  gl_Position = vec4(positionIn, 0.001f, 1.0);
 }

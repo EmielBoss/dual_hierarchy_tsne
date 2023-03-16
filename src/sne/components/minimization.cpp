@@ -641,6 +641,7 @@ namespace dh::sne {
     if(_embeddingRenderTask->getClassButtonPressed() >= 0) {
       int classToSelect = _embeddingRenderTask->getClassButtonPressed();
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
+      if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
       compIterationSelect(true);
     }
 
