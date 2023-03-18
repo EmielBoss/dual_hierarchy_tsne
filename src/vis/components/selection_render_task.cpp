@@ -173,13 +173,11 @@ namespace dh::vis {
     glAssert();
 
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-      if (_canDrawLabels) {
-        ImGui::Text("Selection mode:");
-        ImGui::SameLine();
-        if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
-      }
+      ImGui::Text("Selection mode:");
+      ImGui::SameLine();
+      if (ImGui::RadioButton("All", _selectLabeledOnly==false)) { _selectLabeledOnly = false; }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Only labeled", _selectLabeledOnly==true)) { _selectLabeledOnly = true; }
 
       ImGui::InputInt("Select individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
 

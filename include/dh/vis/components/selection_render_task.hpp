@@ -93,7 +93,6 @@ namespace dh::vis {
     dh::vis::Input _input;
 
     // ImGui state
-    bool _canDrawLabels;
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
     std::vector<uint> _selectionCounts;

@@ -290,6 +290,7 @@ namespace dh::sne {
     _iteration = 0;
     restartExaggeration(_params->nExaggerationIters);
     const std::vector<vec> unitvecs(_params->n, vec(1));
+    glClearNamedBufferData(_buffers(BufferType::eField), GL_R32F, GL_RED, GL_FLOAT, nullptr);
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, nullptr);
     glClearNamedBufferData(_buffers(BufferType::eGain), GL_R32F, GL_RED, GL_FLOAT, unitvecs.data());
   }
