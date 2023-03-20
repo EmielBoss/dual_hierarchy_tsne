@@ -31,6 +31,7 @@
 #include "dh/sne/components/minimization.hpp"
 #include "dh/util/logger.hpp"
 #include "dh/util/io.hpp"
+#include "dh/util/debug.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 #include "dh/util/gl/buffertools.hpp"
@@ -118,10 +119,6 @@ namespace dh::sne {
       const std::vector<uint> falses(_params->n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params->n, 1.0f);
       std::vector<float> zeros(_params->n, 0.0f);
-      std::vector<uint> labeled(_params->n, 0);
-      // for(uint i = 0; i < _params->n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
-      std::vector<uint> labeledIndices = {0, 1, 2, 3, 4, 5, 7, 13, 15, 17}; // Purely for development and demonstration on MNIST
-      for(uint i = 0; i < labeledIndices.size(); ++i) { labeled[labeledIndices[i]] = 1; } // The first datapoints are "labeled"
       std::vector<float> data;
       data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
       if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
@@ -147,10 +144,11 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
+      // glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are labeled
+      dh::util::indicateLabeled(labelPtr, _params->n, _params->nClasses, 1, _buffers(BufferType::eLabeled));
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
-      glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are labeled
       glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
@@ -563,7 +561,7 @@ namespace dh::sne {
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
       compIterationSelect(true);
       _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
-      _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.01f));
+      _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
     }
     if(_input.ins) { // Enable
       uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
