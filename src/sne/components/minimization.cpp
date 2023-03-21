@@ -224,18 +224,15 @@ namespace dh::sne {
   template <uint D, uint DD>
   void Minimization<D, DD>::initializeEmbeddingRandomly(int seed) {
     
-    // Copy over embedding and fixed buffers to host
+    // Copy over embedding buffer to host
     std::vector<vec> embedding(_params->n);
     glGetNamedBufferSubData(_buffers(BufferType::eEmbedding), 0, _params->n * sizeof(vec), embedding.data());
-    std::vector<uint> fixed(_params->n);
-    glGetNamedBufferSubData(_buffers(BufferType::eFixed), 0, _params->n * sizeof(uint), fixed.data());
 
     // Seed the (bad) rng
     std::srand(seed);
     
     // Generate n random D-dimensional vectors
     for (uint i = 0; i < _params->n; ++i) {
-      if(fixed[i]) { continue; }
       vec v;
       float r;
 
