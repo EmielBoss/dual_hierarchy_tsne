@@ -73,6 +73,17 @@ namespace dh::util {
    */
   void writeTextValuesFile(const std::string &fileName,
                            const std::vector<std::string> &values);
+
+  /**
+   * readeGLBuffer
+   * 
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into an OpenGL buffer. Useful for debugging
+   */
+  template<typename T>
+  void readGLBuffer(GLuint& handle,
+                    uint n,
+                    uint d,
+                    const std::string filename);
   
   /**
    * writeGLBuffer

@@ -111,8 +111,6 @@ namespace dh::sne {
       eNeighborsEmb,
       eNeighborhoodPreservation,
       eSelection,
-      eSelectionCount,
-      eSelectionCountReduce,
       eFixed,
       eTranslating,
       eWeights,

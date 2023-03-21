@@ -128,6 +128,8 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), unitvecs.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eBoundsSelection), 2 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
@@ -142,16 +144,12 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params->n * _params->k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params->n * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eSelectionCount), sizeof(uint), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelectionCountReduce), 128 * sizeof(uint), nullptr, 0);
       // glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are labeled
       dh::util::indicateLabeled(labelPtr, _params->n, _params->nClasses, 1, _buffers(BufferType::eLabeled));
+      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
-      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::ePairwiseAttrDists), _params->n * _params->nHighDims * sizeof(float), nullptr, 0);
       glAssert();
 
@@ -288,7 +286,6 @@ namespace dh::sne {
     _iteration = 0;
     restartExaggeration(_params->nExaggerationIters);
     const std::vector<vec> unitvecs(_params->n, vec(1));
-    glClearNamedBufferData(_buffers(BufferType::eField), GL_R32F, GL_RED, GL_FLOAT, nullptr);
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, nullptr);
     glClearNamedBufferData(_buffers(BufferType::eGain), GL_R32F, GL_RED, GL_FLOAT, unitvecs.data());
   }

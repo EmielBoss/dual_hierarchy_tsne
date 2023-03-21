@@ -133,6 +133,41 @@ namespace dh::util {
   }
 
   template<typename T>
+  void readGLBuffer(GLuint& handle, uint n, uint d, const std::string filename) {
+    std::vector<T> buffer(n * d);
+    std::ifstream file("./buffer_dumps/" + filename + ".txt");
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return;
+    }
+    std::string line;
+    uint i = 0;
+    while (std::getline(file, line) && i < n) {
+        std::istringstream iss(line);
+        std::string val_str;
+        for (uint j = 0; j < d; ++j) {
+            if (!std::getline(iss, val_str, '|')) {
+                std::cerr << "Error parsing file: " << filename << std::endl;
+                return;
+            }
+            std::istringstream val_iss(val_str);
+            T val;
+            if (!(val_iss >> val)) {
+                std::cerr << "Error parsing file: " << filename << std::endl;
+                return;
+            }
+            buffer[i * d + j] = val;
+        }
+        i++;
+    }
+    GLint flags;
+    glGetNamedBufferParameteriv(handle, GL_BUFFER_STORAGE_FLAGS, &flags);
+    glDeleteBuffers(1, &handle);
+    glCreateBuffers(1, &handle);
+    glNamedBufferStorage(handle, n * d * sizeof(T), buffer.data(), flags);
+  }
+
+  template<typename T>
   void writeGLBuffer(const GLuint handle, uint n, uint d, const std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
@@ -179,6 +214,10 @@ namespace dh::util {
   }
 
   // Template instantiations for writeGLBuffer for float, int, uint
+  template void readGLBuffer<float>(GLuint& handle, uint n, uint d, const std::string filename);
+  template void readGLBuffer<uint>(GLuint& handle, uint n, uint d, const std::string filename);
+  template void readGLBuffer<int>(GLuint& handle, uint n, uint d, const std::string filename);
+
   template void writeGLBuffer<float>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<uint>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<int>(const GLuint handle, uint n, uint d, const std::string filename);
