@@ -42,6 +42,8 @@ namespace dh::vis {
     _xPressed(false),
     _yPressed(false),
     _zPressed(false),
+    _gPressed(false),
+    _pPressed(false),
     _shiftPressed(false),
     _ctrlPressed(false),
     _altPressed(false),
@@ -116,6 +118,12 @@ namespace dh::vis {
 
     if (button == GLFW_KEY_Z && action == GLFW_PRESS) { _zPressed = true; }
     else if (button == GLFW_KEY_Z && action == GLFW_RELEASE) { _zPressed = false; }
+
+    if (button == GLFW_KEY_G && action == GLFW_PRESS) { _gPressed = true; }
+    else if (button == GLFW_KEY_G && action == GLFW_RELEASE) { _gPressed = false; }
+
+    if (button == GLFW_KEY_P && action == GLFW_PRESS) { _pPressed = true; }
+    else if (button == GLFW_KEY_P && action == GLFW_RELEASE) { _pPressed = false; }
 
     if (button == GLFW_KEY_SPACE && action == GLFW_PRESS) { _spacePressed = true; }
     else if (button == GLFW_KEY_SPACE && action == GLFW_RELEASE) { _spacePressed = false; }
