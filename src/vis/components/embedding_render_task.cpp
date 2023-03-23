@@ -263,6 +263,8 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
+      ImGui::Text("Iteration: %u", _iteration);
+
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");
         ImGui::SameLine();

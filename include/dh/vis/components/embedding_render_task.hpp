@@ -60,6 +60,7 @@ namespace dh::vis {
     void setClass(int i);
     void unsetClass(int i);
 
+    void setIteration(uint iteration) { _iteration = iteration; }
     void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
     std::set<int> getClassesSet() { return _classesSet; }
     bool getSetChanged() { return _setChanged; }
@@ -112,6 +113,7 @@ namespace dh::vis {
     std::set<int> _classesSet;
     bool _setChanged;
     uint _nSelectedNeighbors;
+    uint _iteration;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -137,6 +139,7 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._params, b._params);
+      swap(a._iteration, b._iteration);
       swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
       swap(a._weightFalloff, b._weightFalloff);

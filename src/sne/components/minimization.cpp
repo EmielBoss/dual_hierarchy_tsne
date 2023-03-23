@@ -661,6 +661,8 @@ namespace dh::sne {
       }
     }
 
+    _embeddingRenderTask->setIteration(_iteration);
+
     // Reset some stuff upon axis change
     // _axisMapping = _axesRenderTask->getAxisMapping();
     // _axisIndex = _axesRenderTask->getSelectedIndex();
