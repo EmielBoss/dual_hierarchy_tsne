@@ -48,9 +48,10 @@ layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bound
 layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
 layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
 layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
-layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
-layout(binding = 5, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
-layout(binding = 6, std430) restrict readonly buffer ColorBuffer { vec3 colors[]; };
+layout(binding = 4, std430) restrict readonly buffer FixedBuffer { uint fixxed[]; };
+layout(binding = 5, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
+layout(binding = 6, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 7, std430) restrict readonly buffer ColorBuffer { vec3 colors[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -65,6 +66,7 @@ layout(location = 7) uniform float divisor;
 void main() {
 
   multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 5.f : 1.f;
+  multiplier += multiplier * 0.5f * fixxed[gl_InstanceID];
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 5.f : 1.f;
 
   // Calculate embedding position, fragment position

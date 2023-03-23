@@ -247,9 +247,10 @@ namespace dh::vis {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.labels);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labeled);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.disabled);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.selection);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.neighborhoodPreservation);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _colorBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.fixed);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _minimizationBuffers.neighborhoodPreservation);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _colorBuffer);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
