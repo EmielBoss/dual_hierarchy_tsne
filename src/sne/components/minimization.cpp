@@ -60,7 +60,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
     _dataPtr(dataPtr), _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _removeExaggerationIter(_params->nExaggerationIters) {
+    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -214,6 +214,8 @@ namespace dh::sne {
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_buffersTextureData, _similaritiesBuffers.attributeWeights, _params, 5, dataPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
+
+    _klDivergence = KLDivergence(_params, _similaritiesBuffers, buffers());
 
     _isInit = true;
     glAssert();
@@ -503,21 +505,18 @@ namespace dh::sne {
   bool Minimization<D, DD>::compIteration() {
     _input = _selectionInputTask->getInput();
 
-    // Ugly synchronization work; I blame the existing software architecture
-    {
-      _selectionRenderTask->setInput(_input);
+    _selectionRenderTask->setInput(_input);
 
-      // Send selection radius to selection render task
-      _selectionRadiusRel = _input.mouseScroll / 100.f;
-      _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel);
+    // Send selection radius to selection render task
+    _selectionRadiusRel = _input.mouseScroll / 100.f;
+    _selectionRenderTask->setSelectionRadiusRel(_selectionRadiusRel);
 
-      _selectionRenderTask->setMousePosScreen(_input.mousePosScreen); // Send screen position to GUI
+    _selectionRenderTask->setMousePosScreen(_input.mousePosScreen); // Send screen position to GUI
 
-      // Synchronize selection mode
-      _selectOnlyLabeledPrev = _selectOnlyLabeled;
-      _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
-      _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
-    }
+    // Synchronize selection mode
+    _selectOnlyLabeledPrev = _selectOnlyLabeled;
+    _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
+    _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
 
     // Get everything related with the cursor and selection brush
     if(_iteration < 1) { _window = util::GLWindow::currentWindow(); }
@@ -544,6 +543,11 @@ namespace dh::sne {
 
     if(_input.r) { restartMinimization(); } // Restart
     if(_input.e) { restartExaggeration(3); } // Re-exaggerate
+
+    _embeddingRenderTask->setIteration(_iteration);
+    if(_iteration % _iterationIntense == 0 && _iterationIntense > 10) { _iterationIntense /= 2; }
+    if(_iteration % _iterationIntense == 0 || _embeddingRenderTask->getKLButtonPressed()) { _embeddingRenderTask->setKLDivergence(_klDivergence.comp()); }
+
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
     if(_input.mouseLeft || _input.mouseMiddle) { compIterationSelect(); } // Select
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
@@ -660,8 +664,6 @@ namespace dh::sne {
         _draggedTexelPrev = _draggedTexel;
       }
     }
-
-    _embeddingRenderTask->setIteration(_iteration);
 
     // Reset some stuff upon axis change
     // _axisMapping = _axesRenderTask->getAxisMapping();

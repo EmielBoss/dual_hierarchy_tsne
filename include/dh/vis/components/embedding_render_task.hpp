@@ -61,6 +61,7 @@ namespace dh::vis {
     void unsetClass(int i);
 
     void setIteration(uint iteration) { _iteration = iteration; }
+    void setKLDivergence(float klDivergence) { _klDivergence = klDivergence; }
     void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
     std::set<int> getClassesSet() { return _classesSet; }
     bool getSetChanged() { return _setChanged; }
@@ -72,6 +73,7 @@ namespace dh::vis {
     float getWeightFalloff() { return _weightFalloff; }
     float getPerplexity() { return _perplexity; }
     bool getFocusButtonPressed() { return _focusButtonPressed; }
+    bool getKLButtonPressed() { return _klButtonPressed; }
     int getClassButtonPressed() { return _classButtonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
@@ -106,6 +108,7 @@ namespace dh::vis {
     int _k;
     bool _focusButtonPressed;
     int _classButtonPressed;
+    bool _klButtonPressed;
     std::vector<glm::vec4> _colors;
     std::vector<uint> _classCounts;
     std::vector<std::string> _classNames;
@@ -114,6 +117,7 @@ namespace dh::vis {
     bool _setChanged;
     uint _nSelectedNeighbors;
     uint _iteration;
+    float _klDivergence;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -140,6 +144,7 @@ namespace dh::vis {
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._params, b._params);
       swap(a._iteration, b._iteration);
+      swap(a._klDivergence, b._klDivergence);
       swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
       swap(a._weightFalloff, b._weightFalloff);
@@ -152,6 +157,7 @@ namespace dh::vis {
       swap(a._k, b._k);
       swap(a._focusButtonPressed, b._focusButtonPressed);
       swap(a._classButtonPressed, b._classButtonPressed);
+      swap(a._klButtonPressed, b._klButtonPressed);
       swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
       swap(a._classTextures, b._classTextures);

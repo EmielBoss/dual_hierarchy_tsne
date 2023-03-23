@@ -61,7 +61,6 @@ namespace dh::sne {
 
     // Getters
     // Don't call some of these *while* minimizing unless you don't care about performance
-    float klDivergence();
     std::vector<float> embedding() const;
     millis similaritiesTime() const;
     millis minimizationTime() const;
@@ -84,7 +83,6 @@ namespace dh::sne {
     // Subcomponents
     Similarities _similarities;
     Minimization _minimization;
-    KLDivergence _klDivergence;
 
   public:
     bool isInit() const { return _isInit; }
@@ -99,7 +97,6 @@ namespace dh::sne {
       swap(a._minimizationTimer, b._minimizationTimer);
       swap(a._similarities, b._similarities);
       swap(a._minimization, b._minimization);
-      swap(a._klDivergence, b._klDivergence);
     }
   };
 } // dh::sne

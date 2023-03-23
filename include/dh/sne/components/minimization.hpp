@@ -34,6 +34,7 @@
 #include "dh/sne/components/similarities.hpp"
 #include "dh/sne/components/buffers.hpp"
 #include "dh/sne/components/field.hpp"
+#include "dh/sne/components/kl_divergence.hpp"
 #include "dh/vis/render_queue.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/vis/components/selection_input_task.hpp"
@@ -181,6 +182,7 @@ namespace dh::sne {
     util::GLWindow* _window;
     float* _pcs;
     uint _iteration;
+    uint _iterationIntense;
     uint _removeExaggerationIter;
     Bounds _bounds;
     Bounds _boundsPrev;
@@ -219,6 +221,7 @@ namespace dh::sne {
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
     std::shared_ptr<vis::EmbeddingRenderTask<DD>> _embeddingRenderTask;
     std::shared_ptr<vis::AxesRenderTask<DD>> _axesRenderTask;
+    KLDivergence _klDivergence;
 
   public:
     // Getters
@@ -257,6 +260,7 @@ namespace dh::sne {
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
+      swap(a._iterationIntense, b._iterationIntense);
       swap(a._removeExaggerationIter, b._removeExaggerationIter);
       swap(a._buffers, b._buffers);
       swap(a._buffersTextureData, b._buffersTextureData);
@@ -268,6 +272,7 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
+      swap(a._klDivergence, b._klDivergence);
     }
   };
 } // dh::sne

@@ -198,12 +198,6 @@ void sne() {
     sne.comp();
   }
 
-  // If requested, compute and output KL-divergence (might take a while on large datasets)
-  if (progDoKlDivergence) {
-    const float kld = sne.klDivergence();
-    dh::util::Logger::newl() << "KL-divergence : " << kld;
-  }
-
   // Output timings
   dh::util::Logger::newl() << "Similarities runtime : " << sne.similaritiesTime();
   dh::util::Logger::newl() << "Minimization runtime : " << sne.minimizationTime();

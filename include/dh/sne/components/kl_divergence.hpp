@@ -80,8 +80,8 @@ namespace dh::sne {
     // State
     bool _isInit;
     Params* _params;
-    SimilaritiesBuffers _similarities;
-    MinimizationBuffers _minimization;
+    SimilaritiesBuffers _similaritiesBuffers;
+    MinimizationBuffers _minimizationBuffers;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -97,8 +97,8 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._similarities, b._similarities);
-      swap(a._minimization, b._minimization);
+      swap(a._similaritiesBuffers, b._similaritiesBuffers);
+      swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._buffers, b._buffers);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);

@@ -83,10 +83,6 @@ namespace dh::sne {
 
     // After similarities are available, initialize minimization subcomponent
     constructMinimization();
-
-    // After similarities are available, initialize KL-divergence subcomponent
-    const auto buffers = std::visit([](const auto& m) { return m.buffers(); }, _minimization);
-    _klDivergence = KLDivergence(_params, _similarities.buffers(), buffers);
   }
 
   void SNE::compMinimization() {
@@ -127,14 +123,6 @@ namespace dh::sne {
     runtimeAssert(mIsInit, "SNE::minimizationTime() called before minimization");
 
     return _minimizationTimer.get<util::TimerValue::eTotal, std::chrono::milliseconds>();
-  }
-
-  float SNE::klDivergence() {
-    const auto mIsInit = std::visit([](const auto& m) { return m.isInit(); }, _minimization);
-    runtimeAssert(_isInit, "SNE::klDivergence() called before initialization");
-    runtimeAssert(mIsInit, "SNE::klDivergence() called before minimization");
-
-    return _klDivergence.comp();
   }
 
   std::vector<float> SNE::embedding() const {

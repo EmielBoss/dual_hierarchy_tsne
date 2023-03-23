@@ -38,8 +38,8 @@ namespace dh::sne {
     // ...
   }
 
-  KLDivergence::KLDivergence(Params* params, SimilaritiesBuffers similarities, MinimizationBuffers minimization)
-  : _isInit(false), _params(params), _similarities(similarities), _minimization(minimization) {
+  KLDivergence::KLDivergence(Params* params, SimilaritiesBuffers similaritiesBuffers, MinimizationBuffers minimizationBuffers)
+  : _isInit(false), _params(params), _similaritiesBuffers(similaritiesBuffers), _minimizationBuffers(minimizationBuffers) {
     Logger::newt() << prefix << "Initializing...";
     
     // Initialize shader programs
@@ -106,7 +106,7 @@ namespace dh::sne {
       program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.embedding);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eQijSum));
       
       // In steps of 512, perforn sums over all j
@@ -166,11 +166,11 @@ namespace dh::sne {
       program.template uniform<uint>("nPoints", _params->n);
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimization.embedding);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.embedding);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eReduceFinal));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similarities.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similarities.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similarities.similarities);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.layout);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.neighbors);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.similarities);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eKLDSum));
 
       // In steps of 512, perforn sums over all j

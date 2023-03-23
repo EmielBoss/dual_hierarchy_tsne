@@ -81,8 +81,11 @@ namespace dh::vis {
     _pointOpacity(1.0f),
     _focusButtonPressed(false),
     _classButtonPressed(-1),
+    _klButtonPressed(false),
     _perplexity(params->perplexity),
-    _k((int) _params->k) {
+    _k((int) _params->k),
+    _iteration(0),
+    _klDivergence(-1.f) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
 
@@ -263,7 +266,8 @@ namespace dh::vis {
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-      ImGui::Text("Iteration: %u", _iteration);
+      ImGui::Text("Iteration: %u", _iteration); ImGui::SameLine(); ImGui::Text("KL: %f", _klDivergence);
+      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) { _klButtonPressed = true; } else { _klButtonPressed = false; }
 
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");
@@ -284,12 +288,11 @@ namespace dh::vis {
       // ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
 
-      _focusButtonPressed = false;
       ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.25f);
       ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params->kMax, 3 * (uint)(_perplexity) + 1); }
       ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params->kMax);
-      if(ImGui::SameLine(); ImGui::Button("Focus")) { _focusButtonPressed = true; }
+      if(ImGui::SameLine(); ImGui::Button("Focus")) { _focusButtonPressed = true; } else { _focusButtonPressed = false; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
       ImGui::PopItemWidth();
     }
