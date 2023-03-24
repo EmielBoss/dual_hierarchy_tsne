@@ -283,6 +283,7 @@ namespace dh::sne {
     if(_input.num >= 0) { initializeEmbeddingRandomly(_input.num); }
     else { initializeEmbeddingRandomly(_params->seed); }
     _iteration = 0;
+    _iterationIntense = 1000;
     restartExaggeration(_params->nExaggerationIters);
     const std::vector<vec> unitvecs(_params->n, vec(1));
     glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, nullptr);
@@ -549,7 +550,7 @@ namespace dh::sne {
     if(_iteration % _iterationIntense == 0 || _embeddingRenderTask->getKLButtonPressed()) { _embeddingRenderTask->setKLDivergence(_klDivergence.comp()); }
 
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
-    if(_input.mouseLeft || _input.mouseMiddle) { compIterationSelect(); } // Select
+    if(_input.mouseLeft || _input.mouseMiddle || _input.u) { compIterationSelect(); } // Select
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
@@ -992,12 +993,15 @@ namespace dh::sne {
       program.template uniform<float, 4, 4>("model_view", DD == 2 ? _model_view_2D : _model_view_3D);
       program.template uniform<float, 4, 4>("proj", DD == 2 ? _proj_2D : _proj_3D);
       program.template uniform<bool>("deselect", _input.mouseMiddle);
+      program.template uniform<bool>("unfix", _input.u);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbeddingRelative));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eLabeled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDisabled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eSelection));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eFixed));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eWeights));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);

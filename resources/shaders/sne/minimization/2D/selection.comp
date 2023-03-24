@@ -30,6 +30,8 @@ layout(binding = 0, std430) restrict readonly buffer Pos { vec2 positionsRel[]; 
 layout(binding = 1, std430) restrict readonly buffer Lab { uint labeled[]; };
 layout(binding = 2, std430) restrict readonly buffer Dis { uint disabled[]; };
 layout(binding = 3, std430) restrict writeonly buffer Sel { uint selection[]; };
+layout(binding = 4, std430) restrict writeonly buffer Fix { uint fixxed[]; };
+layout(binding = 5, std430) restrict writeonly buffer Wgt { float weights[]; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint selectionNumber;
@@ -39,6 +41,7 @@ layout(location = 4) uniform bool selectOnlyLabeled;
 layout(location = 5) uniform mat4 model_view;
 layout(location = 6) uniform mat4 proj;
 layout(location = 7) uniform bool deselect;
+layout(location = 8) uniform bool unfix;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
@@ -50,7 +53,12 @@ void main() {
   float dist = length(difference);
 
   if(dist < selectionRadiusRel && (labeled[i] == 1 || !selectOnlyLabeled)) { // Embedding position lies inside the circle radius
-    selection[i] = selectionNumber * int(!deselect);
+    if(!unfix) {
+      selection[i] = selectionNumber * int(!deselect);
+    } else {
+      fixxed[i] = int(false);
+      weights[i] = 1.f;
+    }
   } else {
     return;
   }
