@@ -67,6 +67,7 @@ namespace dh::sne {
       _programs(ProgramType::eWeighSimilaritiesComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities.comp"));
       _programs(ProgramType::eWeighSimilaritiesPerAttributeRatioComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_ratio.comp"));
       _programs(ProgramType::eWeighSimilaritiesPerAttributeRangeComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_range.comp"));
+      _programs(ProgramType::eWeighSimilaritiesPerAttributeResembleComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/weigh_similarities_per_attr_resemble.comp"));
       _programs(ProgramType::eSubDistancesL1Comp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/subdistances.comp"));
 
       for (auto& program : _programs) {
@@ -508,6 +509,54 @@ namespace dh::sne {
 
     // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
 
+    glAssert();
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+  }
+
+  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint primaryTexturBufferHandle, GLuint secondaryTexturBufferHandle) {
+    if(weightedAttributeIndices.size() == 0) { return; }
+    
+    // Create and initialize temp buffers
+    glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+    std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
+
+    // Weighting the similarities
+    {
+      auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeResembleComp);
+      program.bind();
+
+      float mult = (_params->nHighDims / weightedAttributeIndices.size()) / (5.f * (1.f - weightedAttributeIndices.size() / _params->nHighDims) + 1);
+      program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<uint>("nHighDims", _params->nHighDims);
+      program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, primaryTexturBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, secondaryTexturBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eDataset));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eAttributeWeights));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eLayout));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eNeighbors));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffers(BufferType::eSimilarities));
+
+      // Dispatch shader
+      glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1);
+      glAssert();
+    }
+
+    // Renormalizing the similarities
+    {
+      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+      float factor = simSumOrg / simSumNew;
+      weighSimilarities(factor, selectionBufferHandle);
+    }
+
+    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }

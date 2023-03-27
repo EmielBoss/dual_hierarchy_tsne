@@ -62,6 +62,7 @@ namespace dh::sne {
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
+    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint primaryTexturBufferHandle, GLuint secondaryTexturBufferHandle);
     void reset();
     void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
@@ -103,6 +104,7 @@ namespace dh::sne {
       eWeighSimilaritiesComp,
       eWeighSimilaritiesPerAttributeRatioComp,
       eWeighSimilaritiesPerAttributeRangeComp,
+      eWeighSimilaritiesPerAttributeResembleComp,
       eSubDistancesL1Comp,
       
       Length

@@ -38,7 +38,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(std::array<GLuint, 10> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
+    SelectionRenderTask(std::array<GLuint, 12> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -49,15 +49,12 @@ namespace dh::vis {
     SelectionRenderTask(SelectionRenderTask&&) noexcept;
     SelectionRenderTask& operator=(SelectionRenderTask&&) noexcept;
 
-    void averageSelectedImages();
-    void clearSelection(bool imageDataset);
     void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
 
     void drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text);
     void drawImGuiTexture(GLuint textureHandle);
-    void drawImGuiTextureControls();
     void drawImPlotBarPlot(uint selectionIndex);
 
     float getBufferValue(GLuint buffer, int index);
@@ -81,6 +78,10 @@ namespace dh::vis {
       ePairwiseDiffsNei,
       ePairwiseDiffsAll,
       ePairwiseDiffsDif,
+
+      eSnapslotA,
+      eSnapslotB,
+
       eOverlay,
 
       Length
@@ -112,7 +113,7 @@ namespace dh::vis {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<TextureType, GLuint> _textures;
-    std::array<GLuint, 10> _texturedataBuffers;
+    std::array<GLuint, 12> _texturedataBuffers;
     GLuint _attributeWeightsBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;

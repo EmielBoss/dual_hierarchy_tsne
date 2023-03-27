@@ -153,7 +153,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::ePairwiseAttrDists), _params->n * _params->nHighDims * sizeof(float), nullptr, 0);
       glAssert();
 
-      // Initialize buffers for the average/variance of attributes of the selected datapoints
+      // Initialize buffers for the texture data
       glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
       for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
         glNamedBufferStorage(_buffersTextureData[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, 0);
@@ -329,7 +329,7 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   void Minimization<D, DD>::clearTextures() {
-    for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
+    for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
     }
   }
@@ -483,7 +483,6 @@ namespace dh::sne {
   void Minimization<D, DD>::selectAll() {
     dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
     if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
-    dh::util::writeGLBuffer<uint>(_buffers(BufferType::eSelection), _params->n, 1, "sel");
     compIterationSelect(true);
   }
 
@@ -590,6 +589,9 @@ namespace dh::sne {
       }
       if(_button == 25) { // Recalc similarities (range)
         _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+      }
+      if(_button == 26) { // Recalc similarities (resemble)
+        _similarities->weighSimilaritiesPerAttributeResemble(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
       }
       if(_button == 3) { // Reset similarities
         _similarities->reset();

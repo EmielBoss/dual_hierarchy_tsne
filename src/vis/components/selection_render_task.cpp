@@ -50,7 +50,7 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 10> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 12> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
     _texturedataBuffers(texturedataBuffers),
@@ -109,6 +109,7 @@ namespace dh::vis {
       glAssert();
     }
 
+    // Create textures
     if(_params->imageDataset) {
       glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
       for(uint i = 0; i < _textures.size() - 1; ++i) {
@@ -217,7 +218,7 @@ namespace dh::vis {
         }
       }
 
-      if (ImGui::BeginTabItem("Pairwise difference")) {
+      if (ImGui::BeginTabItem("Pairwise")) {
         _currentTabUpper = 3;
         ImGui::EndTabItem();
       }
@@ -243,7 +244,6 @@ namespace dh::vis {
     if (ImGui::BeginTabItem(text)) {
       if(_params->imageDataset) {
         drawImGuiTexture(tabUpper * 2 + tabLower);
-        drawImGuiTextureControls();
       } else {
         drawImPlotBarPlot(tabUpper);
       }
@@ -290,9 +290,7 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
     glAssert();
-  }
 
-  void SelectionRenderTask::drawImGuiTextureControls() {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
     ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
@@ -304,13 +302,26 @@ namespace dh::vis {
     if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
 
-    ImGui::Text("Similarities:");
-    if(ImGui::SameLine(); ImGui::Button("Recalc (ratio)")) { _buttonPressed = 2; }
+    ImGui::Text("Recalc simil.");
+    if(ImGui::SameLine(); ImGui::Button("Ratio")) { _buttonPressed = 2; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Recalc (range)")) { _buttonPressed = 25; }
+    if(ImGui::SameLine(); ImGui::Button("Range")) { _buttonPressed = 25; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Resemble")) { _buttonPressed = 26; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by comparing."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+
+    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
+    for(int i = -3; i < -1; ++i) {
+      ImGui::ImageButton((void*)(intptr_t)_textures[_texturedataBuffers.size()+i], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine();
+      if(ImGui::IsItemHovered()) {
+        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+        if(ImGui::IsAnyMouseDown()) {
+          glCopyNamedBufferSubData(_texturedataBuffers[index], _texturedataBuffers[_texturedataBuffers.size()+i], 0, 0, _params->nHighDims * sizeof(float));
+        }
+      }
+    }
   }
 
   void SelectionRenderTask::drawImPlotBarPlot(uint tabUpper) {

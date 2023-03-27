@@ -135,6 +135,10 @@ namespace dh::sne {
       ePairwiseDiffsNei,
       ePairwiseDiffsAll,
       ePairwiseDiffsDif,
+
+      eSnapslotA,
+      eSnapslotB,
+
       eOverlay,
 
       Length
