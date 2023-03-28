@@ -577,9 +577,11 @@ namespace dh::sne {
     if(_button > 0 && _button != _buttonPrev) {
       if(_button == 1) { // Apply similarity weight
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
+        _similarities->renormalizeSimilarities();
       }
       if(_button == 10) { // Apply similarity weight to intersimilarities between selections
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
+        _similarities->renormalizeSimilarities(_buffers(BufferType::eSelection));
       }
       if(_button == 15) { // Autoweigh top % of attributes
         autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());

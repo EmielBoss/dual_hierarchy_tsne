@@ -368,7 +368,17 @@ namespace dh::sne {
     comp();
   }
 
+  // Renormalizing the similarities
+  void Similarities::renormalizeSimilarities(GLuint selectionBufferHandle) {
+    float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    float factor = simSumOrg / simSumNew;
+    weighSimilarities(factor, selectionBufferHandle);
+  }
+
   void Similarities::weighSimilarities(float weight, GLuint selectionBufferHandle, bool interOnly) {
+    if(interOnly) { weight = std::pow(weight, 3); }
+
     auto &program = _programs(ProgramType::eWeighSimilaritiesComp);
     program.bind();
 
@@ -424,13 +434,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    // Renormalizing the similarities
-    {
-      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float factor = simSumOrg / simSumNew;
-      weighSimilarities(factor, selectionBufferHandle);
-    }
+    renormalizeSimilarities(selectionBufferHandle);
 
     // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
@@ -499,13 +503,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    // Renormalizing the similarities
-    {
-      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float factor = simSumOrg / simSumNew;
-      weighSimilarities(factor, selectionBufferHandle);
-    }
+    renormalizeSimilarities(selectionBufferHandle);
 
     // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
 
@@ -547,13 +545,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    // Renormalizing the similarities
-    {
-      float simSumOrg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilaritiesOriginal), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
-      float factor = simSumOrg / simSumNew;
-      weighSimilarities(factor, selectionBufferHandle);
-    }
+    renormalizeSimilarities(selectionBufferHandle);
 
     // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
