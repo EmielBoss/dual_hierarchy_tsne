@@ -75,7 +75,7 @@ namespace dh::util {
                            const std::vector<std::string> &values);
 
   /**
-   * readeGLBuffer
+   * readGLBuffer
    * 
    * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into an OpenGL buffer. Useful for debugging
    */
@@ -95,6 +95,27 @@ namespace dh::util {
                      uint n,
                      uint d,
                      const std::string filename);
+
+  /**
+   * readVector
+   * 
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a vector. Useful for debugging
+   */
+  template<typename T>
+  std::vector<T> readVector(uint n,
+                            uint d,
+                            const std::string filename);
+
+  /**
+   * writeVector
+   * 
+   * Write a vector to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand). Useful for debugging
+   */
+  template<typename T>
+  void writeVector(const std::vector<T> vec,
+                   uint n,
+                   uint d,
+                   const std::string filename);
   
   /**
    * normalizeData

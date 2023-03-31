@@ -546,7 +546,7 @@ namespace dh::sne {
 
     _embeddingRenderTask->setIteration(_iteration);
     if(_iteration % _iterationIntense == 0 && _iterationIntense > 10) { _iterationIntense /= 2; }
-    if(_iteration % _iterationIntense == 0 || _embeddingRenderTask->getKLButtonPressed()) { _embeddingRenderTask->setKLDivergence(_klDivergence.comp()); }
+    if(_iteration % _iterationIntense == 0 || _embeddingRenderTask->getButtonPressed() == 2) { _embeddingRenderTask->setKLDivergence(_klDivergence.comp()); }
 
     if(!_input.space) { compIterationMinimize(); } // Compute iteration, or pause if space is pressed
     if(_input.mouseLeft || _input.mouseMiddle || _input.u) { compIterationSelect(); } // Select
@@ -624,7 +624,7 @@ namespace dh::sne {
     if(openedTextureIndex > 5 && openedTextureIndex != _openedTextureIndexPrev || _embeddingRenderTask->getSetChanged()) { compIterationSelect(true); }
     _openedTextureIndexPrev = openedTextureIndex;
 
-    if(_embeddingRenderTask->getFocusButtonPressed()) {
+    if(_embeddingRenderTask->getButtonPressed() == 1) {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
@@ -670,6 +670,16 @@ namespace dh::sne {
         }
         _draggedTexelPrev = _draggedTexel;
       }
+    }
+
+    if(_embeddingRenderTask->getButtonPressed() == 10) { // Import state
+      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _weightedAttributeIndices, _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
+      _embeddingRenderTask->setMinimizationBuffers(buffers());
+      compIterationSelect(true);
+      mirrorWeightsToOverlay();
+    } else
+    if(_embeddingRenderTask->getButtonPressed() == 11) { // Export state
+      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _weightedAttributeIndices, _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
     }
 
     // Reset some stuff upon axis change

@@ -79,9 +79,8 @@ namespace dh::vis {
     // _numClustersPrev(params->nClusters),
     _pointRadius(100.f / _params->n),
     _pointOpacity(1.0f),
-    _focusButtonPressed(false),
+    _buttonPressed(0),
     _classButtonPressed(-1),
-    _klButtonPressed(false),
     _perplexity(params->perplexity),
     _k((int) _params->k),
     _iteration(0),
@@ -265,10 +264,14 @@ namespace dh::vis {
 
   template <uint D>
   void EmbeddingRenderTask<D>::drawImGuiComponent() {
+    _buttonPressed = 0;
     if (ImGui::CollapsingHeader("Embedding render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
       ImGui::Text("Iteration: %u", _iteration); ImGui::SameLine(); ImGui::Text("KL: %f", _klDivergence);
-      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) { _klButtonPressed = true; } else { _klButtonPressed = false; }
+      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) { _buttonPressed = 2; }
+      ImGui::SameLine(); ImGui::Text(" | State:");
+      if(ImGui::SameLine(); ImGui::Button("Import")) { _buttonPressed = 10; }
+      if(ImGui::SameLine(); ImGui::Button("Export")) { _buttonPressed = 11; }
 
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");
@@ -293,7 +296,7 @@ namespace dh::vis {
       ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params->kMax, 3 * (uint)(_perplexity) + 1); }
       ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params->kMax);
-      if(ImGui::SameLine(); ImGui::Button("Focus")) { _focusButtonPressed = true; } else { _focusButtonPressed = false; }
+      if(ImGui::SameLine(); ImGui::Button("Focus")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
       ImGui::PopItemWidth();
     }

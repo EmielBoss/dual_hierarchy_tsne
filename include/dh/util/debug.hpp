@@ -31,5 +31,7 @@
 namespace dh::util {
 
   void indicateLabeled(const int* labelPtr, uint n, uint nClasses, uint nLabeledPerClass, GLuint bufferLabeled);
+  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 25> buffers, GLuint bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, GLuint snapslotA, GLuint snapslotB);
+  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 25> buffers, GLuint bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, GLuint snapslotA, GLuint snapslotB);
 
 } // dh::util

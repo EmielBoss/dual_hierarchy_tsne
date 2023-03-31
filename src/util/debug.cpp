@@ -27,6 +27,7 @@
 #include <stdexcept>
 #include <vector>
 #include <set>
+#include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 
@@ -48,5 +49,34 @@ namespace dh::util {
     glNamedBufferStorage(bufferLabeled, n * sizeof(uint), labeled.data(), 0);
   }
 
-  
+  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 25> buffers, GLuint bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, GLuint snapslotA, GLuint snapslotB)
+  {
+    dh::util::readGLBuffer<float>(buffers[21], n, d, "rel"); // eEmbeddingRelative
+    dh::util::readGLBuffer<float>(buffers[19], n, 1, "wgt"); // eWeights
+    dh::util::readGLBuffer<uint>(buffers[16], n, 1, "slc"); // eSelection
+    dh::util::readGLBuffer<uint>(buffers[17], n, 1, "fxd"); // eFixed
+    dh::util::readGLBuffer<uint>(buffers[20], n, 1, "lbd"); // eLabeled
+    dh::util::readGLBuffer<uint>(buffers[23], n, 1, "dsb"); // eDisabled
+    dh::util::readGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
+    dh::util::readGLBuffer<float>(snapslotA, nHighDims, 1, "slA"); // eSnapslotA
+    dh::util::readGLBuffer<float>(snapslotB, nHighDims, 1, "slB"); // eSnapslotB
+    std::vector<uint> setvec = dh::util::readVector<uint>(nHighDims, 1, "wai"); // Weighted attribute indices
+    weightedAttributeIndices = std::set<uint>(setvec.begin(), setvec.end());
+  }
+
+  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 25> buffers, GLuint bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, GLuint snapslotA, GLuint snapslotB)
+  {
+    dh::util::writeGLBuffer<float>(buffers[21], n, d, "rel"); // eEmbeddingRelative
+    dh::util::writeGLBuffer<float>(buffers[19], n, 1, "wgt"); // eWeights
+    dh::util::writeGLBuffer<uint>(buffers[16], n, 1, "slc"); // eSelection
+    dh::util::writeGLBuffer<uint>(buffers[17], n, 1, "fxd"); // eFixed
+    dh::util::writeGLBuffer<uint>(buffers[20], n, 1, "lbd"); // eLabeled
+    dh::util::writeGLBuffer<uint>(buffers[23], n, 1, "dsb"); // eDisabled
+    dh::util::writeGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
+    dh::util::writeGLBuffer<float>(snapslotA, nHighDims, 1, "slA"); // eSnapslotA
+    dh::util::writeGLBuffer<float>(snapslotB, nHighDims, 1, "slB"); // eSnapslotB
+    std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
+    dh::util::writeVector<uint>(setvec, nHighDims, 1, "wai"); // Weighted attribute indices
+  }
+
 } // dh::util

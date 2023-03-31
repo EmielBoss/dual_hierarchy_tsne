@@ -134,32 +134,7 @@ namespace dh::util {
 
   template<typename T>
   void readGLBuffer(GLuint& handle, uint n, uint d, const std::string filename) {
-    std::vector<T> buffer(n * d);
-    std::ifstream file("./buffer_dumps/" + filename + ".txt");
-    if (!file.is_open()) {
-        std::cerr << "Unable to open file: " << filename << std::endl;
-        return;
-    }
-    std::string line;
-    uint i = 0;
-    while (std::getline(file, line) && i < n) {
-        std::istringstream iss(line);
-        std::string val_str;
-        for (uint j = 0; j < d; ++j) {
-            if (!std::getline(iss, val_str, '|')) {
-                std::cerr << "Error parsing file: " << filename << std::endl;
-                return;
-            }
-            std::istringstream val_iss(val_str);
-            T val;
-            if (!(val_iss >> val)) {
-                std::cerr << "Error parsing file: " << filename << std::endl;
-                return;
-            }
-            buffer[i * d + j] = val;
-        }
-        i++;
-    }
+    std::vector<T> buffer = readVector<T>(n, d, filename);
     GLint flags;
     glGetNamedBufferParameteriv(handle, GL_BUFFER_STORAGE_FLAGS, &flags);
     glDeleteBuffers(1, &handle);
@@ -171,10 +146,47 @@ namespace dh::util {
   void writeGLBuffer(const GLuint handle, uint n, uint d, const std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
+    writeVector<T>(buffer, n, d, filename);
+  }
+
+  template<typename T>
+  std::vector<T> readVector(uint n, uint d, const std::string filename) {
+    std::vector<T> vec(n * d);
+    std::ifstream file("./buffer_dumps/" + filename + ".txt");
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return vec;
+    }
+    std::string line;
+    uint i = 0;
+    while (std::getline(file, line) && i < n) {
+        std::istringstream iss(line);
+        std::string val_str;
+        for (uint j = 0; j < d; ++j) {
+            if (!std::getline(iss, val_str, '|')) {
+                std::cerr << "Error parsing file: " << filename << std::endl;
+                return vec;
+            }
+            std::istringstream val_iss(val_str);
+            T val;
+            if (!(val_iss >> val)) {
+                std::cerr << "Error parsing file: " << filename << std::endl;
+                return vec;
+            }
+            vec[i * d + j] = val;
+        }
+        i++;
+    }
+    
+    return vec;
+  }
+
+  template<typename T>
+  void writeVector(const std::vector<T> vec, uint n, uint d, const std::string filename) {
     std::ofstream file("./buffer_dumps/" + filename + ".txt");
     for(uint i = 0; i < n; i++) {
       for(uint j = 0; j < d; ++j) {
-        T val = buffer[i * d + j];
+        T val = vec[i * d + j];
         file << val << "|";
       }
       file << "\n";
