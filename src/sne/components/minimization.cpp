@@ -328,13 +328,6 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
-  void Minimization<D, DD>::clearTextures() {
-    for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
-      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
-    }
-  }
-
-  template <uint D, uint DD>
   void Minimization<D, DD>::brushTexels(uint centerTexelIndex, int radius, float weight) {
     // Create kernel
     std::vector<float> kernel(1, 1.f);
@@ -475,7 +468,9 @@ namespace dh::sne {
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    if(_params->imageDataset) { clearTextures(); }
+    for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
+      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
+    }
     _embeddingRenderTask->setNumSelectedNeighbors(0);
   }
 
@@ -593,7 +588,7 @@ namespace dh::sne {
         _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
       }
       if(_button == 26) { // Recalc similarities (resemble)
-        _similarities->weighSimilaritiesPerAttributeResemble(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
+        _similarities->weighSimilaritiesPerAttributeResemble(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB), _params->nHighDims);
       }
       if(_button == 3) { // Reset similarities
         _similarities->reset();
@@ -658,15 +653,27 @@ namespace dh::sne {
       _selectedDatapointPrev = selectedDatapoint;
     }
 
+    _draggedTexel = _selectionRenderTask->getDraggedTexel();
     if(_params->imageDataset) {
       // Draw dragselected attributes in texture
-      _draggedTexel = _selectionRenderTask->getDraggedTexel();
       if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
           brushTexels(_draggedTexel, _selectionRenderTask->getTexelBrushRadius(), _selectionRenderTask->getAttributeWeight());
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
           eraseTexels(_draggedTexel, _selectionRenderTask->getTexelBrushRadius());
+        }
+        _draggedTexelPrev = _draggedTexel;
+      }
+    } else {
+      if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+          float attrWeight = _selectionRenderTask->getAttributeWeight();
+          int radius = _selectionRenderTask->getTexelBrushRadius();
+          for(int i = -radius; i <= radius; ++i) {
+            if(_draggedTexel + i < 0 || _draggedTexel + i >= _params->nHighDims) { continue; }
+            setTexelWeight(_draggedTexel + i, attrWeight);
+          }
         }
         _draggedTexelPrev = _draggedTexel;
       }

@@ -73,10 +73,9 @@ namespace dh::sne {
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
-    void clearTextures();
     void mirrorWeightsToOverlay();
-    void brushTexels(uint attributeIndex, int radius, float weight);
-    void eraseTexels(uint attributeIndex, int radius);
+    void brushTexels(uint centerTexelIndex, int radius, float weight);
+    void eraseTexels(uint centerTexelIndex, int radius);
     void setTexelWeight(uint attributeIndex, float weight);
     float getTexelWeight(uint texelIndex);
     float getTexelValue(uint texelIndex, GLuint buffer);

@@ -30,6 +30,7 @@
 #include <implot.h>
 #include "dh/util/gl/error.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
+#include "dh/util/io.hpp" //
 
 namespace dh::vis {
   // Quad vertex position data
@@ -68,7 +69,7 @@ namespace dh::vis {
     _similarityWeight(2.f),
     _autoselectPercentage(0.025f),
     _textureTabOpened(0),
-    _plotError(true),
+    _plotError(false),
     _currentTabUpper(0),
     _currentTabLower(0) {
 
@@ -287,9 +288,9 @@ namespace dh::vis {
       _hoveringTexture = false;
       _draggedTexel = -1;
     }
+
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
-    glAssert();
 
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
@@ -326,25 +327,86 @@ namespace dh::vis {
 
   void SelectionRenderTask::drawImPlotBarPlot(uint tabUpper) {
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
-    if (ImPlot::BeginPlot("##")) {
+    if (ImPlot::BeginPlot("##", ImVec2(400, 200))) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
       glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2], 0, _params->nHighDims * sizeof(float), ys.data());
-      std::vector<float> errs(_params->nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
 
-      ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_X1, NULL, (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_Y1, NULL, (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 
+      ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 1.f);
+      ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(1), 0.f);
       ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
+
       if(_plotError) {
-        ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(1), 0.1f, 0.1f);
+        std::vector<float> errs(_params->nHighDims);
+        glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
+        ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(4), 0.1f, 0.1f);
         ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params->nHighDims);
         ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
       }
+
+      if(ImGui::IsItemHovered() && _input.x) {
+        glGetNamedBufferSubData(_attributeWeightsBuffer, 0, _params->nHighDims * sizeof(float), ys.data());
+        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
+        ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
+        ImPlot::PlotBars("Weights", xs.data(), ys.data(), _params->nHighDims, 1.f);
+
+        _hoveringTexture = true;
+        uint hoveredTexel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 400 * _params->nHighDims;
+
+        ImGui::BeginTooltip();
+        ImGui::Text("Attribute: #%d", hoveredTexel);
+        ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
+        std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
+        float texelValue = getBufferValue(_texturedataBuffers[tabUpper * 2], hoveredTexel * _params->imgDepth);
+        ImGui::Text(prompts[tabUpper * 2], texelValue);
+        ImGui::EndTooltip();
+
+        if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
+        else { _draggedTexel = -1; }
+      } else {
+        _hoveringTexture = false;
+        _draggedTexel = -1;
+      }
       ImPlot::EndPlot();
     }
+
     ImGui::Checkbox("Plot error bars", &_plotError);
+    ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
+    ImGui::SliderInt("##i", &_texelBrushRadius, 1, 10, "Brush weight %i");
+
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+    if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
+    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    
+    if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
+
+    ImGui::Text("Recalc simil.");
+    if(ImGui::SameLine(); ImGui::Button("Ratio")) { _buttonPressed = 2; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Range")) { _buttonPressed = 25; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Resemble")) { _buttonPressed = 26; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by comparing."); ImGui::EndTooltip(); }
+    if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+
+    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
+    std::array<const char*, 9> buttons = {" A ", " B "};
+    for(int i = 0; i < 2; ++i) {
+      ImGui::Button(buttons[i]); ImGui::SameLine();
+      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) {
+        glCopyNamedBufferSubData(_texturedataBuffers[tabUpper * 2], _texturedataBuffers[_texturedataBuffers.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
+      }
+    }
   }
 
   // Draws key command list

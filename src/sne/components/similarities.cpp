@@ -511,28 +511,33 @@ namespace dh::sne {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
-  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint primaryTexturBufferHandle, GLuint secondaryTexturBufferHandle) {
-    if(weightedAttributeIndices.size() == 0) { return; }
-    
+  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint handleA, GLuint handleB, uint nHighDims) {
     // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
-    std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
+    std::vector<uint> attributeIndices;
+    if(weightedAttributeIndices.size() > 0) {
+      attributeIndices = std::vector<uint>(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
+    } else {
+      attributeIndices = std::vector<uint>(nHighDims);
+      std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
+    }
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
 
     // Weighting the similarities
     {
       auto &program = _programs(ProgramType::eWeighSimilaritiesPerAttributeResembleComp);
       program.bind();
+      glAssert();
 
       float mult = (_params->nHighDims / weightedAttributeIndices.size()) / (5.f * (1.f - weightedAttributeIndices.size() / _params->nHighDims) + 1);
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
-      program.template uniform<uint>("nWeightedAttribs", weightedAttributeIndices.size());
+      program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, primaryTexturBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, secondaryTexturBufferHandle);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, handleA);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, handleB);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eDataset));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eAttributeWeights));
