@@ -30,7 +30,6 @@
 #include <implot.h>
 #include "dh/util/gl/error.hpp"
 #include "dh/vis/components/selection_render_task.hpp"
-#include "dh/util/io.hpp" //
 
 namespace dh::vis {
   // Quad vertex position data
@@ -51,27 +50,17 @@ namespace dh::vis {
     // ...
   }
 
-  SelectionRenderTask::SelectionRenderTask(std::array<GLuint, 12> texturedataBuffers, GLuint attributeWeightsBuffer, sne::Params* params, int priority, const float* dataPtr)
+  SelectionRenderTask::SelectionRenderTask(sne::Params* params, int priority)
   : RenderTask(priority, "SelectionRenderTask"),
     _isInit(false),
-    _texturedataBuffers(texturedataBuffers),
-    _attributeWeightsBuffer(attributeWeightsBuffer),
     _params(params),
     _selectLabeledOnly(false),
     _selectionRadiusRel(0.03),
     _selectionCounts(2, 0),
     _mousePosScreen({0.0, 0.0}),
-    _draggedTexel(-1),
     _buttonPressed(0),
     _selectedDatapoint(0),
-    _attributeWeight(0.f),
-    _texelBrushRadius(1),
-    _similarityWeight(2.f),
-    _autoselectPercentage(0.025f),
-    _textureTabOpened(0),
-    _plotError(false),
-    _currentTabUpper(0),
-    _currentTabLower(0) {
+    _similarityWeight(2.f) {
 
     // Initialize shader program
     {
@@ -110,26 +99,10 @@ namespace dh::vis {
       glAssert();
     }
 
-    // Create textures
-    if(_params->imageDataset) {
-      glCreateTextures(GL_TEXTURE_2D, _textures.size(), _textures.data());
-      for(uint i = 0; i < _textures.size() - 1; ++i) {
-        glTextureParameteri(_textures[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
-        glTextureStorage2D(_textures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
-      }
-      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
-    }
-
-
     _isInit = true;
   }
 
   SelectionRenderTask::~SelectionRenderTask() {
-    glDeleteTextures(_textures.size(), _textures.data());
   }
 
   SelectionRenderTask::SelectionRenderTask(SelectionRenderTask&& other) noexcept {
@@ -162,18 +135,6 @@ namespace dh::vis {
   }
 
   void SelectionRenderTask::drawImGuiComponent() {
-    // Copy texture data to textures
-    if(_params->imageDataset) {
-      for(uint i = 0; i < _textures.size() - 1; ++i) {
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[i]);
-        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-      }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _texturedataBuffers[_texturedataBuffers.size()-1]);
-      glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
-    }
-    glAssert();
-
     if (ImGui::CollapsingHeader("Selection render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Text("Selection mode:");
       ImGui::SameLine();
@@ -199,213 +160,6 @@ namespace dh::vis {
 
       ImGui::Text("Selection size (primary): %i", _selectionCounts[0]);
       ImGui::Text("Selection size (secondary): %i", _selectionCounts[1]);
-    }
-
-    if (ImGui::BeginTabBar("Selection tabs")) {
-      if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
-        _currentTabUpper = 0;
-        ImGui::EndTabItem();
-      }
-
-      if(_selectionCounts[1] > 0) {
-        if (ImGui::BeginTabItem("Selection sec")) {
-          _currentTabUpper = 1;
-          ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem("Selection diff")) {
-          _currentTabUpper = 2;
-          ImGui::EndTabItem();
-        }
-      }
-
-      if (ImGui::BeginTabItem("Pairwise")) {
-        _currentTabUpper = 3;
-        ImGui::EndTabItem();
-      }
-      ImGui::EndTabBar();
-    }
-
-    _draggedTexel = -1;
-
-    if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-      if(_currentTabUpper < 3) {
-        drawImGuiTab(_currentTabUpper, 0, "Average");
-        drawImGuiTab(_currentTabUpper, 1, "Variance");
-      } else {
-        drawImGuiTab(_currentTabUpper, 0, "Between neighbs");
-        drawImGuiTab(_currentTabUpper, 1, "Between all");
-        drawImGuiTab(_currentTabUpper, 2, "Difference");
-      }
-      ImGui::EndTabBar();
-    }
-  }
-
-  void SelectionRenderTask::drawImGuiTab(uint tabUpper, uint tabLower, const char* text) {
-    if (ImGui::BeginTabItem(text)) {
-      if(_params->imageDataset) {
-        drawImGuiTexture(tabUpper * 2 + tabLower);
-      } else {
-        drawImPlotBarPlot(tabUpper);
-      }
-      _currentTabUpper = tabUpper;
-      _currentTabLower = tabLower;
-      ImGui::EndTabItem();
-    }
-  }
-
-  // Gets a specified location in a specified buffer
-  float SelectionRenderTask::getBufferValue(GLuint buffer, int index) {
-    float value;
-    glGetNamedBufferSubData(buffer, index * sizeof(float), sizeof(float), &value);
-    return value;
-  }
-
-  void SelectionRenderTask::drawImGuiTexture(uint index) {
-    _textureTabOpened = index;
-
-    ImGui::Spacing();
-    ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
-
-    if(ImGui::IsItemHovered()) {
-      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-      _hoveringTexture = true;
-      uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 300 * _params->imgWidth;
-      uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 300 * _params->imgHeight;
-      uint hoveredTexel = teYel * _params->imgWidth + teXel;
-
-      ImGui::BeginTooltip();
-      ImGui::Text("Attribute: #%d", hoveredTexel);
-      ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
-      std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
-      float texelValue = getBufferValue(_texturedataBuffers[index], hoveredTexel * _params->imgDepth);
-      ImGui::Text(prompts[index], texelValue);
-      ImGui::EndTooltip();
-
-      if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
-      else { _draggedTexel = -1; }
-    } else {
-      _hoveringTexture = false;
-      _draggedTexel = -1;
-    }
-
-    ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
-    ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_texelBrushRadius, 0, 10, "Brsh\nSize\n%i");
-
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
-    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
-    
-    if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
-
-    ImGui::Text("Recalc simil.");
-    if(ImGui::SameLine(); ImGui::Button("Ratio")) { _buttonPressed = 2; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Range")) { _buttonPressed = 25; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Resemble")) { _buttonPressed = 26; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by comparing."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
-
-    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
-    for(int i = -3; i < -1; ++i) {
-      ImGui::ImageButton((void*)(intptr_t)_textures[_texturedataBuffers.size()+i], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine();
-      if(ImGui::IsItemHovered()) {
-        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-        if(ImGui::IsAnyMouseDown()) {
-          glCopyNamedBufferSubData(_texturedataBuffers[index], _texturedataBuffers[_texturedataBuffers.size()+i], 0, 0, _params->nHighDims * sizeof(float));
-        }
-      }
-    }
-  }
-
-  void SelectionRenderTask::drawImPlotBarPlot(uint tabUpper) {
-    ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
-    if (ImPlot::BeginPlot("##", ImVec2(400, 200))) {
-      std::vector<float> xs(_params->nHighDims);
-      std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
-      std::vector<float> ys(_params->nHighDims);
-      glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2], 0, _params->nHighDims * sizeof(float), ys.data());
-
-      ImPlot::SetupAxis(ImAxis_X1, NULL, (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
-      ImPlot::SetupAxis(ImAxis_Y1, NULL, (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
-
-      ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 1.f);
-      ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(1), 0.f);
-      ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
-
-      if(_plotError) {
-        std::vector<float> errs(_params->nHighDims);
-        glGetNamedBufferSubData(_texturedataBuffers[tabUpper * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
-        ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(4), 0.1f, 0.1f);
-        ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params->nHighDims);
-        ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
-      }
-
-      if(ImGui::IsItemHovered() && _input.x) {
-        glGetNamedBufferSubData(_attributeWeightsBuffer, 0, _params->nHighDims * sizeof(float), ys.data());
-        ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
-        ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
-        ImPlot::PlotBars("Weights", xs.data(), ys.data(), _params->nHighDims, 1.f);
-
-        _hoveringTexture = true;
-        uint hoveredTexel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 400 * _params->nHighDims;
-
-        ImGui::BeginTooltip();
-        ImGui::Text("Attribute: #%d", hoveredTexel);
-        ImGui::Text("Weight: %0.2f", getBufferValue(_attributeWeightsBuffer, hoveredTexel));
-        std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
-        float texelValue = getBufferValue(_texturedataBuffers[tabUpper * 2], hoveredTexel * _params->imgDepth);
-        ImGui::Text(prompts[tabUpper * 2], texelValue);
-        ImGui::EndTooltip();
-
-        if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
-        else { _draggedTexel = -1; }
-      } else {
-        _hoveringTexture = false;
-        _draggedTexel = -1;
-      }
-      ImPlot::EndPlot();
-    }
-
-    ImGui::Checkbox("Plot error bars", &_plotError);
-    ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
-    ImGui::SliderInt("##i", &_texelBrushRadius, 1, 10, "Brush weight %i");
-
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
-    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
-    
-    if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
-
-    ImGui::Text("Recalc simil.");
-    if(ImGui::SameLine(); ImGui::Button("Ratio")) { _buttonPressed = 2; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Range")) { _buttonPressed = 25; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by weighting the selected attributes."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Resemble")) { _buttonPressed = 26; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by comparing."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
-
-    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
-    std::array<const char*, 9> buttons = {" A ", " B "};
-    for(int i = 0; i < 2; ++i) {
-      ImGui::Button(buttons[i]); ImGui::SameLine();
-      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) {
-        glCopyNamedBufferSubData(_texturedataBuffers[tabUpper * 2], _texturedataBuffers[_texturedataBuffers.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
-      }
     }
   }
 

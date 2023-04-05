@@ -193,6 +193,30 @@ namespace dh::util {
     }
   }
 
+  template<typename T>
+  std::set<T> readSet(const std::string filename) {
+    std::set<T> set;
+    std::ifstream file("./buffer_dumps/" + filename + ".txt");
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return set;
+    }
+    std::string str;
+    while (std::getline(file, str)) {
+      set.insert(std::stoi(str));
+    }
+    
+    return set;
+  }
+
+  template<typename T>
+  void writeSet(const std::set<T> set, const std::string filename) {
+    std::ofstream file("./buffer_dumps/" + filename + ".txt");
+    for (const auto& str : set) {
+      file << str << "\n";
+    }
+  }
+
   void normalizeData(std::vector<float>& data, uint n, uint d, float lower, float upper) {
     // Determine min and max attribute value
     auto [minIt, maxIt] = std::minmax_element(data.begin(), data.end());
@@ -233,4 +257,7 @@ namespace dh::util {
   template void writeGLBuffer<float>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<uint>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<int>(const GLuint handle, uint n, uint d, const std::string filename);
+
+  template std::set<uint> readSet<uint>(const std::string filename);
+  template void writeSet<uint>(const std::set<uint> set, const std::string filename);
 } // dh::util

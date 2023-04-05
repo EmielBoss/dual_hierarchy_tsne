@@ -40,7 +40,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params* params, std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority);
+    EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -53,27 +53,21 @@ namespace dh::vis {
 
     void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
-    void drawImGuiComponentSecondary() override;
     
     void generateClassColors();
     void createVAO();
-    void setClass(int i);
-    void unsetClass(int i);
 
     void setIteration(uint iteration) { _iteration = iteration; }
     void setKLDivergence(float klDivergence) { _klDivergence = klDivergence; }
     void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
-    std::set<int> getClassesSet() { return _classesSet; }
-    bool getSetChanged() { return _setChanged; }
-    void setNumSelectedNeighbors(uint nSelectedNeighbors) { _nSelectedNeighbors = nSelectedNeighbors; }
     uint getColorMapping() { return _colorMapping; }
+    GLuint getColorBuffer() { return _colorBuffer; }
     bool getWeighForces() { return _weighForces; }
     void setWeighForces(bool weighForces) { _weighForces = weighForces; }
     float getWeightFixed() { return _weightFixed; }
     float getWeightFalloff() { return _weightFalloff; }
     float getPerplexity() { return _perplexity; }
     uint getButtonPressed() { return _buttonPressed; }
-    int getClassButtonPressed() { return _classButtonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
@@ -97,8 +91,8 @@ namespace dh::vis {
     bool _weighForces;
     float _weightFixed;
     float _weightFalloff;
-    int _numClusters;
-    int _numClustersPrev;
+    // int _numClusters;
+    // int _numClustersPrev;
     bool _selectLabeledOnly;
     uint _colorMapping;
     float _pointRadius;
@@ -106,21 +100,12 @@ namespace dh::vis {
     float _perplexity;
     int _k;
     uint _buttonPressed;
-    int _classButtonPressed;
-    std::vector<glm::vec4> _colors;
-    std::vector<uint> _classCounts;
-    std::vector<std::string> _classNames;
-    std::vector<bool> _classIsSet;
-    std::set<int> _classesSet;
-    bool _setChanged;
-    uint _nSelectedNeighbors;
     uint _iteration;
     float _klDivergence;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     sne::MinimizationBuffers _minimizationBuffers;
-    std::vector<GLuint> _classTextures;
     GLuint _colorBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
@@ -146,27 +131,18 @@ namespace dh::vis {
       swap(a._weighForces, b._weighForces);
       swap(a._weightFixed, b._weightFixed);
       swap(a._weightFalloff, b._weightFalloff);
-      swap(a._numClusters, b._numClusters);
-      swap(a._numClustersPrev, b._numClustersPrev);
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
       swap(a._perplexity, b._perplexity);
       swap(a._k, b._k);
       swap(a._buttonPressed, b._buttonPressed);
-      swap(a._classButtonPressed, b._classButtonPressed);
-      swap(a._colors, b._colors);
       swap(a._buffers, b._buffers);
-      swap(a._classTextures, b._classTextures);
-      swap(a._classCounts, b._classCounts);
-      swap(a._classNames, b._classNames);
-      swap(a._classIsSet, b._classIsSet);
-      swap(a._classesSet, b._classesSet);
-      swap(a._setChanged, b._setChanged);
-      swap(a._nSelectedNeighbors, b._nSelectedNeighbors);
       swap(a._colorBuffer, b._colorBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
+      // swap(a._numClusters, b._numClusters);
+      // swap(a._numClustersPrev, b._numClustersPrev);
     }
   };
 } // dh::vis

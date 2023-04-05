@@ -59,17 +59,10 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::MinimizationBuffers minimizationBuffers, sne::Params* params,
-                                              std::vector<GLuint> classTextures, std::vector<uint> classCounts, int priority)
-  : RenderTask(priority, "EmbeddingRenderTask"), 
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers)
+  : RenderTask(priority, "EmbeddingRenderTask"),
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
-    _classTextures(classTextures),
-    _classCounts(classCounts),
-    _classIsSet(_params->nClasses, false),
-    _classesSet(),
-    _setChanged(false),
-    _nSelectedNeighbors(0),
     _params(params),
     _colorMapping(ColorMapping::labels),
     _weighForces(true),
@@ -80,7 +73,6 @@ namespace dh::vis {
     _pointRadius(100.f / _params->n),
     _pointOpacity(1.0f),
     _buttonPressed(0),
-    _classButtonPressed(-1),
     _perplexity(params->perplexity),
     _k((int) _params->k),
     _iteration(0),
@@ -111,9 +103,6 @@ namespace dh::vis {
 
     createVAO();
 
-    _classNames = std::vector<std::string>(_params->nClasses, "");
-    dh::util::readTxtClassNames(_params->datasetName + ".txt", _classNames, _params->nClasses);
-
     generateClassColors();
     _isInit = true;
   }
@@ -123,7 +112,6 @@ namespace dh::vis {
     if (_isInit) {
       glDeleteVertexArrays(1, &_vaoHandle);
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteBuffers(_classTextures.size(), _classTextures.data());
       glDeleteBuffers(1, &_colorBuffer);
     }
   }
@@ -172,7 +160,7 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::generateClassColors() {
     
-    // _colors = {
+    // std::vector<glm::vec4> colors = {
     //   glm::vec4(16, 78, 139, 255),
     //   glm::vec4(0, 128, 0, 255),
     //   glm::vec4(139, 90, 43, 255),
@@ -185,7 +173,7 @@ namespace dh::vis {
     //   glm::vec4(220, 220, 220, 255)
     // };
 
-    _colors = {
+    std::vector<glm::vec4> colors = {
       glm::vec4(230, 25, 75, 255),
       glm::vec4(60, 180, 75, 255),
       glm::vec4(255, 225, 25, 255),
@@ -205,15 +193,15 @@ namespace dh::vis {
       glm::vec4(128, 128, 128, 255)
     };
 
-    int nColorsToAdd = _params->nClasses - _colors.size();
+    int nColorsToAdd = _params->nClasses - colors.size();
     for(int i = 0; i < nColorsToAdd; ++i) {
-      glm::vec4 newColor = _colors[i] + _colors[i+1];
+      glm::vec4 newColor = colors[i] + colors[i+1];
       newColor /= 2.f;
-      _colors.push_back(newColor);
+      colors.push_back(newColor);
     }
 
     glCreateBuffers(1, &_colorBuffer);
-    glNamedBufferStorage(_colorBuffer, _params->nClasses * sizeof(glm::vec4), _colors.data(), GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(_colorBuffer, _params->nClasses * sizeof(glm::vec4), colors.data(), GL_DYNAMIC_STORAGE_BIT);
     glAssert();
   }
 
@@ -256,10 +244,10 @@ namespace dh::vis {
     glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params->n);
 
     // Check if user changed numClusters and update weightFalloff if so
-    if(_numClusters != _numClustersPrev) {
-      _weightFalloff = calculateFalloff(_params->n, _params->k, _numClusters);
-      _numClustersPrev = _numClusters;
-    }
+    // if(_numClusters != _numClustersPrev) {
+    //   _weightFalloff = calculateFalloff(_params->n, _params->k, _numClusters);
+    //   _numClustersPrev = _numClusters;
+    // }
   }
 
   template <uint D>
@@ -300,60 +288,6 @@ namespace dh::vis {
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
       ImGui::PopItemWidth();
     }
-  }
-
-  // Draws the class list
-  template <uint D>
-  void EmbeddingRenderTask<D>::drawImGuiComponentSecondary() {
-    if(_minimizationBuffers.labels == 0) { return; }
-    _classButtonPressed = -1;
-    _setChanged = false;
-    if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
-      for(uint i = 0; i < _params->nClasses; ++i) {
-        if(ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0)) { _classButtonPressed = i; }
-        ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
-        std::string leadingZeros = i < 10 ? "0" : "";
-        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " " + _classNames[i];
-        if(ImGui::SameLine(); ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
-          glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
-          _colors[i] = colorUpdated;
-          glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
-        }
-        ImGui::SameLine();
-        if(!_classIsSet[i]) {
-          std::string label = "Set##" + std::to_string(i);
-          if(ImGui::Button(label.c_str())) { setClass(i); }
-        } else {
-          std::string label = "Unset##" + std::to_string(i);
-          if(ImGui::Button(label.c_str())) { unsetClass(i); }
-        }
-      }
-
-      if(_nSelectedNeighbors > 0) {
-        ImGui::Text("No. of selected neighbours: %u", _nSelectedNeighbors);
-        ImGui::SameLine();
-        if(_classesSet.size() == 2) { ImGui::Text("(interclass)"); } else { ImGui::Text("(all)"); }
-      } else { ImGui::Dummy(ImVec2(43.0f, 13.0f)); }
-    }
-  }
-
-  template <uint D>
-  void EmbeddingRenderTask<D>::setClass(int c) {
-    if(_classesSet.size() == 2) {
-      int classPopped = *_classesSet.begin();
-      _classesSet.erase(_classesSet.begin());
-      _classIsSet[classPopped] = false;
-    }
-    _classIsSet[c] = true;
-    _classesSet.insert(c);
-    _setChanged = true;
-  }
-
-  template <uint D>
-  void EmbeddingRenderTask<D>::unsetClass(int c) {
-    _classIsSet[c] = false;
-    _classesSet.erase(c);
-    _setChanged = true;
   }
 
   // Template instantiations for 2/3 dimensions

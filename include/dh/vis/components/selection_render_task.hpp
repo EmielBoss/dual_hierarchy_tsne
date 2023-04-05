@@ -38,7 +38,7 @@ namespace dh::vis {
 
   public:
     SelectionRenderTask();
-    SelectionRenderTask(std::array<GLuint, 12> texturedataBuffers, GLuint attributeWeights, sne::Params* params, int priority, const float* _dataPtr);
+    SelectionRenderTask(sne::Params* params, int priority);
     ~SelectionRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -53,36 +53,10 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
 
-    void drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text);
-    void drawImGuiTexture(GLuint textureHandle);
-    void drawImPlotBarPlot(uint selectionIndex);
-
-    float getBufferValue(GLuint buffer, int index);
-
   private:
     enum class BufferType {
       ePositions,
       eElements,
-
-      Length
-    };
-
-    enum class TextureType {
-      eAveragePrimary,
-      eVariancePrimary,
-      eAverageSecondary,
-      eVarianceSecondary,
-      eAverageDifference,
-      eVarianceDifference,
-
-      ePairwiseDiffsNei,
-      ePairwiseDiffsAll,
-      ePairwiseDiffsDif,
-
-      eSnapslotA,
-      eSnapslotB,
-
-      eOverlay,
 
       Length
     };
@@ -97,24 +71,12 @@ namespace dh::vis {
     float _selectionRadiusRel;
     bool _selectLabeledOnly;
     std::vector<uint> _selectionCounts;
-    int _draggedTexel;
     float _similarityWeight;
-    float _attributeWeight;
-    int _texelBrushRadius;
-    float _autoselectPercentage;
     uint _buttonPressed;
     int _selectedDatapoint;
-    bool _hoveringTexture;
-    uint _textureTabOpened;
-    bool _plotError;
-    uint _currentTabUpper;
-    uint _currentTabLower;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<TextureType, GLuint> _textures;
-    std::array<GLuint, 12> _texturedataBuffers;
-    GLuint _attributeWeightsBuffer;
     util::GLProgram _program;
     GLuint _vaoHandle;
 
@@ -125,16 +87,10 @@ namespace dh::vis {
     int getSelectionMode() { return _selectLabeledOnly; }
     void setMousePosScreen(const glm::vec2& mousePosScreen) { _mousePosScreen = mousePosScreen; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
-    int getDraggedTexel() { return _draggedTexel; }
     uint getButtonPressed() { return _buttonPressed; }
-    float getAttributeWeight() { return _attributeWeight; }
-    int getTexelBrushRadius() { return _texelBrushRadius; }
     float getSimilarityWeight() { return _similarityWeight; }
-    float getAutoselectPercentage() { return _autoselectPercentage; }
-    uint getOpenedTextureIndex() { return _currentTabUpper * 2 + _currentTabLower; }
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
-    bool getHoveringTexture() { return _hoveringTexture; }
     int getSelectedDatapoint() { return _selectedDatapoint; }
     
     // std::swap impl
@@ -148,20 +104,10 @@ namespace dh::vis {
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._mousePosScreen, b._mousePosScreen);
-      swap(a._draggedTexel, b._draggedTexel);
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._selectedDatapoint, b._selectedDatapoint);
-      swap(a._attributeWeight, b._attributeWeight);
-      swap(a._texelBrushRadius, b._texelBrushRadius);
       swap(a._similarityWeight, b._similarityWeight);
-      swap(a._autoselectPercentage, b._autoselectPercentage);
-      swap(a._plotError, b._plotError);
-      swap(a._currentTabUpper, b._currentTabUpper);
-      swap(a._currentTabLower, b._currentTabLower);
       swap(a._buffers, b._buffers);
-      swap(a._texturedataBuffers, b._texturedataBuffers);
-      swap(a._textures, b._textures);
-      swap(a._attributeWeightsBuffer, b._attributeWeightsBuffer);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
     }

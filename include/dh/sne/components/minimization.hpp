@@ -42,6 +42,7 @@
 #include "dh/vis/components/selection_render_task.hpp"
 #include "dh/vis/components/embedding_render_task.hpp"
 #include "dh/vis/components/axes_render_task.hpp"
+#include "dh/vis/components/attribute_render_task.hpp"
 
 namespace dh::sne {
   template <uint D, uint DD> // Number of t-SNE axes and total number of axes
@@ -72,18 +73,8 @@ namespace dh::sne {
     void selectInverse();
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
-    void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
-    void mirrorWeightsToOverlay();
-    void brushTexels(uint centerTexelIndex, int radius, float weight);
-    void eraseTexels(uint centerTexelIndex, int radius);
-    void setTexelWeight(uint attributeIndex, float weight);
-    float getTexelWeight(uint texelIndex);
-    float getTexelValue(uint texelIndex, GLuint buffer);
-    void autoweighAttributes(uint textureType, float percentage);
-    void invertAttributeWeights();
-    void refineAttributeWeights(uint textureType);
-    void reconfigureZAxis();
-    std::vector<char> getAxisMapping() { return _axisMapping; }
+    // void reconfigureZAxis();
+    // std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
     void comp();                                                                // Compute full minimization (i.e. params.iterations)
@@ -118,27 +109,6 @@ namespace dh::sne {
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eDisabled,
-      ePairwiseAttrDists,
-
-      Length
-    };
-
-    enum class TextureType {
-      eAveragePrimary,
-      eVariancePrimary,
-      eAverageSecondary,
-      eVarianceSecondary,
-      eAverageDifference,
-      eVarianceDifference,
-
-      ePairwiseDiffsNei,
-      ePairwiseDiffsAll,
-      ePairwiseDiffsDif,
-
-      eSnapslotA,
-      eSnapslotB,
-
-      eOverlay,
 
       Length
     };
@@ -154,8 +124,6 @@ namespace dh::sne {
       eSelectionComp,
       eCountSelectedComp,
       eTranslationComp,
-      ePairwiseAttrDiffsNeiComp,
-      ePairwiseAttrDiffsAllComp,
 
       Length
     };
@@ -181,7 +149,6 @@ namespace dh::sne {
     int _axisIndexPrev;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
-    const float* _dataPtr;
     util::GLWindow* _window;
     float* _pcs;
     uint _iteration;
@@ -190,13 +157,10 @@ namespace dh::sne {
     Bounds _bounds;
     Bounds _boundsPrev;
     vis::Input _input;
-    uint _cursorMode;
     uint _colorMapping;
     uint _colorMappingPrev;
     bool _selectOnlyLabeled;
-    bool _selectOnlyLabeledPrev;
     std::vector<uint> _selectionCounts;
-    uint _openedTextureIndexPrev;
     float _selectionRadiusRel;
     uint _selectedDatapointPrev;
     bool _mouseRightPrev;
@@ -205,15 +169,11 @@ namespace dh::sne {
     glm::mat4 _proj_2D;
     glm::mat4 _model_view_3D;
     glm::mat4 _proj_3D;
-    int _draggedTexel;
-    int _draggedTexelPrev;
-    uint _button;
-    uint _buttonPrev;
-    std::set<uint> _weightedAttributeIndices;
+    uint _buttonSelectionPrev;
+    uint _buttonAttributePrev;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<TextureType, GLuint> _buffersTextureData;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
 
@@ -224,6 +184,7 @@ namespace dh::sne {
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
     std::shared_ptr<vis::EmbeddingRenderTask<DD>> _embeddingRenderTask;
     std::shared_ptr<vis::AxesRenderTask<DD>> _axesRenderTask;
+    std::shared_ptr<vis::AttributeRenderTask> _attributeRenderTask;
     KLDivergence _klDivergence;
 
   public:
@@ -239,7 +200,8 @@ namespace dh::sne {
         _buffers(BufferType::eSelection),
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eDisabled),
-        _buffers(BufferType::eNeighborhoodPreservation)
+        _buffers(BufferType::eNeighborhoodPreservation),
+        _buffers(BufferType::eDataset),
       };
     }
     bool isInit() const { return _isInit; }
@@ -255,18 +217,13 @@ namespace dh::sne {
       swap(a._axisIndexPrev, b._axisIndexPrev);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
-      swap(a._dataPtr, b._dataPtr);
       swap(a._pcs, b._pcs);
-      swap(a._draggedTexel, b._draggedTexel);
-      swap(a._draggedTexelPrev, b._draggedTexelPrev);
-      swap(a._weightedAttributeIndices, b._weightedAttributeIndices);
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
       swap(a._iterationIntense, b._iterationIntense);
       swap(a._removeExaggerationIter, b._removeExaggerationIter);
       swap(a._buffers, b._buffers);
-      swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);
       swap(a._field, b._field);
@@ -275,6 +232,7 @@ namespace dh::sne {
       swap(a._selectionRenderTask, b._selectionRenderTask);
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
+      swap(a._attributeRenderTask, b._attributeRenderTask);
       swap(a._klDivergence, b._klDivergence);
     }
   };

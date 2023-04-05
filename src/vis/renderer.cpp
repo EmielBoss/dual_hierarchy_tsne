@@ -216,8 +216,6 @@ namespace dh::vis {
     }
 
     // Render component enable/disable flags
-    ImGui::Text("Render components...");
-    ImGui::Spacing();
     auto& queue = vis::RenderQueue::instance();
     if (auto ptr = queue.find("EmbeddingRenderTask"); ptr) {
       ImGui::Checkbox("Embedding", &(ptr->enable));
@@ -257,7 +255,7 @@ namespace dh::vis {
       ImGui::End();
       return;
     }
-    if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
+    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
 
     ImGui::End();
@@ -269,6 +267,7 @@ namespace dh::vis {
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
     // if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

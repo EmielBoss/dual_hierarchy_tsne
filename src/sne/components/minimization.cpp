@@ -58,17 +58,15 @@ namespace dh::sne {
 
   template <uint D, uint DD>
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping)
-  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->buffers()),
-    _dataPtr(dataPtr), _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _draggedTexel(-1), _draggedTexelPrev(-1), _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters) {
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
+    _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
+    _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
     {
       _programs(ProgramType::eNeighborhoodPreservationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/neighborhood_preservation.comp"));
       _programs(ProgramType::eCountSelectedComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/selection_count.comp"));
-      _programs(ProgramType::ePairwiseAttrDiffsNeiComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_nei.comp"));
-      _programs(ProgramType::ePairwiseAttrDiffsAllComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_all.comp"));
       if constexpr (D == 2) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/Z.comp"));
@@ -104,15 +102,7 @@ namespace dh::sne {
       glAssert();
     }
 
-    // Count classes
-    std::vector<uint> classCounts(_params->nClasses);
-    for(uint i = 0; i < _params->nClasses; ++i) {
-      uint classCount = std::count(labelPtr, labelPtr + _params->n, i);
-      classCounts[i] = classCount;
-    }
-
     // Initialize buffer objects
-    std::vector<GLuint> classTextures(_params->nClasses);
     {
       const std::vector<vec> zerovecs(_params->n, vec(0));
       const std::vector<vec> unitvecs(_params->n, vec(1));
@@ -150,44 +140,14 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
-      glNamedBufferStorage(_buffers(BufferType::ePairwiseAttrDists), _params->n * _params->nHighDims * sizeof(float), nullptr, 0);
       glAssert();
-
-      // Initialize buffers for the texture data
-      glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
-      for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
-        glNamedBufferStorage(_buffersTextureData[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, 0);
-      }
-      glNamedBufferStorage(_buffersTextureData(TextureType::eOverlay), _params->nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      mirrorWeightsToOverlay();
-
-      // Create class textures for passing to _selectionRenderTask (doing this here because Minimization has the data and average() function)
-      if(_params->imageDataset) {
-        std::vector<GLuint> classTextureBuffers(_params->nClasses);
-        glCreateBuffers(classTextureBuffers.size(), classTextureBuffers.data());
-        glCreateTextures(GL_TEXTURE_2D, classTextures.size(), classTextures.data());
-        for(uint i = 0; i < _params->nClasses; ++i) {
-          glNamedBufferStorage(classTextureBuffers[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
-
-          glTextureParameteri(classTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-          glTextureParameteri(classTextures[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-          GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
-          glTextureStorage2D(classTextures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
-          
-          dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eLabels), i, classCounts[i], classTextureBuffers[i]);
-          glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
-          GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-          glTextureSubImage2D(classTextures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-        }
-        glDeleteBuffers(classTextureBuffers.size(), classTextureBuffers.data());
-      }
     }
 
     // Calculate nPCs number of principal components and stores the values in _pcs
     if(!_params->disablePCA) {
       faiss::PCAMatrix matrixPCA(_params->nHighDims, _params->nPCs);
-      matrixPCA.train(_params->n, _dataPtr);
-      _pcs = matrixPCA.apply(_params->n, _dataPtr);
+      matrixPCA.train(_params->n, dataPtr);
+      _pcs = matrixPCA.apply(_params->n, dataPtr);
     }
 
     initializeEmbeddingRandomly(_params->seed);
@@ -210,8 +170,9 @@ namespace dh::sne {
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(buffers(), _params, classTextures, classCounts, 0));
-      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_buffersTextureData, _similaritiesBuffers.attributeWeights, _params, 5, dataPtr));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(_params, 0, buffers()));
+      _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_params, 5));
+      _attributeRenderTask = queue.emplace(vis::AttributeRenderTask(_params, 10, buffers(), _similaritiesBuffers, _embeddingRenderTask->getColorBuffer(), labelPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
@@ -259,7 +220,6 @@ namespace dh::sne {
   Minimization<D, DD>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteTextures(_buffersTextureData.size(), _buffersTextureData.data());
       _isInit = false;
     }
   }
@@ -297,181 +257,37 @@ namespace dh::sne {
   }
 
   // Configures the axes on request of change
-  template <uint D, uint DD>
-  void Minimization<D, DD>::reconfigureZAxis() {
-    if constexpr (D == DD) { return; }
+  // template <uint D, uint DD>
+  // void Minimization<D, DD>::reconfigureZAxis() {
+  //   if constexpr (D == DD) { return; }
 
-    std::vector<float> axisVals(_params->n);
-    if(_axisMapping[2] == 'p') {
-      for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _pcs[i*_params->nPCs + _axisIndex]; }
-    } else
-    if(_axisMapping[2] == 'a') {
-      for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _dataPtr[i*_params->nHighDims + _axisIndex]; }
-      if(_params->imageDataset) { setOverlayTexel(_axisIndex, {0.f, 1.f, 0.f, 1.f}); }
-    }
-    auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
-    float min = *minIt;
-    float range = *maxIt - *minIt;
-    float rangeInv = range > 0 ? 1 / range : 1;
-    uint stride = (DD == 2) ? 2 : 4;
-    for(uint i = 0; i < _params->n; ++i) {
-      float valRel = (axisVals[i] - min) * rangeInv;
-      glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D) * sizeof(float), sizeof(float), &valRel);
-    }
-    glAssert();
-  }
-
-  // Sets a specified texel in the overlay texture to the specified color
-  template <uint D, uint DD>
-  void Minimization<D, DD>::setOverlayTexel(int texelIndex, std::vector<float> color) {
-    glNamedBufferSubData(_buffersTextureData(TextureType::eOverlay), texelIndex * 4 * sizeof(float), 4 * sizeof(float), color.data());
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::brushTexels(uint centerTexelIndex, int radius, float weight) {
-    // Create kernel
-    std::vector<float> kernel(1, 1.f);
-    for(int i = 1; i < 1 + radius * 2; ++i) {
-      std::vector<float> kernelNext(i+1);
-      kernelNext[0] = kernel[0];
-      for(int j = 1; j < i; ++j) {
-        kernelNext[j] = kernel[j-1] + kernel[j];
-      }
-      kernelNext[i] = kernel[i-1];
-      kernel = kernelNext;
-    }
-    int max = *std::max_element(kernel.begin(), kernel.end());
-    for(uint i = 0; i < kernel.size(); ++i) { kernel[i] /= max; } // Normalize kernel
-
-    for(int i = -radius; i <= radius; ++i) {
-      int x = centerTexelIndex / _params->imgWidth;
-      if(x + i < 0 || x + i >= _params->imgHeight) { continue; }
-      for(int j = -radius; j <= radius; ++j) {
-        int y = centerTexelIndex % _params->imgWidth;
-        if(y + j < 0 || y + j >= _params->imgWidth) { continue; }
-        uint texelIndex = centerTexelIndex + i * _params->imgWidth + j;
-        float texelWeightPrev;
-        glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * sizeof(float), sizeof(float), &texelWeightPrev);
-        float texelWeight = texelWeightPrev - (texelWeightPrev - weight) * kernel[i + radius] * kernel[j + radius];
-        setTexelWeight(texelIndex, texelWeight);
-      }
-    }
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::eraseTexels(uint centerTexelIndex, int radius) {
-    for(int i = -radius; i <= radius; ++i) {
-      int x = centerTexelIndex / _params->imgWidth;
-      if(x + i < 0 || x + i >= _params->imgHeight) { continue; }
-      for(int j = -radius; j <= radius; ++j) {
-        int y = centerTexelIndex % _params->imgWidth;
-        if(y + j < 0 || y + j >= _params->imgWidth) { continue; }
-        uint texelIndex = centerTexelIndex + i * _params->imgWidth + j;
-        setTexelWeight(texelIndex, 1.f);
-      }
-    }
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::setTexelWeight(uint texelIndex, float weight) {
-    for(uint i = 0; i < _params->imgDepth; ++i) {
-      uint attr = texelIndex * _params->imgDepth + i;
-      glNamedBufferSubData(_similaritiesBuffers.attributeWeights, attr * sizeof(float), sizeof(float), &weight);
-      if(weight != 1.f) { _weightedAttributeIndices.insert(attr); } else { _weightedAttributeIndices.erase(attr); }
-    }
-    setOverlayTexel(texelIndex, {0.25f, 0.25f, 1.f, weight / _params->maxAttributeWeight / 1.5f});
-  }
-
-  template <uint D, uint DD>
-  float Minimization<D, DD>::getTexelWeight(uint texelIndex) {
-    std::vector<float> weights(_params->imgDepth);
-    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, texelIndex * _params->imgDepth * sizeof(float), _params->imgDepth * sizeof(float), weights.data());
-    float weight = std::reduce(weights.begin(), weights.end());
-    return weight / _params->imgDepth;
-  }
-
-  template <uint D, uint DD>
-  float Minimization<D, DD>::getTexelValue(uint texelIndex, GLuint buffer) {
-    std::vector<float> values(_params->imgDepth);
-    glGetNamedBufferSubData(buffer, texelIndex * _params->imgDepth * sizeof(float), _params->imgDepth * sizeof(float), values.data());
-    float value = std::reduce(values.begin(), values.end());
-    return value / _params->imgDepth;
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::mirrorWeightsToOverlay() {
-    for(uint i = 0; i < _params->nTexels; ++i) {
-      float weight = getTexelWeight(i) / _params->maxAttributeWeight;
-      setOverlayTexel(i, {0.25f, 0.25f, 1.f, weight / 1.5f});
-    }
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::autoweighAttributes(uint textureType, float percentage) {
-    std::vector<float> textureBuffer(_params->nTexels * _params->imgDepth);
-    glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _params->nTexels * _params->imgDepth * sizeof(float), textureBuffer.data());
-    std::vector<float> textureData(_params->nTexels, 0.f);
-    for(uint i = 0; i < _params->nTexels; ++i) {
-      for(uint c = 0; c < _params->imgDepth; ++c) {
-        textureData[i] += textureBuffer[i * _params->imgDepth + c];
-      }
-      textureData[i] /= _params->imgDepth;
-    }
-
-    std::vector<size_t> indices(textureData.size());
-    std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
-    uint nSelected = _params->nTexels * percentage;
-    std::partial_sort(indices.begin(), indices.begin() + nSelected, indices.end(),
-                      [&](size_t A, size_t B) {
-                        return textureData[A] > textureData[B];
-                      }); // Gives the nSelected indices of the largest values in textureData as nSelected first elements of indices
-    
-    for(uint i = 0; i < nSelected; ++i) {
-      setTexelWeight(indices[i], _selectionRenderTask->getAttributeWeight());
-    }
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::invertAttributeWeights() {
-    for(uint i = 0; i < _params->nTexels; ++i) {
-      float weightTexel = getTexelWeight(i);
-      float weightCurrent = _selectionRenderTask->getAttributeWeight();
-      float weight = 1.f + weightCurrent - weightTexel;
-      weight = std::clamp(weight, 0.f, _params->maxAttributeWeight);
-      setTexelWeight(i, weight);
-    }
-  }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::refineAttributeWeights(uint textureType) {
-    float min = 0.f;
-    float max = 1.f;
-    for(uint i = 0; i < _params->nTexels; i = ++i) {
-      if(_weightedAttributeIndices.find(i) == _weightedAttributeIndices.end()) { continue; } // Attribute isn't weighted
-
-      float value = getTexelValue(i, _buffersTextureData[textureType]);
-      float ratio = (value - min) / (max - min);
-
-      float weightOld = getTexelWeight(i);
-      float weightCurrent = _selectionRenderTask->getAttributeWeight();
-      float weightNew = 1.f - (1.f - weightCurrent) * ratio;
-      float weight = weightOld * 1.f + (1.f - weightOld) * weightNew;
-      if(weight > 1.f - 0.025 && weight < 1.f + 0.025) { weight = 1.f; }
-      if(weight < 0.025) { weight = 0.f; }
-      setTexelWeight(i, weight);
-    }
-  }
+  //   std::vector<float> axisVals(_params->n);
+  //   if(_axisMapping[2] == 'p') {
+  //     for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _pcs[i*_params->nPCs + _axisIndex]; }
+  //   } else
+  //   if(_axisMapping[2] == 'a') {
+  //     for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _dataPtr[i*_params->nHighDims + _axisIndex]; }
+  //     if(_params->imageDataset) { _attributeRenderTask->setOverlayTexel(_axisIndex, {0.f, 1.f, 0.f, 1.f}); }
+  //   }
+  //   auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
+  //   float min = *minIt;
+  //   float range = *maxIt - *minIt;
+  //   float rangeInv = range > 0 ? 1 / range : 1;
+  //   uint stride = (DD == 2) ? 2 : 4;
+  //   for(uint i = 0; i < _params->n; ++i) {
+  //     float valRel = (axisVals[i] - min) * rangeInv;
+  //     glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D) * sizeof(float), sizeof(float), &valRel);
+  //   }
+  //   glAssert();
+  // }
 
   template <uint D, uint DD>
   void Minimization<D, DD>::deselect() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
+    _attributeRenderTask->clear();
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-    for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
-      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
-    }
-    _embeddingRenderTask->setNumSelectedNeighbors(0);
   }
 
   template <uint D, uint DD>
@@ -501,6 +317,7 @@ namespace dh::sne {
     _input = _selectionInputTask->getInput();
 
     _selectionRenderTask->setInput(_input);
+    _attributeRenderTask->setInput(_input);
 
     // Send selection radius to selection render task
     _selectionRadiusRel = _input.mouseScroll / 100.f;
@@ -509,7 +326,6 @@ namespace dh::sne {
     _selectionRenderTask->setMousePosScreen(_input.mousePosScreen); // Send screen position to GUI
 
     // Synchronize selection mode
-    _selectOnlyLabeledPrev = _selectOnlyLabeled;
     _selectOnlyLabeled = _selectionRenderTask->getSelectionMode();
     _embeddingRenderTask->setSelectionMode(_selectOnlyLabeled);
 
@@ -568,61 +384,47 @@ namespace dh::sne {
     _mouseRightPrev = _input.mouseRight;
 
     // Process attribute selection texture buttons
-    _button = _selectionRenderTask->getButtonPressed();
-    if(_button > 0 && _button != _buttonPrev) {
-      if(_button == 1) { // Apply similarity weight
+    int button = _selectionRenderTask->getButtonPressed();
+    if(button > 0 && button != _buttonSelectionPrev) {
+      if(button == 1) { // Apply similarity weight
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection));
         _similarities->renormalizeSimilarities();
       }
-      if(_button == 10) { // Apply similarity weight to intersimilarities between selections
+      if(button == 10) { // Apply similarity weight to intersimilarities between selections
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         _similarities->renormalizeSimilarities(_buffers(BufferType::eSelection));
       }
-      if(_button == 15) { // Autoweigh top % of attributes
-        autoweighAttributes(_selectionRenderTask->getOpenedTextureIndex(), _selectionRenderTask->getAutoselectPercentage());
-      }
-      if(_button == 2) { // Recalc similarities (ratio)
-        _similarities->weighSimilaritiesPerAttributeRatio(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
-      }
-      if(_button == 25) { // Recalc similarities (range)
-        _similarities->weighSimilaritiesPerAttributeRange(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
-      }
-      if(_button == 26) { // Recalc similarities (resemble)
-        _similarities->weighSimilaritiesPerAttributeResemble(_weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB), _params->nHighDims);
-      }
-      if(_button == 3) { // Reset similarities
-        _similarities->reset();
-      }
-      if(_button == 4) { // Clear attribute weights
-        const std::vector<float> ones(_params->nHighDims, 1.0f);
-        glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
-        mirrorWeightsToOverlay();
-        _weightedAttributeIndices = std::set<uint>();
-      }
-      if(_button == 5) { // Invert attribute weights
-        invertAttributeWeights();
-      }
-      if(_button == 6) { // Refine attribute weights
-        refineAttributeWeights(_selectionRenderTask->getOpenedTextureIndex());
-      }
-      if(_button == 20) { // Select all
+      if(button == 20) { // Select all
         selectAll();
       }
-      if(_button == 30) { // Select inverse
+      if(button == 30) { // Select inverse
         selectInverse();
       }
     }
-    _buttonPrev = _button;
+    _buttonSelectionPrev = button;
 
-    // Force selection re-evaluaation when switching to the pairwise attr diff tab
-    uint openedTextureIndex = _selectionRenderTask->getOpenedTextureIndex();
-    if(openedTextureIndex > 5 && openedTextureIndex != _openedTextureIndexPrev || _embeddingRenderTask->getSetChanged()) { compIterationSelect(true); }
-    _openedTextureIndexPrev = openedTextureIndex;
+    button = _attributeRenderTask->getButtonPressed();
+    if(button > 0 && button != _buttonAttributePrev) {
+      std::set<uint> weightedAttributeIndices = _attributeRenderTask->getWeightedAttributeIndices();
+      if(button == 2) { // Recalc similarities (ratio)
+        _similarities->weighSimilaritiesPerAttributeRatio(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+      }
+      if(button == 25) { // Recalc similarities (range)
+        _similarities->weighSimilaritiesPerAttributeRange(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+      }
+      if(button == 26) { // Recalc similarities (resemble)
+        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getSnapslotHandles(), _params->nHighDims);
+      }
+      if(button == 3) { // Reset similarities
+        _similarities->reset();
+      }
+    }
+    _buttonAttributePrev = button;
 
     if(_embeddingRenderTask->getButtonPressed() == 1) {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
-      _similaritiesBuffers = _similarities->buffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
+      _similaritiesBuffers = _similarities->getBuffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
@@ -631,14 +433,16 @@ namespace dh::sne {
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
       deselect();
-      _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() creates new buffers
       uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
+      _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() deletes and recreates buffers
+      _attributeRenderTask->setMinimizationBuffers(buffers());
+      _attributeRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
       restartMinimization();
     }
 
-    if(_embeddingRenderTask->getClassButtonPressed() >= 0) {
-      int classToSelect = _embeddingRenderTask->getClassButtonPressed();
+    int classToSelect = _attributeRenderTask->getClassButtonPressed();
+    if(classToSelect >= 0) {
       dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
       if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
       compIterationSelect(true);
@@ -653,40 +457,15 @@ namespace dh::sne {
       _selectedDatapointPrev = selectedDatapoint;
     }
 
-    _draggedTexel = _selectionRenderTask->getDraggedTexel();
-    if(_params->imageDataset) {
-      // Draw dragselected attributes in texture
-      if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          brushTexels(_draggedTexel, _selectionRenderTask->getTexelBrushRadius(), _selectionRenderTask->getAttributeWeight());
-        } else
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          eraseTexels(_draggedTexel, _selectionRenderTask->getTexelBrushRadius());
-        }
-        _draggedTexelPrev = _draggedTexel;
-      }
-    } else {
-      if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          float attrWeight = _selectionRenderTask->getAttributeWeight();
-          int radius = _selectionRenderTask->getTexelBrushRadius();
-          for(int i = -radius; i <= radius; ++i) {
-            if(_draggedTexel + i < 0 || _draggedTexel + i >= _params->nHighDims) { continue; }
-            setTexelWeight(_draggedTexel + i, attrWeight);
-          }
-        }
-        _draggedTexelPrev = _draggedTexel;
-      }
-    }
-
     if(_embeddingRenderTask->getButtonPressed() == 10) { // Import state
-      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _weightedAttributeIndices, _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
+      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getSnapslotHandles());
       _embeddingRenderTask->setMinimizationBuffers(buffers());
+      _attributeRenderTask->setMinimizationBuffers(buffers());
+      _attributeRenderTask->mirrorWeightsToOverlay();
       compIterationSelect(true);
-      mirrorWeightsToOverlay();
     } else
     if(_embeddingRenderTask->getButtonPressed() == 11) { // Export state
-      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _weightedAttributeIndices, _buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB));
+      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getSnapslotHandles());
     }
 
     // Reset some stuff upon axis change
@@ -1045,95 +824,7 @@ namespace dh::sne {
       if(_selectionCounts[0] - selectionCountPrev > _params->n / 500) { _embeddingRenderTask->setWeighForces(false); }
     }
 
-    // 3.
-    // Calculate selection average and/or variance per attribute
-    for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
-    }
-    for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::eDataset), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]); // Variance
-    }
-    for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().difference(_buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
-    }
-
-    // 4.
-    // Compute pairwise attribute differences if relevant texture tabs are open
-    uint textureIndex = _selectionRenderTask->getOpenedTextureIndex();
-    if(textureIndex == 6 || textureIndex == 8) {
-      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
-      glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-
-      auto &program = _programs(ProgramType::ePairwiseAttrDiffsNeiComp);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<uint>("nHighDims", _params->nHighDims);
-      std::set<int> classesSet = _embeddingRenderTask->getClassesSet();
-      if(classesSet.size() == 2) {
-        std::pair<int, int> classes(*classesSet.begin(), *std::next(classesSet.begin()));
-        program.template uniform<bool>("classesSet", true);
-        program.template uniform<int>("classA", classes.first);
-        program.template uniform<int>("classB", classes.second);
-      } else {
-        program.template uniform<bool>("classesSet", false);
-      }
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLabels));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighborsSelected);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::ePairwiseAttrDists));
-
-      // Dispatch shader in batches of batchSize attributes
-      glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
-
-      uint nSelectedNeighbors = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _buffers(BufferType::eSelection), -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
-      _embeddingRenderTask->setNumSelectedNeighbors(nSelectedNeighbors);
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), 1, nSelectedNeighbors, _buffersTextureData(TextureType::ePairwiseDiffsNei));
-      glAssert();
-    }
-
-    if(textureIndex == 7 || textureIndex == 8) {
-      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
-
-      auto &program = _programs(ProgramType::ePairwiseAttrDiffsAllComp);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<uint>("nHighDims", _params->nHighDims);
-      std::set<int> classesSet = _embeddingRenderTask->getClassesSet();
-      if(classesSet.size() == 2) {
-        std::pair<int, int> classes(*classesSet.begin(), *std::next(classesSet.begin()));
-        program.template uniform<bool>("classesSet", true);
-        program.template uniform<int>("classA", classes.first);
-        program.template uniform<int>("classB", classes.second);
-      } else {
-        program.template uniform<bool>("classesSet", false);
-      }
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDataset));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eLabels));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::ePairwiseAttrDists));
-
-      // Dispatch shader in batches of batchSize attributes
-      glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
-
-      uint nSelectedPairs = _selectionCounts[0] * (_selectionCounts[0] - 1);
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _buffers(BufferType::eSelection), 1, nSelectedPairs, _buffersTextureData(TextureType::ePairwiseDiffsAll));
-      glAssert();
-    }
-
-    if(textureIndex == 8) {
-      dh::util::BufferTools::instance().difference(_buffersTextureData(TextureType::ePairwiseDiffsNei), _buffersTextureData(TextureType::ePairwiseDiffsAll), _params->nHighDims, _buffersTextureData(TextureType::ePairwiseDiffsDif));
-    }
+    _attributeRenderTask->update(_selectionCounts);
   }
 
   template <uint D, uint DD>

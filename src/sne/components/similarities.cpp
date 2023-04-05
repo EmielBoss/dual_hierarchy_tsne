@@ -511,7 +511,7 @@ namespace dh::sne {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
-  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint handleA, GLuint handleB, uint nHighDims) {
+  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims) {
     // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> attributeIndices;
@@ -536,8 +536,8 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, handleA);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, handleB);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, snapslotHandles.first);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, snapslotHandles.second);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eDataset));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eAttributeWeights));

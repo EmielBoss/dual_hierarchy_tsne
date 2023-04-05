@@ -104,11 +104,11 @@ namespace dh::sne {
     std::visit([&](auto& m) { reconstructionNeeded = m.compIteration(); }, _minimization);
     _minimizationTimer.tock();
     _minimizationTimer.poll();
-    if(reconstructionNeeded) {
-      std::visit([&](auto& m) { _axisMapping = m.getAxisMapping(); }, _minimization);
-      _minimization.~variant();
-      constructMinimization();
-    }
+    // if(reconstructionNeeded) {
+    //   std::visit([&](auto& m) { _axisMapping = m.getAxisMapping(); }, _minimization);
+    //   _minimization.~variant();
+    //   constructMinimization();
+    // }
   }
 
   std::chrono::milliseconds SNE::similaritiesTime() const {

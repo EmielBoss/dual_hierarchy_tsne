@@ -27,7 +27,7 @@
 #include "dh/types.hpp"
 
 namespace dh::sne {
-  // Data class provided by dh::sne::Minimization<D>::buffers() for other components
+  // Data class provided by dh::sne::Minimization<D>->getBuffers() for other components
   struct MinimizationBuffers {
     GLuint embedding;
     GLuint embeddingRel;
@@ -39,9 +39,10 @@ namespace dh::sne {
     GLuint fixed;
     GLuint disabled;
     GLuint neighborhoodPreservation;
+    GLuint dataset;
   };
 
-  // Data class provided by dh::sne::Similarities<D>::buffers() for other components
+  // Data class provided by dh::sne::Similarities<D>->getBuffers() for other components
   struct SimilaritiesBuffers {
     GLuint dataset;
     GLuint similarities;
@@ -51,13 +52,13 @@ namespace dh::sne {
     GLuint neighborsSelected;
   };
 
-  // Data class provided by dh::sne::Field<D>::buffers() for other components
+  // Data class provided by dh::sne::Field<D>->getBuffers() for other components
   struct FieldBuffers {
     GLuint pixelQueue;
     GLuint pixelQueueHead;
   };
   
-  // Data class provided by dh::sne::EmbeddingHierarchy<D>::buffers() for other components
+  // Data class provided by dh::sne::EmbeddingHierarchy<D>->getBuffers() for other components
   struct EmbeddingHierarchyBuffers {
     GLuint embeddingSorted;
     GLuint node0;
@@ -65,7 +66,7 @@ namespace dh::sne {
     GLuint minb;
   };
 
-  // Data class provided by dh::sne::FieldHierarchy<D>::buffers() for others components
+  // Data class provided by dh::sne::FieldHierarchy<D>->getBuffers() for others components
   struct FieldHierarchyBuffers {
     GLuint node;
     GLuint field;

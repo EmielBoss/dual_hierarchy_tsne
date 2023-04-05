@@ -26,6 +26,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 #include "dh/types.hpp"
 
 namespace dh::util {
@@ -77,7 +78,7 @@ namespace dh::util {
   /**
    * readGLBuffer
    * 
-   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into an OpenGL buffer. Useful for debugging
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into an OpenGL buffer. Useful for debugging. THE HANDLE IS RECREATED, so make sure to update any copies of it!
    */
   template<typename T>
   void readGLBuffer(GLuint& handle,
@@ -116,6 +117,22 @@ namespace dh::util {
                    uint n,
                    uint d,
                    const std::string filename);
+
+  /**
+   * readVector
+   * 
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a vector. Useful for debugging
+   */
+  template<typename T>
+  std::set<T> readSet(const std::string filename);
+
+  /**
+   * writeVector
+   * 
+   * Write a vector to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand). Useful for debugging
+   */
+  template<typename T>
+  void writeSet(const std::set<T> vec, const std::string filename);
   
   /**
    * normalizeData

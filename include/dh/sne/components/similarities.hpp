@@ -63,7 +63,7 @@ namespace dh::sne {
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
-    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, GLuint handleA, GLuint handleB, uint nHighDims);
+    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims);
     void reset();
     void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
@@ -124,7 +124,6 @@ namespace dh::sne {
     bool _isInit;
     Params* _params;
     const float* _dataPtr;
-    uint _kPrev;
     uint _symmetricSize;
 
     // Objects
@@ -137,7 +136,7 @@ namespace dh::sne {
   public:
     // Getters
     bool isInit() const { return _isInit; }
-    SimilaritiesBuffers buffers() const {
+    SimilaritiesBuffers getBuffers() const {
       return {
         _buffers(BufferType::eDataset),
         _buffers(BufferType::eSimilarities),
@@ -154,7 +153,6 @@ namespace dh::sne {
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
       swap(a._dataPtr, b._dataPtr);
-      swap(a._kPrev, b._kPrev);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._programs, b._programs);
