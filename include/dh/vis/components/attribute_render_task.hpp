@@ -89,9 +89,9 @@ namespace dh::vis {
       eAverageDifference,
       eVarianceDifference,
 
-      ePairwiseDiffsNei,
       ePairwiseDiffsAll,
-      ePairwiseDiffsDif,
+      ePairwiseDiffsInter,
+      ePairwiseDiffsIntra,
 
       eSnapslotA,
       eSnapslotB,
@@ -120,11 +120,9 @@ namespace dh::vis {
     int _brushRadius;
     float _autoselectPercentage;
     uint _buttonPressed;
-    bool _hoveringTexture;
     uint _currentTabUpper;
     uint _currentTabLower;
     uint _previousTabIndex;
-    bool _plotError;
     int _draggedTexel;
     int _draggedTexelPrev;
     std::set<uint> _weightedAttributeIndices;
@@ -136,6 +134,7 @@ namespace dh::vis {
     bool _setChanged;
     uint _nSelectedNeighbors;
     std::vector<glm::vec4> _colors;
+    bool _vizAllPairs;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
@@ -176,7 +175,7 @@ namespace dh::vis {
       swap(a._brushRadius, b._brushRadius);
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
-      swap(a._plotError, b._plotError);
+      swap(a._vizAllPairs, b._vizAllPairs);
       swap(a._currentTabUpper, b._currentTabUpper);
       swap(a._currentTabLower, b._currentTabLower);
       swap(a._classTextures, b._classTextures);

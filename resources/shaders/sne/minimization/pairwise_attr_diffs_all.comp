@@ -45,6 +45,7 @@ layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform bool classesSet;
 layout(location = 3) uniform int classA;
 layout(location = 4) uniform int classB;
+layout(location = 5) uniform bool inter;
 
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nHighDims;
@@ -61,9 +62,11 @@ void main() {
 
   for (uint j = 0; j < nPoints; j++) {
     if(selectionBuffer[j] != 1 ||
+       i == j ||
       (classesSet && labelBuffer[j] != classA && labelBuffer[j] != classB) ||
-      (classesSet && labelBuffer[i] == labelBuffer[j]) ||
-      i == j) {
+      (classesSet && (( inter && labelBuffer[i] == labelBuffer[j]) ||
+                      (!inter && labelBuffer[i] != labelBuffer[j])))
+      ) {
       continue;
     }
 

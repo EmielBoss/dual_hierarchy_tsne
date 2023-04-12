@@ -37,8 +37,8 @@ layout(binding = 1, std430) restrict readonly buffer Data { float datasetBuffer[
 layout(binding = 2, std430) restrict readonly buffer Labl { int labelBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 5, std430) restrict buffer SNCt { uint neighborsSelectedBuffer[]; };
-layout(binding = 6, std430) restrict buffer PAtD { float pairwiseAttrDistsBuffer[]; };
+layout(binding = 5, std430) restrict buffer PAtD { float pairwiseAttrDistsBuffer[]; };
+layout(binding = 6, std430) restrict buffer SNCt { uint neighborsSelectedBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -46,6 +46,7 @@ layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform bool classesSet;
 layout(location = 3) uniform int classA;
 layout(location = 4) uniform int classB;
+layout(location = 5) uniform bool inter;
 
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nHighDims;
@@ -64,7 +65,9 @@ void main() {
     uint j = neighborsBuffer[ij];
     if(selectionBuffer[j] != 1 ||
       (classesSet && labelBuffer[j] != classA && labelBuffer[j] != classB) ||
-      (classesSet && labelBuffer[i] == labelBuffer[j])) {
+      (classesSet && (( inter && labelBuffer[i] == labelBuffer[j]) ||
+                      (!inter && labelBuffer[i] != labelBuffer[j])))
+      ) {
       continue;
     }
 

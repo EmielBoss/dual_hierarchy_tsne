@@ -34,18 +34,17 @@
 #include "dh/util/io.hpp" //
 
 namespace dh::vis {
-  // Quad vertex position data
-  constexpr std::array<glm::vec2, 4> quadPositions = {
-    glm::vec2(-1, -1),  // 0
-    glm::vec2(1, -1),   // 1
-    glm::vec2(1, 1),    // 2
-    glm::vec2(-1, 1)    // 3
-  };
 
-  // Quad element index data
-  constexpr std::array<uint, 6> quadElements = {
-    0, 1, 2,  2, 3, 0
-  };
+  std::array<const char*, 10> prompts = {"Mean: %0.2f",
+                                         "Variance: %0.2f",
+                                         "Mean: %0.2f",
+                                         "Variance: %0.2f",
+                                         "Difference in mean: %0.2f",
+                                         "Difference in variance: %0.2f",
+                                         "Pairwise difference (nei): %0.2f",
+                                         "Pairwise difference (all): %0.2f",
+                                         "Pairwise difference (interclass): %0.2f",
+                                         "Pairwise difference (intraclass): %0.2f"};
   
   AttributeRenderTask::AttributeRenderTask()
   : RenderTask(), _isInit(false) {
@@ -66,14 +65,14 @@ namespace dh::vis {
     _brushRadius(1),
     _similarityWeight(2.f),
     _autoselectPercentage(0.025f),
-    _plotError(false),
     _currentTabUpper(0),
     _currentTabLower(0),
     _classIsSet(_params->nClasses, false),
     _classesSet(),
     _setChanged(false),
     _classButtonPressed(-1),
-    _nSelectedNeighbors(0) {
+    _nSelectedNeighbors(0),
+    _vizAllPairs(false) {
 
     // Initialize shader program
     {
@@ -367,32 +366,34 @@ namespace dh::vis {
       _draggedTexel = -1;
 
       if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-        if(_currentTabUpper < 3) {
+        if(_currentTabUpper <= 2) {
           drawImGuiTab(_currentTabUpper, 0, "Average");
           drawImGuiTab(_currentTabUpper, 1, "Variance");
-        } else {
-          drawImGuiTab(_currentTabUpper, 0, "Between neighbs");
-          drawImGuiTab(_currentTabUpper, 1, "Between all");
-          drawImGuiTab(_currentTabUpper, 2, "Difference");
+        } else
+        if(_currentTabUpper == 3) {
+          drawImGuiTab(_currentTabUpper, 0, "All");
+          if(_classesSet.size() == 2) {
+            drawImGuiTab(_currentTabUpper, 1, "Interclass");
+            drawImGuiTab(_currentTabUpper, 2, "Intraclass");
+          }
         }
         ImGui::EndTabBar();
       }
     }
 
-    // Force selection re-evaluaation when switching to the pairwise attr diff tab
-    if(currentTabIndex() > 5 && currentTabIndex() != _previousTabIndex || _setChanged) { update(_selectionCounts); }
+    // Force selection re-evaluation when switching to the pairwise attr diff tab
+    if(_currentTabUpper == 3 && currentTabIndex() != _previousTabIndex || _setChanged) { update(_selectionCounts); }
     _previousTabIndex = currentTabIndex();
   }
 
   void AttributeRenderTask::drawImGuiTab(uint tabUpper, uint tabLower, const char* text) {
     if (ImGui::BeginTabItem(text)) {
-      if(_params->imageDataset) {
-        drawImGuiTexture(tabUpper * 2 + tabLower);
-      } else {
-        drawImPlotBarPlot(tabUpper);
-      }
-      _currentTabUpper = tabUpper;
       _currentTabLower = tabLower;
+      if(_params->imageDataset) {
+        drawImGuiTexture(currentTabIndex());
+      } else {
+        drawImPlotBarPlot(currentTabIndex());
+      }
       ImGui::EndTabItem();
     }
   }
@@ -409,39 +410,35 @@ namespace dh::vis {
     ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
-      glAssert();
       ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-      glAssert();
-      _hoveringTexture = true;
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 300 * _params->imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 300 * _params->imgHeight;
       uint hoveredTexel = teYel * _params->imgWidth + teXel;
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
-      glAssert();
       ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-      glAssert();
-      std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
-      glAssert();
       float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
-      glAssert();
       ImGui::Text(prompts[index], texelValue);
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
       else { _draggedTexel = -1; }
     } else {
-      _hoveringTexture = false;
       _draggedTexel = -1;
     }
 
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_brushRadius, 0, 10, "Brsh\nSize\n%i");
 
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
     if(ImGui::Button("Autoweigh")) { autoweighAttributes(currentTabIndex(), _autoselectPercentage); }
-    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::Text("top");
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
+    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::Separator();
+    bool vizAllPairsPrev = _vizAllPairs;
+    ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+    if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
     if(                          ImGui::Button("Clear weights")) { // Clear attribute weights
       const std::vector<float> ones(_params->nHighDims, 1.0f);
@@ -477,13 +474,13 @@ namespace dh::vis {
     }
   }
 
-  void AttributeRenderTask::drawImPlotBarPlot(uint tabUpper) {
+  void AttributeRenderTask::drawImPlotBarPlot(uint index) {
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##", ImVec2(400, 200))) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
-      glGetNamedBufferSubData(_buffersTextureData[tabUpper * 2], 0, _params->nHighDims * sizeof(float), ys.data());
+      glGetNamedBufferSubData(_buffersTextureData[index], 0, _params->nHighDims * sizeof(float), ys.data());
 
       ImPlot::SetupAxis(ImAxis_X1, NULL, (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
       ImPlot::SetupAxis(ImAxis_Y1, NULL, (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
@@ -492,47 +489,41 @@ namespace dh::vis {
       ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(1), 0.f);
       ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
 
-      if(_plotError) {
-        std::vector<float> errs(_params->nHighDims);
-        glGetNamedBufferSubData(_buffersTextureData[tabUpper * 2 + 1], 0, _params->nHighDims * sizeof(float), errs.data());
-        ImPlot::SetNextErrorBarStyle(ImPlot::GetColormapColor(4), 0.1f, 0.1f);
-        ImPlot::PlotErrorBars("Average", xs.data(), ys.data(), errs.data(), _params->nHighDims);
-        ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
-      }
-
       if(ImGui::IsItemHovered() && _input.x) {
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params->nHighDims * sizeof(float), ys.data());
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
         ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
         ImPlot::PlotBars("Weights", xs.data(), ys.data(), _params->nHighDims, 1.f);
 
-        _hoveringTexture = true;
         uint hoveredTexel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 400 * _params->nHighDims;
 
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
         ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
         std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
-        float texelValue = getBufferValue(_buffersTextureData[tabUpper * 2], hoveredTexel * _params->imgDepth);
-        ImGui::Text(prompts[tabUpper * 2], texelValue);
+        float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
+        ImGui::Text(prompts[index], texelValue);
         ImGui::EndTooltip();
 
         if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
         else { _draggedTexel = -1; }
       } else {
-        _hoveringTexture = false;
         _draggedTexel = -1;
       }
       ImPlot::EndPlot();
     }
 
-    ImGui::Checkbox("Plot error bars", &_plotError);
     ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
     ImGui::SliderInt("##i", &_brushRadius, 1, 10, "Brush weight %i");
 
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-    if(ImGui::Button("Autoweigh")) { _buttonPressed = 15; }
-    ImGui::SameLine(); ImGui::Text("top"); ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    if(ImGui::Button("Autoweigh")) { autoweighAttributes(currentTabIndex(), _autoselectPercentage); }
+    ImGui::SameLine(); ImGui::Text("top");
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
+    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::Separator();
+    bool vizAllPairsPrev = _vizAllPairs;
+    ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+    if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
     if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
@@ -556,7 +547,7 @@ namespace dh::vis {
     for(int i = 0; i < 2; ++i) {
       ImGui::Button(buttons[i]); ImGui::SameLine();
       if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) {
-        glCopyNamedBufferSubData(_buffersTextureData[tabUpper * 2], _buffersTextureData[_buffersTextureData.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
+        glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
       }
     }
   }
@@ -626,55 +617,21 @@ namespace dh::vis {
     }
 
     // Compute pairwise attribute differences if relevant texture tabs are open
-    uint textureIndex = _currentTabUpper * 2 + _currentTabLower;
-    if(textureIndex == 6 || textureIndex == 8) {
+    if(_currentTabUpper == 3) {
       glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
       glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
-      auto &program = _programs(ProgramType::ePairwiseAttrDiffsNeiComp);
+      auto &program = _vizAllPairs ? _programs(ProgramType::ePairwiseAttrDiffsAllComp) : _programs(ProgramType::ePairwiseAttrDiffsNeiComp);
       program.bind();
 
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
-      if(_classesSet.size() == 2) {
+      if(_classesSet.size() == 2 && _currentTabLower > 0) {
         std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
         program.template uniform<bool>("classesSet", true);
         program.template uniform<int>("classA", classes.first);
         program.template uniform<int>("classB", classes.second);
-      } else {
-        program.template uniform<bool>("classesSet", false);
-      }
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.dataset);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labels);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighborsSelected);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::ePairwiseAttrDists));
-
-      // Dispatch shader in batches of batchSize attributes
-      glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
-
-      uint nSelectedNeighbors = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedNeighbors, _buffersTextureData(TextureType::ePairwiseDiffsNei));
-      glAssert();
-    }
-
-    if(textureIndex == 7 || textureIndex == 8) {
-      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
-
-      auto &program = _programs(ProgramType::ePairwiseAttrDiffsAllComp);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<uint>("nHighDims", _params->nHighDims);
-      if(_classesSet.size() == 2) {
-        std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
-        program.template uniform<bool>("classesSet", true);
-        program.template uniform<int>("classA", classes.first);
-        program.template uniform<int>("classB", classes.second);
+        program.template uniform<bool>("inter", _currentTabLower == 1);
       } else {
         program.template uniform<bool>("classesSet", false);
       }
@@ -686,18 +643,18 @@ namespace dh::vis {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::ePairwiseAttrDists));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _similaritiesBuffers.neighborsSelected);
 
       // Dispatch shader in batches of batchSize attributes
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
 
-      uint nSelectedPairs = _selectionCounts[0] * (_selectionCounts[0] - 1);
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData(TextureType::ePairwiseDiffsAll));
+      uint nSelectedPairs = _vizAllPairs ?
+                            _selectionCounts[0] * (_selectionCounts[0] - 1) :
+                            dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[currentTabIndex()]);
       glAssert();
     }
 
-    if(textureIndex == 8) {
-      dh::util::BufferTools::instance().difference(_buffersTextureData(TextureType::ePairwiseDiffsNei), _buffersTextureData(TextureType::ePairwiseDiffsAll), _params->nHighDims, _buffersTextureData(TextureType::ePairwiseDiffsDif));
-    }
   }
 
   void AttributeRenderTask::clear() {
