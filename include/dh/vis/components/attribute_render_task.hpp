@@ -128,13 +128,14 @@ namespace dh::vis {
     std::set<uint> _weightedAttributeIndices;
     int _classButtonPressed;
     std::vector<uint> _classCounts;
+    std::vector<uint> _classCountsSelected;
     std::vector<std::string> _classNames;
     std::vector<bool> _classIsSet;
     std::set<int> _classesSet;
     bool _setChanged;
-    uint _nSelectedNeighbors;
     std::vector<glm::vec4> _colors;
     bool _vizAllPairs;
+    std::vector<uint> _denominators;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
@@ -156,7 +157,6 @@ namespace dh::vis {
     void setInput(dh::vis::Input input) { _input = input; }
     int getClassButtonPressed() { return _classButtonPressed; }
     std::pair<uint, uint> getSnapslotHandles() { return std::pair<GLuint, GLuint>(_buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB)); }
-    void setNumSelectedNeighbors(uint nSelectedNeighbors) { _nSelectedNeighbors = nSelectedNeighbors; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
 
@@ -176,15 +176,16 @@ namespace dh::vis {
       swap(a._similarityWeight, b._similarityWeight);
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._vizAllPairs, b._vizAllPairs);
+      swap(a._denominators, b._denominators);
       swap(a._currentTabUpper, b._currentTabUpper);
       swap(a._currentTabLower, b._currentTabLower);
       swap(a._classTextures, b._classTextures);
       swap(a._classCounts, b._classCounts);
+      swap(a._classCountsSelected, b._classCountsSelected);
       swap(a._classNames, b._classNames);
       swap(a._classIsSet, b._classIsSet);
       swap(a._classesSet, b._classesSet);
       swap(a._setChanged, b._setChanged);
-      swap(a._nSelectedNeighbors, b._nSelectedNeighbors);
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._buffers, b._buffers);
       swap(a._buffersTextureData, b._buffersTextureData);

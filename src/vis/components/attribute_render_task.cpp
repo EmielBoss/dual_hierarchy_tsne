@@ -35,16 +35,25 @@
 
 namespace dh::vis {
 
-  std::array<const char*, 10> prompts = {"Mean: %0.2f",
-                                         "Variance: %0.2f",
-                                         "Mean: %0.2f",
-                                         "Variance: %0.2f",
-                                         "Difference in mean: %0.2f",
-                                         "Difference in variance: %0.2f",
-                                         "Pairwise difference (nei): %0.2f",
-                                         "Pairwise difference (all): %0.2f",
-                                         "Pairwise difference (interclass): %0.2f",
-                                         "Pairwise difference (intraclass): %0.2f"};
+  std::array<const std::string, 9> promptsValuetype = {"Mean: %0.2f",
+                                                 "Variance: %0.2f",
+                                                 "Mean: %0.2f",
+                                                 "Variance: %0.2f",
+                                                 "Difference in mean: %0.2f",
+                                                 "Difference in variance: %0.2f",
+                                                 "Pairwise difference (all): %0.2f",
+                                                 "Pairwise difference (interclass): %0.2f",
+                                                 "Pairwise difference (intraclass): %0.2f"};
+
+  std::array<const std::string, 9> promptsDenomtype = {"%u primary selected datapoints",
+                                                       "%u primary selected datapoints",
+                                                       "%u secondary selected datapoints",
+                                                       "%u secondary selected datapoints",
+                                                       "",
+                                                       "",
+                                                       "%u selected ",
+                                                       "%u selected interclass ",
+                                                       "%u selected intraclass "};
   
   AttributeRenderTask::AttributeRenderTask()
   : RenderTask(), _isInit(false) {
@@ -71,8 +80,8 @@ namespace dh::vis {
     _classesSet(),
     _setChanged(false),
     _classButtonPressed(-1),
-    _nSelectedNeighbors(0),
-    _vizAllPairs(false) {
+    _vizAllPairs(false),
+    _denominators(9, 0) {
 
     // Initialize shader program
     {
@@ -98,9 +107,11 @@ namespace dh::vis {
     }
 
     // Count classes
+    _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _classCounts = std::vector<uint>(_params->nClasses);
     for(uint i = 0; i < _params->nClasses; ++i) {
-      uint classCount = std::count(labelPtr, labelPtr + _params->n, i);
+      // uint classCount = std::count(labelPtr, labelPtr + _params->n, i);
+      uint classCount = dh::util::BufferTools::instance().reduce<uint>(_minimizationBuffers.labels, 3, _params->n, 0, i);
       _classCounts[i] = classCount;
     }
 
@@ -419,7 +430,10 @@ namespace dh::vis {
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
       float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
-      ImGui::Text(prompts[index], texelValue);
+      ImGui::Text(promptsValuetype[index].c_str(), texelValue);
+      std::string pairtype = "";
+      if(index > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
+      ImGui::Text(("Averaged over: " + promptsDenomtype[index] + pairtype).c_str(), _denominators[index]);
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -500,9 +514,11 @@ namespace dh::vis {
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
         ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-        std::array<const char*, 9> prompts = {"Mean: %0.2f", "Variance: %0.2f", "Mean: %0.2f", "Variance: %0.2f", "Difference in mean: %0.2f", "Difference in variance: %0.2f", "Difference: %0.2f", "Difference: %0.2f", "Difference between differences: %0.2f"};
         float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
-        ImGui::Text(prompts[index], texelValue);
+        ImGui::Text(promptsValuetype[index].c_str(), texelValue);
+        std::string pairtype = "";
+        if(index > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
+        ImGui::Text(("Averaged over: " + promptsDenomtype[index] + pairtype).c_str(), _denominators[index]);
         ImGui::EndTooltip();
 
         if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -561,27 +577,22 @@ namespace dh::vis {
         if(ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0)) { _classButtonPressed = i; }
         ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
         std::string leadingZeros = i < 10 ? "0" : "";
-        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " " + _classNames[i];
+        std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " / " + std::to_string(_classCountsSelected[i]) + " " + _classNames[i];
         if(ImGui::SameLine(); ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
           glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
           _colors[i] = colorUpdated;
           glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
         }
         ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 100);
         if(!_classIsSet[i]) {
           std::string label = "Track##" + std::to_string(i);
-          if(ImGui::Button(label.c_str())) { setClass(i); }
+          if(ImGui::Button(label.c_str(), ImVec2(70, 0))) { setClass(i); }
         } else {
           std::string label = "Untrack##" + std::to_string(i);
-          if(ImGui::Button(label.c_str())) { unsetClass(i); }
+          if(ImGui::Button(label.c_str(), ImVec2(70, 0))) { unsetClass(i); }
         }
       }
-
-      if(_nSelectedNeighbors > 0) {
-        ImGui::Text("No. of selected neighbours: %u", _nSelectedNeighbors);
-        ImGui::SameLine();
-        if(_classesSet.size() == 2) { ImGui::Text("(interclass)"); } else { ImGui::Text("(all)"); }
-      } else { ImGui::Dummy(ImVec2(43.0f, 13.0f)); }
     }
   }
 
@@ -604,6 +615,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::update(std::vector<uint> selectionCounts) {
     _selectionCounts = selectionCounts;
+    for(uint i = 0; i < 2; ++i) { _denominators[i * 2] = _selectionCounts[i]; _denominators[i * 2 + 1] = _selectionCounts[i];  }
 
     // Calculate selection average and/or variance per attribute
     for(uint i = 0; i < 2; ++i) {
@@ -618,6 +630,7 @@ namespace dh::vis {
 
     // Compute pairwise attribute differences if relevant texture tabs are open
     if(_currentTabUpper == 3) {
+      std::pair<int, int> classes;
       glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
       glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
 
@@ -627,7 +640,7 @@ namespace dh::vis {
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
       if(_classesSet.size() == 2 && _currentTabLower > 0) {
-        std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
+        classes = std::pair<int, int>(*_classesSet.begin(), *std::next(_classesSet.begin()));
         program.template uniform<bool>("classesSet", true);
         program.template uniform<int>("classA", classes.first);
         program.template uniform<int>("classB", classes.second);
@@ -648,11 +661,26 @@ namespace dh::vis {
       // Dispatch shader in batches of batchSize attributes
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
 
-      uint nSelectedPairs = _vizAllPairs ?
-                            _selectionCounts[0] * (_selectionCounts[0] - 1) :
-                            dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      uint nSelectedPairs;
+      if(!_vizAllPairs) {
+        nSelectedPairs = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+      } else
+      if(_currentTabLower == 0) {
+        nSelectedPairs = _selectionCounts[0] * (_selectionCounts[0] - 1);
+      } else
+      if(_currentTabLower == 1) {
+        nSelectedPairs = _classCountsSelected[classes.first] * _classCountsSelected[classes.second] * 2;
+      } else
+      if(_currentTabLower == 2) {
+        nSelectedPairs = _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1);
+      }
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[currentTabIndex()]);
+      _denominators[currentTabIndex()] = nSelectedPairs;
       glAssert();
+    }
+
+    for(uint c = 0; c < _params->nClasses; ++c) {
+      _classCountsSelected[c] = dh::util::BufferTools::instance().reduce<uint>(_minimizationBuffers.labels, 3, _params->n, _minimizationBuffers.selection, c);
     }
 
   }
@@ -661,7 +689,7 @@ namespace dh::vis {
     for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
     }
-    _nSelectedNeighbors = 0;
+    _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
   }
 
 } // dh::vis
