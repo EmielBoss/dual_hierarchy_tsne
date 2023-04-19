@@ -481,8 +481,11 @@ namespace dh::vis {
       ImGui::ImageButton((void*)(intptr_t)_textures[_buffersTextureData.size()+i], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine();
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-        if(ImGui::IsAnyMouseDown()) {
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
           glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
+        } else
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+          dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i]);
         }
       }
     }
@@ -562,8 +565,11 @@ namespace dh::vis {
     std::array<const char*, 9> buttons = {" A ", " B "};
     for(int i = 0; i < 2; ++i) {
       ImGui::Button(buttons[i]); ImGui::SameLine();
-      if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) {
+      if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
         glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
+      } else
+      if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3]);
       }
     }
   }
@@ -622,7 +628,7 @@ namespace dh::vis {
       dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
     }
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], true, _buffersTextureData[i * 2]); // Variance
+      dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], _buffersTextureData[i * 2], true); // Variance
     }
     for(uint i = 0; i < 2; ++i) {
       dh::util::BufferTools::instance().difference(_buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);

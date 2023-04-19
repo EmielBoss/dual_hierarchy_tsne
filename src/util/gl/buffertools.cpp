@@ -240,7 +240,7 @@ namespace dh::util {
     glAssert();
   }
 
-  void BufferTools::averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, bool calcVariance, GLuint subtractorBuffer) {
+  void BufferTools::averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer, bool calcVariance) {
     glCreateBuffers(1, _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * d * sizeof(float), nullptr, 0);
     
@@ -253,14 +253,13 @@ namespace dh::util {
     program.template uniform<uint>("nHighDims", d);
     program.template uniform<uint>("imgDepth", imgDepth);
     program.template uniform<uint>("maskValue", maskValue);
+    program.template uniform<bool>("subtract", subtractorBuffer > 0);
     program.template uniform<bool>("calcVariance", calcVariance);
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToAverage);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, maskBuffer);
-    if(calcVariance) {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, subtractorBuffer);
-    }
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersReduce(BufferReduceType::eReduce));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, bufferAveraged);
     glAssert();
