@@ -436,7 +436,7 @@ namespace dh::sne {
 
     renormalizeSimilarities(selectionBufferHandle);
 
-    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    // assess(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
@@ -505,7 +505,7 @@ namespace dh::sne {
 
     renormalizeSimilarities(selectionBufferHandle);
 
-    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    // assess(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
 
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
@@ -529,7 +529,6 @@ namespace dh::sne {
       program.bind();
       glAssert();
 
-      float mult = (_params->nHighDims / weightedAttributeIndices.size()) / (5.f * (1.f - weightedAttributeIndices.size() / _params->nHighDims) + 1);
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
       program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
@@ -552,7 +551,7 @@ namespace dh::sne {
 
     renormalizeSimilarities(selectionBufferHandle);
 
-    // defug(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
+    // assess(weightedAttributeIndices, selectionBufferHandle, labelsBufferHandle);
     
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
@@ -562,7 +561,7 @@ namespace dh::sne {
     glCopyNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), _buffers(BufferType::eSimilarities), 0, 0, _symmetricSize * sizeof(float));
   }
 
-  void Similarities::defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle) {
+  void Similarities::assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle) {
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);

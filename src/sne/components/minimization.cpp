@@ -60,7 +60,7 @@ namespace dh::sne {
   Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
     _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
-    _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters) {
+    _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -116,7 +116,8 @@ namespace dh::sne {
 
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0);
-      glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
+      // glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
@@ -428,7 +429,8 @@ namespace dh::sne {
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+      // dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection), true);
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
@@ -483,6 +485,11 @@ namespace dh::sne {
     // if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
     //   return true;
     // }
+
+    if(_input.ctrl && !__assessed) {
+      _attributeRenderTask->assess(_similarities->getSymmetricSize());
+      __assessed = true;
+    }
 
     glAssert();
     return false;

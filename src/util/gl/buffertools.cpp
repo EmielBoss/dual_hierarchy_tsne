@@ -161,7 +161,7 @@ namespace dh::util {
   }
 
   template <typename T>
-  uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer) {
+  uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage) {
     glCreateBuffers(_buffersRemove.size(), _buffersRemove.data());
     glNamedBufferStorage(_buffersRemove(BufferRemoveType::eCumSum), n * sizeof(T), nullptr, 0);
 
@@ -173,7 +173,7 @@ namespace dh::util {
     }
 
     if(nNew > 0) {
-      glNamedBufferStorage(_buffersRemove(BufferRemoveType::eRemoved), nNew * d * sizeof(T), nullptr, 0);
+      glNamedBufferStorage(_buffersRemove(BufferRemoveType::eRemoved), nNew * d * sizeof(T), nullptr, dynamicStorage ? GL_DYNAMIC_STORAGE_BIT : 0);
 
       dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eRemoveFloatComp) : _programs(ProgramType::eRemoveUintComp);
       program.bind();
@@ -297,8 +297,8 @@ namespace dh::util {
   template float BufferTools::reduce<float>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template uint BufferTools::reduce<uint>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template glm::vec2 BufferTools::reduce<glm::vec2>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
-  template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
-  template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+  template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
+  template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
   template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);
   template void BufferTools::flip<uint>(GLuint& bufferToFlip, uint n);
 }

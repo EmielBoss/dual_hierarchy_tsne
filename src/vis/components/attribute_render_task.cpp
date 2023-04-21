@@ -87,6 +87,7 @@ namespace dh::vis {
     {
       _programs(ProgramType::ePairwiseAttrDiffsNeiComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_nei.comp"));
       _programs(ProgramType::ePairwiseAttrDiffsAllComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_all.comp"));
+      _programs(ProgramType::dGuessClasses).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/__guess_classes.comp"));
       for (auto& program : _programs) {
         program.link();
       }
@@ -696,6 +697,109 @@ namespace dh::vis {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
     }
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
+  }
+
+  void AttributeRenderTask::assess(uint symmetricSize) {
+    // Create and initialize temp buffers
+    GLuint watBuffer;
+    glCreateBuffers(1, &watBuffer);
+    std::vector<uint> attributeIndices;
+    if(_weightedAttributeIndices.size() > 0) {
+      attributeIndices = std::vector<uint>(_weightedAttributeIndices.begin(), _weightedAttributeIndices.end());
+    } else {
+      attributeIndices = std::vector<uint>(_params->nHighDims);
+      std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
+    }
+    glNamedBufferStorage(watBuffer, attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
+
+    GLuint classGuesses;
+    glCreateBuffers(1, &classGuesses);
+    std::vector<uint> zeros(_params->n, 0);
+    glNamedBufferStorage(classGuesses, _params->n * sizeof(uint), zeros.data(), 0);
+
+    std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
+
+    auto &program = _programs(ProgramType::dGuessClasses);
+    program.bind();
+    glAssert();
+
+    program.template uniform<uint>("nPoints", _params->n);
+    program.template uniform<uint>("nHighDims", _params->nHighDims);
+    program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
+    program.template uniform<uint>("classA", classes.first);
+    program.template uniform<uint>("classB", classes.second);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTextureData(TextureType::eSnapslotA));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureType::eSnapslotB));
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, watBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.dataset);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.attributeWeights);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, classGuesses);
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+
+    std::vector<uint> selc(_params->n);
+    glGetNamedBufferSubData(_minimizationBuffers.selection, 0, _params->n * sizeof(uint), selc.data());
+    std::vector<int> labl(_params->n);
+    glGetNamedBufferSubData(_minimizationBuffers.labels, 0, _params->n * sizeof(int), labl.data());
+    std::vector<uint> gues(_params->n);
+    glGetNamedBufferSubData(classGuesses, 0, _params->n * sizeof(uint), gues.data());
+
+    uint countClassCorrect = 0;
+    int classCorrect = 1;
+    int classIncorrect = 0;
+    for(uint i = 0; i < _params->n; ++i) {
+      if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
+
+      if(labl[i] == gues[i]) {
+        countClassCorrect++;
+        glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classCorrect);
+      } else {
+        glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classIncorrect);
+      }
+
+      // glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &gues[i]);
+      glAssert();
+    }
+
+    std::cout << "\nDatapoint class guesses: " << countClassCorrect << " / " << _selectionCounts[0] << " = " << (float) countClassCorrect / (float) _selectionCounts[0] << "\n";
+
+    std::vector<uint> neig(symmetricSize);
+    glGetNamedBufferSubData(_similaritiesBuffers.neighbors, 0, symmetricSize * sizeof(uint), neig.data());
+    std::vector<uint> layo(_params->n * 2);
+    glGetNamedBufferSubData(_similaritiesBuffers.layout, 0, _params->n * 2 * sizeof(uint), layo.data());
+
+    uint countNeighbortypeCorrect = 0;
+    uint countNeighbortypeCorrectInter = 0;
+    uint countNeighbortypeCorrectIntra = 0;
+    uint countNeighbors = 0;
+    uint countNeighborsInter = 0;
+    uint countNeighborsIntra = 0;
+    for(uint i = 0; i < _params->n; ++i) {
+      if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
+      for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+        uint j = neig[ij];
+        if(selc[j] != 1 || (labl[j] != classes.first && labl[j] != classes.second)) { continue; }
+        countNeighbors++;
+        if(labl[i] == labl[j]) { countNeighborsIntra++; } else
+        if(labl[i] != labl[j]) { countNeighborsInter++; }
+
+        if((gues[i] == gues[j]) == (labl[i] == labl[j])) {
+          countNeighbortypeCorrect++;
+          if(labl[i] == labl[j]) { countNeighbortypeCorrectIntra++; } else
+          if(labl[i] != labl[j]) { countNeighbortypeCorrectInter++; }
+        }
+      }
+    }
+
+    std::cout << "Neighbour type guesses: " << countNeighbortypeCorrect << " / " << countNeighbors << " = " << (float) countNeighbortypeCorrect / (float) countNeighbors << "\n";
+    std::cout << "Neighbour type guesses (inter): " << countNeighbortypeCorrectInter << " / " << countNeighborsInter << " = " << (float) countNeighbortypeCorrectInter / (float) countNeighborsInter << "\n";
+    std::cout << "Neighbour type guesses (intra): " << countNeighbortypeCorrectIntra << " / " << countNeighborsIntra << " = " << (float) countNeighbortypeCorrectIntra / (float) countNeighborsIntra << "\n";
   }
 
 } // dh::vis

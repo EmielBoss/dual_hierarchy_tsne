@@ -73,6 +73,7 @@ namespace dh::vis {
     void update(std::vector<uint> selectionCounts);
     void clear();
     uint currentTabIndex() { return _currentTabUpper * 2 + _currentTabLower; }
+    void assess(uint symmetricSize);
     
   private:
     enum class BufferType {
@@ -104,6 +105,7 @@ namespace dh::vis {
     enum class ProgramType {
       ePairwiseAttrDiffsNeiComp,
       ePairwiseAttrDiffsAllComp,
+      dGuessClasses,
 
       Length
     };

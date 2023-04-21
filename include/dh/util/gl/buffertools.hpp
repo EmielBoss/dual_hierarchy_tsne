@@ -94,7 +94,7 @@ namespace dh::util {
       // If largeBuffer, layoutBuffer and neighborBuffer need to be > 0 as well
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
       template <typename T> T reduce(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer = 0, uint valueToCount = -1, bool largeBuffer = false, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
-      template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer);
+      template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage = false);
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
       template <typename T> void flip(GLuint& bufferToFlip, uint n);
       void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer = 0, bool calcVariance = false);

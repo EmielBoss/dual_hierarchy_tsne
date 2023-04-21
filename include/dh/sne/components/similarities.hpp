@@ -56,8 +56,7 @@ namespace dh::sne {
     void displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative);
     void displayBarplot(std::vector<float> ys);
 
-    // Compute similarities
-    void comp();
+    void comp(); // Compute similarities
     void recomp(GLuint selectionBufferHandle, float perplexity, uint k);
     void renormalizeSimilarities(GLuint selectionBufferHandle = 0);
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
@@ -65,7 +64,8 @@ namespace dh::sne {
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims);
     void reset();
-    void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
+    uint getSymmetricSize() { return _symmetricSize; }
+    void assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
   private:
     enum class BufferType {

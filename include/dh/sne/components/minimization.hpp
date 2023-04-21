@@ -171,6 +171,7 @@ namespace dh::sne {
     glm::mat4 _proj_3D;
     uint _buttonSelectionPrev;
     uint _buttonAttributePrev;
+    bool __assessed;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -234,6 +235,7 @@ namespace dh::sne {
       swap(a._axesRenderTask, b._axesRenderTask);
       swap(a._attributeRenderTask, b._attributeRenderTask);
       swap(a._klDivergence, b._klDivergence);
+      swap(a.__assessed, b.__assessed);
     }
   };
 } // dh::sne

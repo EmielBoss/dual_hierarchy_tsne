@@ -24,8 +24,6 @@
 
 #version 460 core
 
-#extension GL_KHR_shader_subgroup_basic : enable
-
 struct Layout {
   uint offset;
   uint size;
@@ -40,20 +38,16 @@ layout(binding = 2, std430) restrict readonly buffer Tex2 { float secondaryTextu
 layout(binding = 3, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Data { float datasetBuffer[]; };
 layout(binding = 5, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 7, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict buffer Gues { uint classGuesses[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform uint nWeightedAttribs;
+layout(location = 3) uniform uint classA;
+layout(location = 4) uniform uint classB;
 
-// Shorthand subgroup/warp constants
-const uint thread = gl_SubgroupInvocationID;
-const uint nThreads = gl_SubgroupSize;
-
-bool guessClass(uint i) {
+uint guessClass(uint i) {
 
   float primaryDistance = 0.f;
   float secondaryDistance = 0.f;
@@ -63,21 +57,13 @@ bool guessClass(uint i) {
     secondaryDistance += abs(datasetBuffer[i * nHighDims + attr] - secondaryTexture[attr]) * attributeWeightsBuffer[attr];
   }
 
-  return primaryDistance < secondaryDistance;
+  return primaryDistance < secondaryDistance ? classA : classB;
 }
 
 void main() {
-  const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
+  const uint i = gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x;
 
   if (i >= nPoints || selectionBuffer[i] != 1) { return; }
   
-  Layout l = layoutBuffer[i];
-  bool iClass = guessClass(i);
-
-  for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
-    uint j = neighborsBuffer[ij];
-    if(selectionBuffer[j] != 1) { continue; }
-
-    similaritiesBuffer[ij] *= float(iClass == guessClass(j));
-  }
+  classGuesses[i] = guessClass(i);
 }
