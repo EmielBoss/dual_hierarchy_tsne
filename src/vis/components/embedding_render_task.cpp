@@ -257,9 +257,6 @@ namespace dh::vis {
 
       ImGui::Text("Iteration: %u", _iteration); ImGui::SameLine(); ImGui::Text("KL: %f", _klDivergence);
       if(ImGui::IsItemHovered() && ImGui::IsAnyMouseDown()) { _buttonPressed = 2; }
-      ImGui::SameLine(); ImGui::Text(" | State:");
-      if(ImGui::SameLine(); ImGui::Button("Import")) { _buttonPressed = 10; }
-      if(ImGui::SameLine(); ImGui::Button("Export")) { _buttonPressed = 11; }
 
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color mapping:");

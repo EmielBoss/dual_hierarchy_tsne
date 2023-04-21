@@ -53,8 +53,6 @@ namespace dh::sne {
     Similarities& operator=(Similarities&&) noexcept;
 
     float average(std::vector<float> vec);
-    void displayHistogram(std::vector<float> inter, std::vector<float> intra, bool relative);
-    void displayBarplot(std::vector<float> ys);
 
     // Compute similarities
     void comp();
@@ -65,7 +63,6 @@ namespace dh::sne {
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims);
     void reset();
-    void defug(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
   private:
     enum class BufferType {
