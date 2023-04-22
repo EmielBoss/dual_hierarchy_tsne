@@ -306,6 +306,22 @@ namespace dh::vis {
     }
   }
 
+  float AttributeRenderTask::sumWeightedAttributeValues(uint index) {
+    std::vector<float> weights(_params->nHighDims);
+    glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params->nHighDims * sizeof(float), weights.data());
+    std::vector<float> values(_params->nHighDims);
+    glGetNamedBufferSubData(_buffersTextureData[index], 0, _params->nHighDims * sizeof(float), values.data());
+
+    float sumValues = 0.f;
+    float sumWeights = 0.f;
+    for (uint i : _weightedAttributeIndices) {
+      sumValues += values[i] * (1 - weights[i]);
+      sumWeights += 1 - weights[i];
+    }
+
+    return sumValues / sumWeights;
+  }
+
   void AttributeRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
     if (!enable) {
       return;
@@ -439,6 +455,10 @@ namespace dh::vis {
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
       else { _draggedTexel = -1; }
+
+      if(_input.z) {
+        std::cout << "\n" << sumWeightedAttributeValues(index) << "\n";
+      }
     } else {
       _draggedTexel = -1;
     }

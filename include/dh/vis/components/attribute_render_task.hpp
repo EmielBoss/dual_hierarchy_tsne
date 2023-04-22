@@ -74,6 +74,7 @@ namespace dh::vis {
     void clear();
     uint currentTabIndex() { return _currentTabUpper * 2 + _currentTabLower; }
     void assess(uint symmetricSize);
+    float sumWeightedAttributeValues(uint index);
     
   private:
     enum class BufferType {
