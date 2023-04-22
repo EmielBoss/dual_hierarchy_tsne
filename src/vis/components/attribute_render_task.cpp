@@ -486,7 +486,11 @@ namespace dh::vis {
           glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i]);
+          if(_classesSet.size() == 1) {
+            dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false, *_classesSet.begin(), _minimizationBuffers.labels);
+          } else {
+            dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false);
+          }
         }
       }
     }
