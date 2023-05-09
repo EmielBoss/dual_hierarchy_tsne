@@ -66,6 +66,7 @@ namespace dh::vis {
     float getTexelWeight(uint texelIndex);
     float getTexelValue(uint texelIndex, GLuint buffer);
     void autoweighAttributes(uint textureType, float percentage);
+    void clearAttributeWeights();
     void invertAttributeWeights();
     void refineAttributeWeights(uint textureType);
     void setClass(int i);

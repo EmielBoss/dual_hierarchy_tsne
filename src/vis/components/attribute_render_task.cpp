@@ -277,6 +277,13 @@ namespace dh::vis {
     }
   }
 
+  void AttributeRenderTask::clearAttributeWeights() {
+    const std::vector<float> ones(_params->nHighDims, 1.0f);
+    glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
+    mirrorWeightsToOverlay();
+    _weightedAttributeIndices = std::set<uint>();
+  }
+
   void AttributeRenderTask::invertAttributeWeights() {
     for(uint i = 0; i < _params->nTexels; ++i) {
       float weightTexel = getTexelWeight(i);
@@ -475,12 +482,7 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
     if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
-    if(                          ImGui::Button("Clear weights")) { // Clear attribute weights
-      const std::vector<float> ones(_params->nHighDims, 1.0f);
-      glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
-      mirrorWeightsToOverlay();
-      _weightedAttributeIndices = std::set<uint>();
-    }
+    if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Invert weights")) { invertAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
@@ -569,11 +571,11 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
     if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
-    if(                          ImGui::Button("Clear weights")) { _buttonPressed = 4; }
+    if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { _buttonPressed = 5; }
+    if(ImGui::SameLine(); ImGui::Button("Invert weights")) { invertAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { _buttonPressed = 6; }
+    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { refineAttributeWeights(currentTabIndex()); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
 
     ImGui::Text("Recalc simil.");

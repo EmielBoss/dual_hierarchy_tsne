@@ -53,8 +53,8 @@ uint guessClass(uint i) {
   float secondaryDistance = 0.f;
   for(uint a = 0; a < nWeightedAttribs; a++) {
     uint attr = weightedAttributeIndicesBuffer[a];
-    primaryDistance += abs(datasetBuffer[i * nHighDims + attr] - primaryTexture[attr]) * attributeWeightsBuffer[attr];
-    secondaryDistance += abs(datasetBuffer[i * nHighDims + attr] - secondaryTexture[attr]) * attributeWeightsBuffer[attr];
+    primaryDistance += abs(datasetBuffer[i * nHighDims + attr] - primaryTexture[attr]);
+    secondaryDistance += abs(datasetBuffer[i * nHighDims + attr] - secondaryTexture[attr]);
   }
 
   return primaryDistance < secondaryDistance ? classA : classB;
