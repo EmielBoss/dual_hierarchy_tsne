@@ -495,26 +495,26 @@ namespace dh::vis {
 
   void AttributeRenderTask::drawImPlotBarPlot(uint index) {
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
-    if (ImPlot::BeginPlot("##", ImVec2(400, 200))) {
+    if (ImPlot::BeginPlot("##", ImVec2(400, 200), ImPlotFlags_NoFrame | ImPlotFlags_Crosshairs | ImPlotFlags_CanvasOnly)) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
       glGetNamedBufferSubData(_buffersTextureData[index], 0, _params->nHighDims * sizeof(float), ys.data());
 
-      ImPlot::SetupAxis(ImAxis_X1, NULL, (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
-      ImPlot::SetupAxis(ImAxis_Y1, NULL, (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_X1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 
       ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 1.f);
       ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(1), 0.f);
       ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
 
-      if(ImGui::IsItemHovered() && _input.x) {
+      if(ImPlot::IsPlotHovered() && _input.x) {
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params->nHighDims * sizeof(float), ys.data());
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
         ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
         ImPlot::PlotBars("Weights", xs.data(), ys.data(), _params->nHighDims, 1.f);
 
-        uint hoveredTexel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 400 * _params->nHighDims;
+        uint hoveredTexel = ImPlot::GetPlotMousePos().x;
 
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
@@ -535,7 +535,7 @@ namespace dh::vis {
     }
 
     ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
-    ImGui::SliderInt("##i", &_brushRadius, 1, 10, "Brush weight %i");
+    ImGui::SliderInt("##i", &_brushRadius, 0, 10, "Brush size %i");
 
     if(ImGui::Button("Autoweigh")) { autoweighAttributes(currentTabIndex(), _autoselectPercentage); }
     ImGui::SameLine(); ImGui::Text("top");

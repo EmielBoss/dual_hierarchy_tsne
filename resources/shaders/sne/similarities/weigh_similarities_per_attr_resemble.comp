@@ -62,7 +62,7 @@ bool guessClass(uint i) {
     primaryDistance += abs(datasetBuffer[i * nHighDims + attr] - primaryTexture[attr]) * (1.f - attributeWeightsBuffer[attr]);
     secondaryDistance += abs(datasetBuffer[i * nHighDims + attr] - secondaryTexture[attr]) * (1.f - attributeWeightsBuffer[attr]);
   }
-
+  
   return primaryDistance < secondaryDistance;
 }
 
