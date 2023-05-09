@@ -436,6 +436,7 @@ namespace dh::sne {
 
     renormalizeSimilarities(selectionBufferHandle);
 
+
     glAssert();
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
@@ -516,6 +517,8 @@ namespace dh::sne {
     } else {
       attributeIndices = std::vector<uint>(nHighDims);
       std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
+      const std::vector<float> zeroes(_params->nHighDims, 0.f);
+      glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zeroes.data());
     }
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
 
@@ -548,8 +551,12 @@ namespace dh::sne {
 
     renormalizeSimilarities(selectionBufferHandle);
 
-    glAssert();
+    if(weightedAttributeIndices.size() == 0) {
+      const std::vector<float> ones(_params->nHighDims, 1.f);
+      glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
+    }
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
+    glAssert();
   }
 
   void Similarities::reset() {
