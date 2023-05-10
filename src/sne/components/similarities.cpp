@@ -80,7 +80,12 @@ namespace dh::sne {
     glCreateBuffers(_buffers.size(), _buffers.data());
     {
       const std::vector<float> ones(_params->nHighDims, 1.0f);
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), _dataPtr, 0); // Original dataset
+      std::vector<float> data;
+      data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
+      if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
+      else { dh::util::normalizeDataNonUniformDims(data, _params->n, _params->nHighDims); }
+
+      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0); // Original dataset
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params->n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])
       glNamedBufferStorage(_buffers(BufferType::eAttributeWeights), _params->nHighDims * sizeof(float), ones.data(), GL_DYNAMIC_STORAGE_BIT);
       glAssert();

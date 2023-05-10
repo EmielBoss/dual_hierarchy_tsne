@@ -50,32 +50,34 @@ namespace dh::util {
     glNamedBufferStorage(bufferLabeled, n * sizeof(uint), labeled.data(), 0);
   }
 
-  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::pair<GLuint, GLuint>& snapslotHandles)
+  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 23> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::pair<GLuint, GLuint>& snapslotHandles)
   {
-    dh::util::readGLBuffer<float>(buffers[21], n, d, "rel"); // eEmbeddingRelative
-    dh::util::readGLBuffer<float>(buffers[19], n, 1, "wgt"); // eWeights
-    dh::util::readGLBuffer<uint>(buffers[16], n, 1, "slc"); // eSelection
-    dh::util::readGLBuffer<uint>(buffers[17], n, 1, "fxd"); // eFixed
-    dh::util::readGLBuffer<uint>(buffers[20], n, 1, "lbd"); // eLabeled
-    dh::util::readGLBuffer<uint>(buffers[23], n, 1, "dsb"); // eDisabled
+    dh::util::readGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
+    dh::util::readGLBuffer<float>(buffers[18], n, 1, "wgt"); // eWeights
+    dh::util::readGLBuffer<uint>(buffers[15], n, 1, "slc"); // eSelection
+    dh::util::readGLBuffer<uint>(buffers[16], n, 1, "fxd"); // eFixed
+    dh::util::readGLBuffer<uint>(buffers[19], n, 1, "lbd"); // eLabeled
+    dh::util::readGLBuffer<uint>(buffers[22], n, 1, "dsb"); // eDisabled
     dh::util::readGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
     dh::util::readGLBuffer<float>(snapslotHandles.first, nHighDims, 1, "slA"); // eSnapslotA
     dh::util::readGLBuffer<float>(snapslotHandles.second, nHighDims, 1, "slB"); // eSnapslotB
     weightedAttributeIndices = dh::util::readSet<uint>("wai"); // Weighted attribute indices
+    glAssert();
   }
 
-  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::pair<GLuint, GLuint> snapslotHandles)
+  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 23> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::pair<GLuint, GLuint> snapslotHandles)
   {
-    dh::util::writeGLBuffer<float>(buffers[21], n, d, "rel"); // eEmbeddingRelative
-    dh::util::writeGLBuffer<float>(buffers[19], n, 1, "wgt"); // eWeights
-    dh::util::writeGLBuffer<uint>(buffers[16], n, 1, "slc"); // eSelection
-    dh::util::writeGLBuffer<uint>(buffers[17], n, 1, "fxd"); // eFixed
-    dh::util::writeGLBuffer<uint>(buffers[20], n, 1, "lbd"); // eLabeled
-    dh::util::writeGLBuffer<uint>(buffers[23], n, 1, "dsb"); // eDisabled
+    dh::util::writeGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
+    dh::util::writeGLBuffer<float>(buffers[18], n, 1, "wgt"); // eWeights
+    dh::util::writeGLBuffer<uint>(buffers[15], n, 1, "slc"); // eSelection
+    dh::util::writeGLBuffer<uint>(buffers[16], n, 1, "fxd"); // eFixed
+    dh::util::writeGLBuffer<uint>(buffers[19], n, 1, "lbd"); // eLabeled
+    dh::util::writeGLBuffer<uint>(buffers[22], n, 1, "dsb"); // eDisabled
     dh::util::writeGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
     dh::util::writeGLBuffer<float>(snapslotHandles.first, nHighDims, 1, "slA"); // eSnapslotA
     dh::util::writeGLBuffer<float>(snapslotHandles.second, nHighDims, 1, "slB"); // eSnapslotB
     dh::util::writeSet<uint>(weightedAttributeIndices, "wai"); // Weighted attribute indices
+    glAssert();
   }
 
 } // dh::util

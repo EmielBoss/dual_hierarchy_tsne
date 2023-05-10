@@ -108,14 +108,8 @@ namespace dh::sne {
       const std::vector<vec> unitvecs(_params->n, vec(1));
       const std::vector<uint> falses(_params->n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params->n, 1.0f);
-      std::vector<float> zeros(_params->n, 0.0f);
-      std::vector<float> data;
-      data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
-      if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
-      else { dh::util::normalizeDataNonUniformDims(data, _params->n, _params->nHighDims); }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0);
       // glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
       glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -426,7 +420,6 @@ namespace dh::sne {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       _similaritiesBuffers = _similarities->getBuffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
-      dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
       // dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
