@@ -590,13 +590,17 @@ namespace dh::vis {
 
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     std::array<const char*, 9> buttons = {" A ", " B "};
-    for(int i = 0; i < 2; ++i) {
+    for(int i = -3; i < -1; ++i) {
       ImGui::Button(buttons[i]); ImGui::SameLine();
       if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
+        glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
       } else
       if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3]);
+        if(_classesSet.size() == 1) {
+          dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false, *_classesSet.begin(), _minimizationBuffers.labels);
+        } else {
+          dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false);
+        }
       }
     }
   }
@@ -789,7 +793,7 @@ namespace dh::vis {
         glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classIncorrect);
       }
 
-      // glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &gues[i]);
+      glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &gues[i]);
       glAssert();
     }
 
