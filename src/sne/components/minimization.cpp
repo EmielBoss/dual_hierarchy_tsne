@@ -108,14 +108,9 @@ namespace dh::sne {
       const std::vector<float> ones(_params->n, 1.0f);
       std::vector<float> zeros(_params->n, 0.0f);
       std::vector<uint> labeled(_params->n, 0);
-      for(uint i = 0; i < _params->n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } } // Use this when using regular labels (-1 = unlabeled, >0 = labeled)
-      std::vector<float> data;
-      data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
-      if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
-      else { dh::util::normalizeDataNonUniformDims(data, _params->n, _params->nHighDims); }
+      for(uint i = 0; i < _params->n; ++i) { if (*(labelPtr + i) >= 0)  { labeled[i] = 1; } }
 
       glCreateBuffers(_buffers.size(), _buffers.data());
-      glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0);
       glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -424,7 +419,6 @@ namespace dh::sne {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       _similaritiesBuffers = _similarities->getBuffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
-      dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eDataset), n, _params->nHighDims, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));

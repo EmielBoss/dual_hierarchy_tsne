@@ -85,7 +85,6 @@ namespace dh::sne {
 
   private:
     enum class BufferType {
-      eDataset,
       eLabels,
       eEmbedding,
       eBounds,
@@ -201,7 +200,6 @@ namespace dh::sne {
         _buffers(BufferType::eFixed),
         _buffers(BufferType::eDisabled),
         _buffers(BufferType::eNeighborhoodPreservation),
-        _buffers(BufferType::eDataset),
       };
     }
     bool isInit() const { return _isInit; }

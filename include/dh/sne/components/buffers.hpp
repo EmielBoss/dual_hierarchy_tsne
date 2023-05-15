@@ -39,7 +39,6 @@ namespace dh::sne {
     GLuint fixed;
     GLuint disabled;
     GLuint neighborhoodPreservation;
-    GLuint dataset;
   };
 
   // Data class provided by dh::sne::Similarities<D>->getBuffers() for other components

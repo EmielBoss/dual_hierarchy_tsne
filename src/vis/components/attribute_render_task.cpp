@@ -129,7 +129,7 @@ namespace dh::vis {
         GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
         glTextureStorage2D(_classTextures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
         
-        dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.labels, i, _classCounts[i], classTextureBuffers[i]);
+        dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.labels, i, _classCounts[i], classTextureBuffers[i]);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
         GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
         glTextureSubImage2D(_classTextures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
@@ -487,7 +487,7 @@ namespace dh::vis {
           glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
         } else
         if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i]);
+          dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i]);
         }
       }
     }
@@ -571,7 +571,7 @@ namespace dh::vis {
         glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3], 0, 0, _params->nHighDims * sizeof(float));
       } else
       if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3]);
+        dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i-3]);
       }
     }
   }
@@ -627,10 +627,10 @@ namespace dh::vis {
 
     // Calculate selection average and/or variance per attribute
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
+      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
     }
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_minimizationBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], _buffersTextureData[i * 2], true); // Variance
+      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], _buffersTextureData[i * 2], true); // Variance
     }
     for(uint i = 0; i < 2; ++i) {
       dh::util::BufferTools::instance().difference(_buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
@@ -659,7 +659,7 @@ namespace dh::vis {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.dataset);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.dataset);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labels);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
