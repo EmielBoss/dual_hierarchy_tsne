@@ -62,7 +62,7 @@ void main() {
 
   for (uint j = 0; j < nPoints; j++) {
     if(selectionBuffer[j] != 1 ||
-       i == j ||
+       i >= j ||
       (classesSet && labelBuffer[j] != classA && labelBuffer[j] != classB) ||
       (classesSet && (( inter && labelBuffer[i] == labelBuffer[j]) ||
                       (!inter && labelBuffer[i] != labelBuffer[j])))

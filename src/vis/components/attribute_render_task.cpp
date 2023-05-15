@@ -459,6 +459,7 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::Separator();
     bool vizAllPairsPrev = _vizAllPairs;
     ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
     if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
     if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
@@ -544,6 +545,7 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::Separator();
     bool vizAllPairsPrev = _vizAllPairs;
     ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
     if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
     
     if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
@@ -674,13 +676,13 @@ namespace dh::vis {
         nSelectedPairs = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
       } else
       if(_currentTabLower == 0) {
-        nSelectedPairs = _selectionCounts[0] * (_selectionCounts[0] - 1);
+        nSelectedPairs = (_selectionCounts[0] * (_selectionCounts[0] - 1)) / 2;
       } else
       if(_currentTabLower == 1) {
-        nSelectedPairs = _classCountsSelected[classes.first] * _classCountsSelected[classes.second] * 2;
+        nSelectedPairs = _classCountsSelected[classes.first] * _classCountsSelected[classes.second];
       } else
       if(_currentTabLower == 2) {
-        nSelectedPairs = _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1);
+        nSelectedPairs = _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) / 2 + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1) / 2;
       }
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[currentTabIndex()]);
       _denominators[currentTabIndex()] = nSelectedPairs;
