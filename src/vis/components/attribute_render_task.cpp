@@ -355,6 +355,7 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::drawImGuiComponent() {
+    _buttonPressed = 0;
     if (ImGui::CollapsingHeader("Attribute render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       if (ImGui::BeginTabBar("Selection tabs")) {
         if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
