@@ -300,6 +300,14 @@ namespace dh::sne {
   }
 
   template <uint D, uint DD>
+  void Minimization<D, DD>::syncBufferHandles() {
+    _similaritiesBuffers = _similarities->getBuffers();
+    _embeddingRenderTask->setMinimizationBuffers(buffers()); 
+    _attributeRenderTask->setMinimizationBuffers(buffers());
+    _attributeRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
+  }
+
+  template <uint D, uint DD>
   void Minimization<D, DD>::comp() {
     while (_iteration < _params->iterations) {
       compIteration();
@@ -389,6 +397,10 @@ namespace dh::sne {
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         _similarities->renormalizeSimilarities(_buffers(BufferType::eSelection));
       }
+      if(button == 11) { // Add similarities
+        _similarities->addSimilarities(_buffers(BufferType::eSelection), _selectionCounts, _selectionRenderTask->getSimilarityWeight());
+        syncBufferHandles();
+      }
       if(button == 20) { // Select all
         selectAll();
       }
@@ -419,7 +431,6 @@ namespace dh::sne {
     if(_embeddingRenderTask->getButtonPressed() == 1) {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
-      _similaritiesBuffers = _similarities->getBuffers(); // Refresh buffer handles, because recomp() deletes and recreates buffers
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
       // dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
@@ -430,9 +441,7 @@ namespace dh::sne {
       deselect();
       uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
-      _embeddingRenderTask->setMinimizationBuffers(buffers()); // Update buffer handles, because BufferTools::remove() deletes and recreates buffers
-      _attributeRenderTask->setMinimizationBuffers(buffers());
-      _attributeRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
+      syncBufferHandles(); // Update buffer handles, because BufferTools::remove() deletes and recreates buffers
       restartMinimization();
     }
 
@@ -454,8 +463,7 @@ namespace dh::sne {
 
     if(_embeddingRenderTask->getButtonPressed() == 10) { // Import state
       dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getSnapslotHandles());
-      _embeddingRenderTask->setMinimizationBuffers(buffers());
-      _attributeRenderTask->setMinimizationBuffers(buffers());
+      syncBufferHandles();
       _attributeRenderTask->mirrorWeightsToOverlay();
       compIterationSelect(true);
     } else

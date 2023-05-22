@@ -46,6 +46,13 @@ namespace dh::util {
     Length
   };
 
+  enum class BufferIndexType {
+    eIndicated,
+    eScanned,
+
+    Length
+  };
+
   enum class ProgramType {
     eReduceSumPerDatapointFloatComp,
     eReduceSumPerDatapointUintComp,
@@ -69,6 +76,11 @@ namespace dh::util {
     eAverageTexturedataComp,
 
     eDifferenceComp,
+
+    eIndicateComp,
+    eIndexComp,
+
+    eSubsample,
 
     Length,
   };
@@ -99,6 +111,8 @@ namespace dh::util {
       template <typename T> void flip(GLuint& bufferToFlip, uint n);
       void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer = 0, bool calcVariance = false, int maskClass = -1, GLuint labelsBuffer = 0);
       void difference(GLuint& buffer1, GLuint& buffer2, uint n, GLuint& bufferDifference);
+      void index(GLuint& buffer, uint n, uint value, GLuint indicesBuffer);
+      void subsample(GLuint& buffer, uint n, uint every, uint outOf, GLuint subsampledBuffer);
 
       bool isInit() const { return _isInit; }
 
@@ -114,5 +128,6 @@ namespace dh::util {
       util::EnumArray<ProgramType, util::GLProgram> _programs;
       util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
       util::EnumArray<BufferRemoveType, GLuint> _buffersRemove;
+      util::EnumArray<BufferIndexType, GLuint> _buffersIndex;
   };
 } // dh::util

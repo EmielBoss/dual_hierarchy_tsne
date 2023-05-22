@@ -60,6 +60,11 @@ namespace dh::util {
 
       _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/difference.comp"));
 
+      _programs(ProgramType::eIndicateComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/indicate.comp"));
+      _programs(ProgramType::eIndexComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/index.comp"));
+
+      _programs(ProgramType::eSubsample).addShader(util::GLShaderType::eCompute, rsrc::get("util/subsample.comp"));
+
       for (auto& program : _programs) {
         program.link();
       }
@@ -293,6 +298,81 @@ namespace dh::util {
     glDispatchCompute(ceilDiv(n, 256u), 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
+  }
+
+  void BufferTools::index(GLuint& buffer, uint n, uint value, GLuint indicesBuffer) {
+    glCreateBuffers(_buffersIndex.size(), _buffersIndex.data());
+    std::vector<uint> zeroes(n, 0);
+    glNamedBufferStorage(_buffersIndex(BufferIndexType::eIndicated), n * sizeof(uint), zeroes.data(), 0);
+    glNamedBufferStorage(_buffersIndex(BufferIndexType::eScanned), n * sizeof(uint), nullptr, 0);
+
+    {
+      auto& program = _programs(ProgramType::eIndicateComp);
+      program.bind();
+
+      // Set uniforms
+      program.template uniform<uint>("n", n);
+      program.template uniform<uint>("value", value);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersIndex(BufferIndexType::eIndicated));
+      glAssert();
+
+      glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
+
+    uint count;
+    {
+      util::InclusiveScan(_buffersIndex(BufferIndexType::eIndicated), _buffersIndex(BufferIndexType::eScanned), n).comp();
+      glGetNamedBufferSubData(_buffersIndex(BufferIndexType::eScanned), (n - 1) * sizeof(uint), sizeof(uint), &count); // Copy the last element of the eScanned buffer (which is the total size) to host
+    }
+
+    {
+      glNamedBufferStorage(indicesBuffer, count * sizeof(uint), nullptr, 0);
+
+      auto& program = _programs(ProgramType::eIndexComp);
+      program.bind();
+
+      // Set uniforms
+      program.template uniform<uint>("n", n);
+      program.template uniform<uint>("value", value);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersIndex(BufferIndexType::eScanned));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, indicesBuffer);
+      glAssert();
+
+      glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
+  }
+
+  void BufferTools::subsample(GLuint& bufferToSubsample, uint n, uint every, uint outOf, GLuint bufferSubsampled) {
+    glNamedBufferStorage(bufferSubsampled, n * sizeof(uint), nullptr, 0);
+
+    {
+      auto& program = _programs(ProgramType::eSubsample);
+      program.bind();
+
+      // Set uniforms
+      program.template uniform<uint>("n", n);
+      program.template uniform<uint>("everyIndex", every - 1);
+      program.template uniform<uint>("outOf", outOf);
+
+      // Set buffer bindings
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToSubsample);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferSubsampled);
+      glAssert();
+
+      glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      glAssert();
+    }
   }
 
   // Template instantiations for float, and uint

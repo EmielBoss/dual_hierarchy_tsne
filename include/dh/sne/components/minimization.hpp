@@ -73,6 +73,7 @@ namespace dh::sne {
     void selectInverse();
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
+    void syncBufferHandles();
     // void reconfigureZAxis();
     // std::vector<char> getAxisMapping() { return _axisMapping; }
 

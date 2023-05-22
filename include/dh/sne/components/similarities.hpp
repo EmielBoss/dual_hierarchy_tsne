@@ -63,6 +63,7 @@ namespace dh::sne {
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims);
+    void addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight);
     void reset();
     uint getSymmetricSize() { return _symmetricSize; }
     void assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
@@ -95,6 +96,25 @@ namespace dh::sne {
       Length
     };
 
+    enum class BufferFuseType {
+      eIndicesSelectionPrimary,
+      eIndicesSelectionSecondary,
+      eIndicesSelection,
+      eSizes,
+      eScan,
+      eCounts,
+      eNeighborsAdded,
+
+      eLayout,
+      eNeighborsSelected,
+      eNeighbors,
+      eSimilarities,
+      eSimilaritiesOriginal,
+      eDistancesL1,
+
+      Length
+    };
+
     enum class ProgramType {
       eSimilaritiesComp,
       eExpandComp,
@@ -107,6 +127,10 @@ namespace dh::sne {
       eWeighSimilaritiesPerAttributeRangeComp,
       eWeighSimilaritiesPerAttributeResembleComp,
       eSubDistancesL1Comp,
+      eUpdateSizes,
+      eCopyOldStuff,
+      eFillNewStuff,
+      eFillNewDists,
       
       Length
     };
@@ -129,6 +153,7 @@ namespace dh::sne {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
+    util::EnumArray<BufferFuseType, GLuint> _buffersFuse;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
     util::EnumArray<TimerType, util::GLTimer> _timers;
     util::CUTimer _knnTimer;

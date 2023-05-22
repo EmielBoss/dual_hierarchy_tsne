@@ -145,13 +145,16 @@ namespace dh::vis {
       ImGui::InputInt("Select individual datapoint", &_selectedDatapoint, 1, 100, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue);
 
       _buttonPressed = 0;
-      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
-      ImGui::Text("Sim. weight:"); ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
+      ImGui::Text("Sim. weight:");
+      ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.3f);
+      ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
       if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
       if(_selectionCounts[1] > 0) {
         if(ImGui::SameLine(); ImGui::Button("Inter")) { _buttonPressed = 10; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
+        if(ImGui::SameLine(); ImGui::Button("Fuse")) { _buttonPressed = 11; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between datapoints from different selections where those don't exist."); ImGui::EndTooltip(); }
       } else { ImGui::SameLine(); ImGui::Dummy(ImVec2(43.0f, 19.0f)); }
 
       ImGui::Text("Select:");

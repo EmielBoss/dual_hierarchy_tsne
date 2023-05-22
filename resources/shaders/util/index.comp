@@ -24,44 +24,23 @@
 
 #version 460 core
 
-#extension GL_KHR_shader_subgroup_basic : enable
-
-struct Layout {
-  uint offset;
-  uint size;
-};
-
-layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 3, std430) restrict buffer Dist { float distancesL1Buffer[]; };
+layout(binding = 0, std430) restrict readonly buffer BufferToIndicate { uint bufferToIndex[]; };
+layout(binding = 1, std430) restrict readonly buffer Scanned { uint scanned[]; };
+layout(binding = 2, std430) restrict writeonly buffer IndicesBuffer { uint indices[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform uint batchBegin;
-layout(location = 3) uniform uint batchEnd;
-
-// Shorthand subgroup/warp constants
-const uint thread = gl_SubgroupInvocationID;
-const uint nThreads = gl_SubgroupSize;
+layout(location = 0) uniform uint n;
+layout(location = 1) uniform uint value;
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nThreads;
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if (i >= nPoints) { return; }
-  
-  Layout l = layoutBuffer[i];
+  if (i >= n) { return; }
 
-  for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
-    uint j = neighborsBuffer[ij];
-
-    for(uint d = batchBegin; d < batchEnd; d++) {
-      distancesL1Buffer[ij] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
-    }
+  if(bufferToIndex[i] == value) {
+    indices[scanned[i] - 1] = i;
   }
-
 }
