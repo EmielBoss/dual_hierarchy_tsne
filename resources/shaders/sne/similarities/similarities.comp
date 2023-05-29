@@ -96,7 +96,7 @@ void main() {
   }
 
   // Normalize kernel at the end
-  if (!foundBeta) {
+  if (!foundBeta) { // Edge case that likely doesn't happen too much in practice
     const float v = 1.f / float(kNeighbors - 1);
     for (uint j = 1; j < kNeighbors; j++) {
       const uint ij = i * kNeighbors + j;

@@ -52,14 +52,14 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || (selectedOnly && selectionBuffer[i] != 1)) { return; }
+  if (i >= nPoints || (selectedOnly && selectionBuffer[i] == 0)) { return; }
   
   Layout l = layoutBuffer[i];
 
   float sum = 0.f;
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if(!selectedOnly || selectionBuffer[j] == 1) { sum += bufferToReduce[ij]; }
+    if(!selectedOnly || selectionBuffer[j] > 0) { sum += bufferToReduce[ij]; }
   }
   sum = subgroupAdd(sum);
 

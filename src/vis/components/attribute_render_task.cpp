@@ -594,7 +594,7 @@ namespace dh::vis {
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     std::array<const char*, 9> buttons = {" A ", " B "};
     for(int i = -3; i < -1; ++i) {
-      ImGui::Button(buttons[i]); ImGui::SameLine();
+      ImGui::Button(buttons[i+3]); ImGui::SameLine();
       if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
         glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
       } else

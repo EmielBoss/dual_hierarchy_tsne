@@ -60,7 +60,7 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _buttonPressed(0),
     _selectedDatapoint(0),
-    _similarityWeight(2.f) {
+    _similarityWeight(1.f) {
 
     // Initialize shader program
     {

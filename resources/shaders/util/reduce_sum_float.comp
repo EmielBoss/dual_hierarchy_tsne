@@ -46,7 +46,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
         i < nPoints;
         i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(!selectedOnly || selection[i] == 1) { sum += bufferToReduce[i]; }
+      if(!selectedOnly || selection[i] > 0) { sum += bufferToReduce[i]; }
     }
   } else if (iter == 1) {
     // Second iteration adds resulting 128 values

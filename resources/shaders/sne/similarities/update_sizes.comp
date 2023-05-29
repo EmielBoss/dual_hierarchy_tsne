@@ -41,12 +41,14 @@ layout(binding = 2, std430) restrict readonly buffer Neighbors { uint neighborsB
 layout(binding = 3, std430) restrict buffer Sizes { uint sizesBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nSelected;
-layout(location = 1) uniform uint nSelectedPrimary;
-layout(location = 2) uniform uint nSelectedSecondary;
+layout(location = 0) uniform uint nSelectedAll;
+layout(location = 1) uniform uint nSelectedPri;
+layout(location = 2) uniform uint nSelectedSec;
+layout(location = 3) uniform uint omissionRatePri;
+layout(location = 4) uniform uint omissionRateSec;
 
 // Returns whether j is a neighbor of i
-bool areNeighbors(uint i, uint j, Layout l) {
+bool alreadyNeighbors(uint i, uint j, Layout l) {
   // Unfortunately the list is unsorted, so search time is linear
   for (uint ij = l.offset; ij < l.offset + l.size; ij++) {
     if (neighborsBuffer[ij] == j) {
@@ -56,12 +58,23 @@ bool areNeighbors(uint i, uint j, Layout l) {
   return false;
 }
 
+bool omitNeighbors(uint idx, uint jdx) {
+  uint indexOffset = idx < nSelectedPri ? nSelectedPri : 0;
+  uint jndexOffset = jdx < nSelectedPri ? nSelectedPri : 0;
+  uint k_i = idx - indexOffset;
+  uint k_j = jdx - jndexOffset;
+  // return (k_i + k_j) % 2 == 0;
+  bool omit_i = (k_i + k_j) % 10 < (idx < nSelectedPri ? omissionRatePri : omissionRateSec);
+  bool omit_j = (k_i + k_j) % 10 < (jdx < nSelectedPri ? omissionRatePri : omissionRateSec);
+  return omit_i || omit_j;
+}
+
 void main() {
   const uint idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
 
-  if(idx >= nSelected) { return; }
-  uint indexOffset = idx < nSelectedPrimary ? nSelectedPrimary : 0;
-  uint indexSize = idx < nSelectedPrimary ? nSelectedSecondary : nSelectedPrimary;
+  if(idx >= nSelectedAll) { return; }
+  uint indexOffset = idx < nSelectedPri ? nSelectedPri : 0;
+  uint indexSize = idx < nSelectedPri ? nSelectedSec : nSelectedPri;
 
   const uint i = indicesBuffer[idx];
   Layout l = layoutsBuffer[i];
@@ -69,7 +82,7 @@ void main() {
   uint count = 0;
   for (uint jdx = indexOffset + gl_SubgroupInvocationID; jdx < indexOffset + indexSize; jdx += gl_SubgroupSize) {
     uint j = indicesBuffer[jdx];
-    if(!areNeighbors(i, j, l)) { count++; }
+    if(!omitNeighbors(idx, jdx) && !alreadyNeighbors(i, j, l)) { count++; }
   }
 
   count = subgroupAdd(count);

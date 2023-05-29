@@ -47,10 +47,12 @@ layout(binding = 7, std430) restrict writeonly buffer SimO { float similaritiesB
 layout(location = 0) uniform uint nSelectedAll;
 layout(location = 1) uniform uint nSelectedPri;
 layout(location = 2) uniform uint nSelectedSec;
-layout(location = 3) uniform float simAvg;
+layout(location = 3) uniform uint omissionRatePri;
+layout(location = 4) uniform uint omissionRateSec;
+layout(location = 5) uniform float simAvg;
 
 // Returns whether j is a neighbor of i
-bool areNeighbors(uint i, uint j, uint offset, uint size) {
+bool alreadyNeighbors(uint i, uint j, uint offset, uint size) {
   // Unfortunately the list is unsorted, so search time is linear
   for (uint ij = offset; ij < offset + size; ij++) {
     if (neighborsBuffer[ij] == j) {
@@ -58,6 +60,17 @@ bool areNeighbors(uint i, uint j, uint offset, uint size) {
     }
   }
   return false;
+}
+
+bool omitNeighbors(uint idx, uint jdx) {
+  uint indexOffset = idx < nSelectedPri ? nSelectedPri : 0;
+  uint jndexOffset = jdx < nSelectedPri ? nSelectedPri : 0;
+  uint k_i = idx - indexOffset;
+  uint k_j = jdx - jndexOffset;
+  // return (k_i + k_j) % 2 == 0;
+  bool omit_i = (k_i + k_j) % 10 < (idx < nSelectedPri ? omissionRatePri : omissionRateSec);
+  bool omit_j = (k_i + k_j) % 10 < (jdx < nSelectedPri ? omissionRatePri : omissionRateSec);
+  return omit_i || omit_j;
 }
 
 const uint nSelectedMax = max(nSelectedPri, nSelectedSec);
@@ -75,7 +88,7 @@ void main() {
 
   for (uint jdx = indexOffset + gl_SubgroupInvocationID; jdx < indexOffset + indexSize; jdx += gl_SubgroupSize) {
     uint j = indicesBuffer[jdx];
-    if(areNeighbors(i, j, l.offset, lp.size)) { continue; }
+    if(omitNeighbors(idx, jdx) || alreadyNeighbors(i, j, l.offset, lp.size)) { continue; }
     uint k = atomicAdd(countsBuffer[idx], 1); // k is assigned the old value of countsBuffer[i]
     uint ij = l.offset + lp.size + k;
     neighborsAddedBuffer[idx * nSelectedMax + k] = j;

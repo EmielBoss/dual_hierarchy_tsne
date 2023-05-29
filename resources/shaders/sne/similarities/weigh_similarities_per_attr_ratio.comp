@@ -57,7 +57,7 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || selectionBuffer[i] != 1) { return; }
+  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
 
@@ -65,7 +65,7 @@ void main() {
     uint j = neighborsBuffer[ij];
     float distTotalInv = 1.f / distancesBuffer[ij];
 
-    if(selectionBuffer[j] != 1) { continue; }
+    if(selectionBuffer[j] == 0) { continue; }
 
     float simDif = 0.f;
     float simOld = similaritiesBackup[ij];

@@ -55,13 +55,13 @@ const uint nThreads = gl_SubgroupSize;
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if (i >= nPoints || selectionBuffer[i] != 1) { return; }
+  if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if(selectionBuffer[j] != 1) { continue; }
+    if(selectionBuffer[j] == 0) { continue; }
     
     similaritiesBuffer[ij] *= 1.f - (subdistancesBuffer[ij] - distMin) * distRangeInv;
   }

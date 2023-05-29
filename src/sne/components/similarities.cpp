@@ -31,6 +31,7 @@
 #include "dh/util/io.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
+#include <algorithm>
 #include <typeinfo> //
 #include <numeric> //
 #include <imgui.h> //
@@ -262,7 +263,7 @@ namespace dh::sne {
     glNamedBufferStorage(_buffers(BufferType::eNeighborsSelected), _symmetricSize * sizeof(uint), zeroesU.data(), 0); // Buffer used only by Minimization; creating it here because here we know the size
 
     // 6.
-    // Generate expanded similarities, neighbor and distances buffers, symmetrized and ready for use during the minimization
+    // Generate expanded similarities and neighbor buffers, symmetrized and ready for use during the minimization
     {
       auto& timer = _timers(TimerType::eNeighborsComp);
       timer.tick();
@@ -310,7 +311,7 @@ namespace dh::sne {
     }
     
     // 8.
-    // Calculating L1 distances
+    // Calculate L1 distances
     {
       auto &program = _programs(ProgramType::eL1DistancesComp);
       program.bind();
@@ -389,7 +390,7 @@ namespace dh::sne {
 
     program.template uniform<uint>("nPoints", _params->n);
     program.template uniform<float>("weight", weight);
-    program.template uniform<bool>("weighAll", selectionBufferHandle == 0);
+    program.template uniform<bool>("selectedOnly", selectionBufferHandle > 0);
     program.template uniform<bool>("interOnly", interOnly);
 
     // Set buffer bindings
@@ -569,6 +570,7 @@ namespace dh::sne {
   }
 
   void Similarities::addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight) {
+
     glCreateBuffers(_buffersFuse.size(), _buffersFuse.data());
     dh::util::BufferTools::instance().index(selectionBufferHandle, _params->n, 1, _buffersFuse(BufferFuseType::eIndicesSelectionPrimary));
     dh::util::BufferTools::instance().index(selectionBufferHandle, _params->n, 2, _buffersFuse(BufferFuseType::eIndicesSelectionSecondary));
@@ -579,14 +581,20 @@ namespace dh::sne {
     glCopyNamedBufferSubData(_buffersFuse(BufferFuseType::eIndicesSelectionSecondary), _buffersFuse(BufferFuseType::eIndicesSelection), 0, selectionCounts[0] * sizeof(uint), selectionCounts[1] * sizeof(uint));
     dh::util::BufferTools::instance().subsample(_buffers(BufferType::eLayout), _params->n, 2, 2, _buffersFuse(BufferFuseType::eSizes));
 
+    float simSum = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    // uint nNeighbors = dh::util::BufferTools::instance().reduce<uint>(_buffersFuse(BufferFuseType::eSizes), 0, _params->n, selectionBufferHandle);
+    // float simAvg = simSum / nNeighbors;
+
     {
       auto& program = _programs(ProgramType::eUpdateSizes);
       program.bind();
 
       // Set uniforms
-      program.template uniform<uint>("nSelected", selectionCount);
-      program.template uniform<uint>("nSelectedPrimary", selectionCounts[0]);
-      program.template uniform<uint>("nSelectedSecondary", selectionCounts[1]);
+      program.template uniform<uint>("nSelectedAll", selectionCount);
+      program.template uniform<uint>("nSelectedPri", selectionCounts[0]);
+      program.template uniform<uint>("nSelectedSec", selectionCounts[1]);
+      program.template uniform<uint>("omissionRatePri", std::min((uint) std::ceil(((float) selectionCounts[0] * (10000 / _params->k) / _params->n) * 10), 10u) - 1);
+      program.template uniform<uint>("omissionRateSec", std::min((uint) std::ceil(((float) selectionCounts[1] * (10000 / _params->k) / _params->n) * 10), 10u) - 1);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersFuse(BufferFuseType::eIndicesSelection));
@@ -656,8 +664,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    float simAvg = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, 0, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors)) * similarityWeight / _symmetricSize;
-
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eCounts), selectionCount * sizeof(uint), zeroesU.data(), 0);
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eNeighborsAdded), selectionCount * std::max(selectionCounts[0], selectionCounts[1]) * sizeof(uint), nullptr, 0);
 
@@ -668,7 +674,9 @@ namespace dh::sne {
       program.template uniform<uint>("nSelectedAll", selectionCount);
       program.template uniform<uint>("nSelectedPri", selectionCounts[0]);
       program.template uniform<uint>("nSelectedSec", selectionCounts[1]);
-      program.template uniform<float>("simAvg", simAvg);
+      program.template uniform<uint>("omissionRatePri", std::min((uint) std::ceil(((float) selectionCounts[0] * (10000 / _params->k) / _params->n) * 10), 10u) - 1);
+      program.template uniform<uint>("omissionRateSec", std::min((uint) std::ceil(((float) selectionCounts[1] * (10000 / _params->k) / _params->n) * 10), 10u) - 1);
+      program.template uniform<float>("simAvg", 0.005 * similarityWeight);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffersFuse(BufferFuseType::eIndicesSelection));
@@ -718,6 +726,12 @@ namespace dh::sne {
     std::swap(_buffers(BufferType::eSimilarities), _buffersFuse(BufferFuseType::eSimilarities));
     std::swap(_buffers(BufferType::eSimilaritiesOriginal), _buffersFuse(BufferFuseType::eSimilaritiesOriginal));
     std::swap(_buffers(BufferType::eDistancesL1), _buffersFuse(BufferFuseType::eDistancesL1));
+
+
+    float simSumNew = dh::util::BufferTools::instance().reduce<float>(_buffers(BufferType::eSimilarities), 0, _params->n, selectionBufferHandle, -1, true, _buffers(BufferType::eLayout), _buffers(BufferType::eNeighbors));
+    float factor = simSum / simSumNew;
+    weighSimilarities(factor, selectionBufferHandle); // Renormalize
+
 
     glDeleteBuffers(_buffersFuse.size(), _buffersFuse.data());
   }
