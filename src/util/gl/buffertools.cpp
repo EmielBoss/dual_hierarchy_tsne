@@ -58,7 +58,7 @@ namespace dh::util {
 
       _programs(ProgramType::eAverageTexturedataComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/average_texturedata.comp"));
 
-      _programs(ProgramType::eDifferenceComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/difference.comp"));
+      _programs(ProgramType::eOperateFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/operate_float.comp"));
 
       _programs(ProgramType::eIndicateComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/indicate.comp"));
       _programs(ProgramType::eIndexComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/index.comp"));
@@ -92,40 +92,21 @@ namespace dh::util {
   
   template<typename T>
   T BufferTools::reduce(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer) {
-    glCreateBuffers(_buffersReduce.size(), _buffersReduce.data());
+    glCreateBuffers(_buffersReduce.size() - 1, _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * sizeof(T), nullptr, 0);
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduced), sizeof(T), nullptr, 0);
     
     if(largeBuffer) {
-      glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduceSumPerDatapoint), n * sizeof(T), nullptr, 0);
+      glCreateBuffers(1, &_buffersReduce(BufferReduceType::eReducedPerDatapoint));
+      glNamedBufferStorage(_buffersReduce(BufferReduceType::eReducedPerDatapoint), n * sizeof(T), nullptr, 0);
       if(std::is_same<T, float>::value) {
-        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReduceSumPerDatapoint), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32F, GL_RED, GL_FLOAT, nullptr);
       } else {
-        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReduceSumPerDatapoint), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
       }
 
-      std::vector<ProgramType> programTypes = {
-        std::is_same<T, float>::value ? ProgramType::eReduceSumPerDatapointFloatComp : ProgramType::eReduceSumPerDatapointUintComp,
-        ProgramType::eReduceMinPerDatapointFloatComp,
-        ProgramType::eReduceMaxPerDatapointFloatComp
-      };
-      dh::util::GLProgram& program = _programs(programTypes[reductionType]);
-      program.bind();
-
-      program.template uniform<uint>("nPoints", n);
-      program.template uniform<bool>("selectedOnly", selectionBuffer > 0);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, layoutBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, neighborsBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferToReduce);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(n, 256u / 32u), 1, 1);
-      glFinish();
-      std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint));
+      reducePerDatapoint<T>(bufferToReduce, reductionType, n, _buffersReduce(BufferReduceType::eReducedPerDatapoint), layoutBuffer, neighborsBuffer, selectionBuffer);
+      std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReducedPerDatapoint));
     }
 
     std::vector<ProgramType> programTypes = {
@@ -159,10 +140,35 @@ namespace dh::util {
 
     T reducedValue;
     glGetNamedBufferSubData(_buffersReduce(BufferReduceType::eReduced), 0, sizeof(T), &reducedValue);
-    if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReduceSumPerDatapoint)); }
+    if(largeBuffer) { std::swap(bufferToReduce, _buffersReduce(BufferReduceType::eReducedPerDatapoint)); }
     glDeleteBuffers(_buffersReduce.size(), _buffersReduce.data());
     glAssert();
     return reducedValue;
+  }
+
+  template<typename T>
+  void BufferTools::reducePerDatapoint(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer) {
+    std::vector<ProgramType> programTypes = {
+      std::is_same<T, float>::value ? ProgramType::eReduceSumPerDatapointFloatComp : ProgramType::eReduceSumPerDatapointUintComp,
+      ProgramType::eReduceMinPerDatapointFloatComp,
+      ProgramType::eReduceMaxPerDatapointFloatComp
+    };
+    dh::util::GLProgram& program = _programs(programTypes[reductionType]);
+    program.bind();
+
+    program.template uniform<uint>("nPoints", n);
+    program.template uniform<bool>("selectedOnly", selectionBuffer > 0);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, layoutBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, neighborsBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferToReduce);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, bufferReducedPerDatapoint);
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(n, 256u / 32u), 1, 1);
+    glFinish();
   }
 
   template <typename T>
@@ -245,6 +251,26 @@ namespace dh::util {
     glAssert();
   }
 
+  void BufferTools::operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference) {
+    auto& program = _programs(ProgramType::eOperateFloatComp);
+    program.bind();
+
+    // Set uniforms
+    program.template uniform<uint>("n", n);
+    program.template uniform<uint>("operationType", operationType);
+    program.template uniform<bool>("writeToSeparateBuffer", bufferDifference > 0);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer1);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buffer2);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bufferDifference);
+    glAssert();
+
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
   void BufferTools::averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer, bool calcVariance, int maskClass, GLuint labelsBuffer) {
     glCreateBuffers(1, _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * d * sizeof(float), nullptr, 0);
@@ -279,24 +305,6 @@ namespace dh::util {
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     glDeleteBuffers(1, _buffersReduce.data());
-    glAssert();
-  }
-
-  void BufferTools::difference(GLuint& buffer1, GLuint& buffer2, uint n, GLuint& bufferDifference) {
-    auto& program = _programs(ProgramType::eDifferenceComp);
-    program.bind();
-
-    // Set uniforms
-    program.template uniform<uint>("n", n);
-
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer1);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buffer2);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bufferDifference);
-    glAssert();
-
-    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
 
@@ -379,8 +387,14 @@ namespace dh::util {
   template float BufferTools::reduce<float>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template uint BufferTools::reduce<uint>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
   template glm::vec2 BufferTools::reduce<glm::vec2>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer, uint valueToCount, bool largeBuffer, GLuint layoutBuffer, GLuint neighborsBuffer);
+
+  template void BufferTools::reducePerDatapoint<float>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer);
+  template void BufferTools::reducePerDatapoint<uint>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer);
+
   template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
   template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
+
   template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);
+
   template void BufferTools::flip<uint>(GLuint& bufferToFlip, uint n);
 }

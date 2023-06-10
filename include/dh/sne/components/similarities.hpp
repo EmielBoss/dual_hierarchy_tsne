@@ -84,7 +84,7 @@ namespace dh::sne {
 
     // Basically buffers that have to be destroyed and recreated in order to grow their memory allocation
     enum class BufferTempType {
-      eDistances,
+      eDistancesL2,
       eNeighbors,
       eSimilarities,
       eSizes,
@@ -103,7 +103,8 @@ namespace dh::sne {
       eSizes,
       eScan,
       eCounts,
-      eNeighborsAdded,
+      eSimSumPerDatapointPreex,
+      eSimSumPerDatapointAdded,
 
       eLayout,
       eNeighborsSelected,
@@ -111,6 +112,7 @@ namespace dh::sne {
       eSimilarities,
       eSimilaritiesOriginal,
       eDistancesL1,
+      eDistancesL2,
 
       Length
     };
@@ -129,8 +131,10 @@ namespace dh::sne {
       eSubDistancesL1Comp,
       eUpdateSizes,
       eCopyOldStuff,
-      eFillNewStuff,
-      eFillNewDists,
+      eFillNewNeighbors,
+      eFillNewDistances,
+      eFillNewSimilarities,
+      eSymmetrize,
       
       Length
     };

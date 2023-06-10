@@ -146,6 +146,7 @@ namespace dh::util {
   void writeGLBuffer(const GLuint handle, uint n, uint d, const std::string filename) {
     std::vector<T> buffer(n * d);
     glGetNamedBufferSubData(handle, 0, n * d * sizeof(T), buffer.data());
+    glAssert();
     writeVector<T>(buffer, n, d, filename);
   }
 

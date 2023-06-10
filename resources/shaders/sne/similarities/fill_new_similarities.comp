@@ -27,23 +27,36 @@
 #define FLT_MAX 3.402823466e+38F
 #define FLT_MIN 1.175494351e-38F
 
+struct Layout {
+  uint offset;
+  uint size;
+};
+
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Indi { uint neighborsBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Dist { float distancesBuffer[]; };
-layout(binding = 2, std430) restrict buffer SimilaritiesM { float similaritiesBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer LayPrv { Layout layoutsPrevBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Nei { uint neighborsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer DistL2 { float distancesL2Buffer[]; };
+layout(binding = 5, std430) restrict buffer Sim { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict writeonly buffer SimO { float similaritiesBackup[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint kNeighbors;
+layout(location = 0) uniform uint nSelectedAll;
+layout(location = 1) uniform uint nIters;
 layout(location = 2) uniform float perplexity;
-layout(location = 3) uniform uint nIters;
-layout(location = 4) uniform float epsilon;
+layout(location = 3) uniform float epsilon;
 
 void main() {
-  const uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) { return; }
+  const uint idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
+
+  if(idx >= nSelectedAll) { return; }
+
+  const uint i = indicesBuffer[idx];
+  Layout l = layoutsBuffer[i];
+  Layout lp = layoutsPrevBuffer[i];
 
   // Use beta instead of 1/(2*sigma^2), as per BH-SNE code
   float beta = 1.f;
@@ -58,18 +71,16 @@ void main() {
     // Compute P_i with current value of Beta (Sigma, actually)
     // Ignore j = 0, as that is i itself in the local neighborhood
     sum = FLT_MIN;
-    for (uint j = 1; j < kNeighbors; j++) {
-      const uint ij = i * kNeighbors + j;
-      const float v_ji = exp(-beta * distancesBuffer[ij]);
+    for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
+      const float v_ji = exp(-beta * distancesL2Buffer[ij]);
       similaritiesBuffer[ij] = v_ji;
       sum += v_ji;
     }
 
     // Compute entropy over the current Gaussian's values
     float entropy = 0.f;
-    for (uint j = 1; j < kNeighbors; j++) {
-      const uint ij = i * kNeighbors + j;
-      entropy += beta * distancesBuffer[ij] * similaritiesBuffer[ij];
+    for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
+      entropy += beta * distancesL2Buffer[ij] * similaritiesBuffer[ij];
     }
     entropy = (entropy / sum) + log(sum);
 
@@ -97,16 +108,16 @@ void main() {
 
   // Normalize kernel at the end
   if (!foundBeta) { // Edge case that likely doesn't happen too much in practice
-    const float v = 1.f / float(kNeighbors - 1);
-    for (uint j = 1; j < kNeighbors; j++) {
-      const uint ij = i * kNeighbors + j;
+    const float v = 1.f / float(l.size - lp.size);
+    for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
       similaritiesBuffer[ij] = v;
+      similaritiesBackup[ij] = v;
     }
   } else {
     const float div = 1.f / sum;
-    for (uint j = 1; j < kNeighbors; j++) {
-      const uint ij = i * kNeighbors + j;
+    for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
       similaritiesBuffer[ij] *= div; // Now p_j|i is stored
+      similaritiesBackup[ij] = similaritiesBuffer[ij]; // Now p_j|i is stored
     }
   }
 }

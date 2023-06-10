@@ -38,16 +38,15 @@ layout(binding = 0, std430) restrict readonly buffer Data { float datasetBuffer[
 layout(binding = 1, std430) restrict readonly buffer LayPrv { Layout layoutsPrevBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Cnt { uint countsBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer NeiA { uint neighborsAddedBuffer[]; };
-layout(binding = 6, std430) restrict buffer Dist { float distancesL1Buffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Nei { uint neighborsBuffer[]; };
+layout(binding = 5, std430) restrict buffer DistL1 { float distancesL1Buffer[]; };
+layout(binding = 6, std430) restrict buffer DistL2 { float distancesL2Buffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nSelectedAll;
-layout(location = 1) uniform uint nSelectedMax;
-layout(location = 2) uniform uint nHighDims;
-layout(location = 3) uniform uint batchBegin;
-layout(location = 4) uniform uint batchEnd;
+layout(location = 1) uniform uint nHighDims;
+layout(location = 2) uniform uint batchBegin;
+layout(location = 3) uniform uint batchEnd;
 
 void main() {
   const uint idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
@@ -58,11 +57,12 @@ void main() {
   Layout l = layoutsBuffer[i];
   Layout lp = layoutsPrevBuffer[i];
 
-  for (uint k = gl_SubgroupInvocationID; k < countsBuffer[idx]; k += gl_SubgroupSize) {
-    uint j = neighborsAddedBuffer[idx * nSelectedMax + k];
-    uint ij = l.offset + lp.size + k;
+  for (uint ij = l.offset + lp.size + gl_SubgroupInvocationID; ij < l.offset + l.size; ij += gl_SubgroupSize) {
+    uint j = neighborsBuffer[ij];
     for(uint d = batchBegin; d < batchEnd; d++) {
-      distancesL1Buffer[ij] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
+      float diff = datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d];
+      distancesL1Buffer[ij] += abs(diff);
+      distancesL2Buffer[ij] += pow(diff, 2);
     }
   }
 

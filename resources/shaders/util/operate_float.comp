@@ -27,17 +27,27 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer SelectionPrimary { float selectionPrimary[]; };
+layout(binding = 0, std430) restrict buffer SelectionPrimary { float selectionPrimary[]; };
 layout(binding = 1, std430) restrict readonly buffer SelectionSecondary { float selectionSecondary[]; };
-layout(binding = 2, std430) restrict writeonly buffer SelectionDifference { float selectionDifference[]; };
+layout(binding = 2, std430) restrict writeonly buffer SelectionResult { float selectionResult[]; };
 
 // Uniform values
 layout(location = 0) uniform uint n;
+layout(location = 1) uniform uint operationType;
+layout(location = 2) uniform bool writeToSeparateBuffer;
 
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
   if (i >= n) { return; }
 
-  selectionDifference[i] = abs(selectionSecondary[i] - selectionPrimary[i]);
+  float result;
+  if(operationType == 0) { result = abs(selectionPrimary[i] - selectionSecondary[i]); } else
+  if(operationType == 1) { result = selectionPrimary[i] / selectionSecondary[i]; }
+
+  if(writeToSeparateBuffer) {
+    selectionResult[i] = result;
+  } else {
+    selectionPrimary[i] = result;
+  }
 }

@@ -66,16 +66,18 @@ float upperBound(uint n) {
   return max(bound, 0.9);
 }
 
-float hash(uint a, uint b) {
-  return fract(sin(dot(vec2(float(a), float(b)), vec2(12.9898,78.233))) * 43758.5453);
+float hash(uint x) {
+  float nDigits = floor(log2(float(max(nSelected, nSelectedOther))) / log2(10)) + 1;
+  float granularity = pow(10.f, nDigits - 1);
+  return float(x % uint(granularity) + 1) / granularity;
 }
 
 bool omitNeighbors(uint idx, uint size, uint jdx, uint sjze) {
   uint k_i = idx - offset;
   uint k_j = jdx - offsetOther;
-  float omissionRatio = clamp(1.f - (size / 2.f) / nSelected, 0.f, upperBound(nSelected));
-  float omjssionRatio = clamp(1.f - (sjze / 2.f) / nSelectedOther, 0.f, upperBound(nSelectedOther));
-  float hashVal = hash(k_i + k_j, k_i * k_j);
+  float omissionRatio = clamp(1.f - (size / 2.f) / nSelected, 0.f, upperBound(nSelectedOther));
+  float omjssionRatio = clamp(1.f - (sjze / 2.f) / nSelectedOther, 0.f, upperBound(nSelected));
+  float hashVal = hash(k_i + k_j);
   bool omit = hashVal < omissionRatio;
   bool omjt = hashVal < omjssionRatio;
   return omit || omjt;

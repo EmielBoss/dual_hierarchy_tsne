@@ -1,0 +1,84 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 Mark van de Ruit (Delft University of Technology)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#version 460 core
+
+#extension GL_KHR_shader_subgroup_basic : enable
+
+struct Layout {
+  uint offset;
+  uint size;
+};
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
+
+// Buffer bindings
+layout(binding = 0, std430) restrict readonly buffer LayPrv { Layout layoutsPrevBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Fac { float factorsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 5, std430) restrict buffer Sim { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict buffer SimO { float similaritiesBackup[]; };
+
+// Uniform values
+layout(location = 0) uniform uint nSelectedAll;
+
+// Returns index of neighbor j in i's neighbor set
+uint search_ij(uint i, uint j, uint offset, uint size) {
+  // Unfortunately the list is unsorted, so search is linear
+  for (uint ij = offset; ij < offset + size; ij++) {
+    if (neighborsBuffer[ij] == j) {
+      return ij;
+    }
+  }
+  return -1;
+}
+
+void main() {
+  const uint idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
+
+  if(idx >= nSelectedAll) { return; }
+
+  const uint i = indicesBuffer[idx];
+  Layout l = layoutsBuffer[i];
+  Layout lp = layoutsPrevBuffer[i];
+
+  for (uint ij = l.offset + lp.size + gl_SubgroupInvocationID; ij < l.offset + l.size; ij += gl_SubgroupSize) {
+    uint j = neighborsBuffer[ij];
+    if(i < j) {
+      Layout lj = layoutsBuffer[j];
+      Layout ljp = layoutsPrevBuffer[j];
+      uint ji = search_ij(j, i, lj.offset + ljp.size, lj.size - ljp.size);
+      
+      float p_ij = (similaritiesBuffer[ij] * factorsBuffer[i] + similaritiesBuffer[ji] * factorsBuffer[j]) / 4.f;
+      similaritiesBuffer[ij] = p_ij;
+      similaritiesBuffer[ji] = p_ij;
+      float p_ij_b = (similaritiesBackup[ij] * factorsBuffer[i] + similaritiesBackup[ji] * factorsBuffer[j]) / 4.f;
+      similaritiesBackup[ij] = p_ij_b;
+      similaritiesBackup[ji] = p_ij_b;
+    }
+  }
+
+}

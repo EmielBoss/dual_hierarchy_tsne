@@ -34,20 +34,16 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer LayPrv { Layout layoutsPrevBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer LayPrv { Layout layoutsPrevBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
 layout(binding = 3, std430) restrict coherent buffer Cnt { uint countsBuffer[]; };
-layout(binding = 4, std430) restrict buffer NeiA { uint neighborsAddedBuffer[]; };
-layout(binding = 5, std430) restrict buffer Nei { uint neighborsBuffer[]; };
-layout(binding = 6, std430) restrict writeonly buffer Sim { float similaritiesBuffer[]; };
-layout(binding = 7, std430) restrict writeonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 4, std430) restrict buffer Nei { uint neighborsBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform float simAvg;
-layout(location = 1) uniform uint nSelected;
-layout(location = 2) uniform uint nSelectedOther;
-layout(location = 3) uniform uint offsetOther;
+layout(location = 0) uniform uint nSelected;
+layout(location = 1) uniform uint nSelectedOther;
+layout(location = 2) uniform uint offsetOther;
 
 const uint offset = offsetOther == 0 ? nSelectedOther : 0;
 
@@ -70,22 +66,22 @@ float upperBound(uint n) {
   return max(bound, 0.9);
 }
 
-float hash(uint a, uint b) {
-  return fract(sin(dot(vec2(float(a), float(b)), vec2(12.9898,78.233))) * 43758.5453);
+float hash(uint x) {
+  float nDigits = floor(log2(float(max(nSelected, nSelectedOther))) / log2(10)) + 1;
+  float granularity = pow(10.f, nDigits - 1);
+  return float(x % uint(granularity) + 1) / granularity;
 }
 
 bool omitNeighbors(uint idx, uint size, uint jdx, uint sjze) {
   uint k_i = idx - offset;
   uint k_j = jdx - offsetOther;
-  float omissionRatio = clamp(1.f - (size / 2.f) / nSelected, 0.f, upperBound(nSelected));
-  float omjssionRatio = clamp(1.f - (sjze / 2.f) / nSelectedOther, 0.f, upperBound(nSelectedOther));
-  float hashVal = hash(k_i + k_j, k_i * k_j);
+  float omissionRatio = clamp(1.f - (size / 2.f) / nSelected, 0.f, upperBound(nSelectedOther));
+  float omjssionRatio = clamp(1.f - (sjze / 2.f) / nSelectedOther, 0.f, upperBound(nSelected));
+  float hashVal = hash(k_i + k_j);
   bool omit = hashVal < omissionRatio;
   bool omjt = hashVal < omjssionRatio;
   return omit || omjt;
 }
-
-const uint nSelectedMax = max(nSelected, nSelectedOther);
 
 void main() {
   const uint idx = offset + (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
@@ -102,10 +98,7 @@ void main() {
     if(omitNeighbors(idx, lip.size, jdx, ljp.size) || alreadyNeighbors(i, j, li.offset, lip.size)) { continue; }
     uint k = atomicAdd(countsBuffer[idx], 1); // k is assigned the old value of countsBuffer[i]
     uint ij = li.offset + lip.size + k;
-    neighborsAddedBuffer[idx * nSelectedMax + k] = j;
     neighborsBuffer[ij] = j;
-    similaritiesBuffer[ij] = simAvg;
-    similaritiesBackup[ij] = simAvg;
   }
 
 }

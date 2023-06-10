@@ -333,7 +333,7 @@ namespace dh::vis {
     if (!enable) {
       return;
     }
-
+    
     // Copy texture data to textures
     if(_params->imageDataset) {
       for(uint i = 0; i < _textures.size() - 1; ++i) {
@@ -665,7 +665,7 @@ namespace dh::vis {
       dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], _buffersTextureData[i * 2], true); // Variance
     }
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().difference(_buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
+      dh::util::BufferTools::instance().operate(0, _buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
     }
 
     // Compute pairwise attribute differences if relevant texture tabs are open
