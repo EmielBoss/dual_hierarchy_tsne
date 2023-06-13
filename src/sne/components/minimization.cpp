@@ -447,7 +447,7 @@ namespace dh::sne {
 
     int classToSelect = _attributeRenderTask->getClassButtonPressed();
     if(classToSelect >= 0) {
-      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, (uint) classToSelect, _buffers(BufferType::eLabels));
+      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, _input.s ? 2 : 1, (uint) classToSelect, _buffers(BufferType::eLabels));
       if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
       compIterationSelect(true);
     }
