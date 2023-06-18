@@ -62,7 +62,7 @@ namespace dh::sne {
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
-    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims);
+    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses);
     void addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight);
     void reset();
     uint getSymmetricSize() { return _symmetricSize; }
@@ -90,8 +90,11 @@ namespace dh::sne {
       eSizes,
       eScan,
       eCounts,
+
       eWeightedAttributeIndices,
       eSubDistancesL1,
+      eArchetypes,
+      eArchetypeClasses,
 
       Length
     };

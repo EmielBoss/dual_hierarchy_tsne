@@ -24,6 +24,8 @@
 
 #version 460 core
 
+#define FLT_MAX 3.402823466e+38F
+
 #extension GL_KHR_shader_subgroup_basic : enable
 
 struct Layout {
@@ -35,8 +37,8 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Tex1 { float primaryTexture[]; };
-layout(binding = 2, std430) restrict readonly buffer Tex2 { float secondaryTexture[]; };
+layout(binding = 1, std430) restrict readonly buffer Arcs { float archetypesBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer ArcC { uint archetypeClassesBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer SelA { uint weightedAttributeIndicesBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Data { float datasetBuffer[]; };
 layout(binding = 5, std430) restrict readonly buffer AttW { float attributeWeightsBuffer[]; };
@@ -48,22 +50,29 @@ layout(binding = 8, std430) restrict buffer Sims { float similaritiesBuffer[]; }
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
 layout(location = 2) uniform uint nWeightedAttribs;
+layout(location = 3) uniform uint nArchetypes;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
 const uint nThreads = gl_SubgroupSize;
 
-bool guessClass(uint i) {
-
-  float primaryDistance = 0.f;
-  float secondaryDistance = 0.f;
-  for(uint a = 0; a < nWeightedAttribs; a++) {
-    uint attr = weightedAttributeIndicesBuffer[a];
-    primaryDistance += abs(datasetBuffer[i * nHighDims + attr] - primaryTexture[attr]);
-    secondaryDistance += abs(datasetBuffer[i * nHighDims + attr] - secondaryTexture[attr]);
+uint guessClass(uint i) {
+  
+  uint guessedClass;
+  float minDistance = FLT_MAX;
+  for(uint a = 0; a < nArchetypes; ++a) {
+    float distance = 0.f;
+    for(uint d = 0; d < nWeightedAttribs; d++) {
+      uint attr = weightedAttributeIndicesBuffer[d];
+      distance += abs(datasetBuffer[i * nHighDims + attr] - archetypesBuffer[a * nHighDims + attr]);
+    }
+    if(distance < minDistance) {
+      minDistance = distance;
+      guessedClass = archetypeClassesBuffer[a];
+    }
   }
   
-  return primaryDistance < secondaryDistance;
+  return guessedClass;
 }
 
 void main() {
@@ -72,12 +81,12 @@ void main() {
   if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutBuffer[i];
-  bool iClass = guessClass(i);
+  uint iGuessedClass = guessClass(i);
 
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
     if(selectionBuffer[j] == 0) { continue; }
 
-    similaritiesBuffer[ij] *= float(iClass == guessClass(j));
+    similaritiesBuffer[ij] *= float(iGuessedClass == guessClass(j));
   }
 }

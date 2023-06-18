@@ -83,6 +83,7 @@ namespace dh::sne {
     bool disablePCA = false;
     float maxAttributeWeight = 2.f;
     float maxSimilarityWeight = 3.f;
+    uint nArchetypeClasses = 2;
 
     // Image dataset params
     bool imageDataset = false;

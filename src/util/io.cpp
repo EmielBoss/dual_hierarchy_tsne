@@ -133,13 +133,13 @@ namespace dh::util {
   }
 
   template<typename T>
-  void readGLBuffer(GLuint& handle, uint n, uint d, const std::string filename) {
-    std::vector<T> buffer = readVector<T>(n, d, filename);
+  void readGLBuffer(GLuint& handle, const std::string filename) {
+    std::vector<T> buffer = readVector<T>(filename);
     GLint flags;
     glGetNamedBufferParameteriv(handle, GL_BUFFER_STORAGE_FLAGS, &flags);
     glDeleteBuffers(1, &handle);
     glCreateBuffers(1, &handle);
-    glNamedBufferStorage(handle, n * d * sizeof(T), buffer.data(), flags);
+    glNamedBufferStorage(handle, buffer.size() * sizeof(T), buffer.data(), flags);
   }
 
   template<typename T>
@@ -151,32 +151,19 @@ namespace dh::util {
   }
 
   template<typename T>
-  std::vector<T> readVector(uint n, uint d, const std::string filename) {
-    std::vector<T> vec(n * d);
+  std::vector<T> readVector(const std::string filename) {
+    std::vector<T> vec;
     std::ifstream file("./buffer_dumps/" + filename + ".txt");
-    if (!file.is_open()) {
-        std::cerr << "Unable to open file: " << filename << std::endl;
-        return vec;
-    }
     std::string line;
-    uint i = 0;
-    while (std::getline(file, line) && i < n) {
-        std::istringstream iss(line);
-        std::string val_str;
-        for (uint j = 0; j < d; ++j) {
-            if (!std::getline(iss, val_str, '|')) {
-                std::cerr << "Error parsing file: " << filename << std::endl;
-                return vec;
-            }
-            std::istringstream val_iss(val_str);
-            T val;
-            if (!(val_iss >> val)) {
-                std::cerr << "Error parsing file: " << filename << std::endl;
-                return vec;
-            }
-            vec[i * d + j] = val;
-        }
-        i++;
+    while (std::getline(file, line)) {
+      std::istringstream iss(line);
+      std::string val_str;
+      while(std::getline(iss, val_str, '|')) {
+        std::istringstream val_iss(val_str);
+        T val;
+        val_iss >> val;
+        vec.push_back(val);
+      }
     }
     
     return vec;
@@ -251,9 +238,9 @@ namespace dh::util {
   }
 
   // Template instantiations for writeGLBuffer for float, int, uint
-  template void readGLBuffer<float>(GLuint& handle, uint n, uint d, const std::string filename);
-  template void readGLBuffer<uint>(GLuint& handle, uint n, uint d, const std::string filename);
-  template void readGLBuffer<int>(GLuint& handle, uint n, uint d, const std::string filename);
+  template void readGLBuffer<float>(GLuint& handle, const std::string filename);
+  template void readGLBuffer<uint>(GLuint& handle, const std::string filename);
+  template void readGLBuffer<int>(GLuint& handle, const std::string filename);
 
   template void writeGLBuffer<float>(const GLuint handle, uint n, uint d, const std::string filename);
   template void writeGLBuffer<uint>(const GLuint handle, uint n, uint d, const std::string filename);

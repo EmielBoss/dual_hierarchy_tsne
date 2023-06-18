@@ -82,8 +82,6 @@ namespace dh::util {
    */
   template<typename T>
   void readGLBuffer(GLuint& handle,
-                    uint n,
-                    uint d,
                     const std::string filename);
   
   /**
@@ -103,9 +101,7 @@ namespace dh::util {
    * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a vector. Useful for debugging
    */
   template<typename T>
-  std::vector<T> readVector(uint n,
-                            uint d,
-                            const std::string filename);
+  std::vector<T> readVector(const std::string filename);
 
   /**
    * writeVector
@@ -119,9 +115,9 @@ namespace dh::util {
                    const std::string filename);
 
   /**
-   * readVector
+   * readSet
    * 
-   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a vector. Useful for debugging
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a set. Useful for debugging
    */
   template<typename T>
   std::set<T> readSet(const std::string filename);

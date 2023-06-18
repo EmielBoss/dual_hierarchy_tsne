@@ -23,6 +23,7 @@
  */
 
 #include <cmath>
+#include <algorithm>
 #include <numeric>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
@@ -150,6 +151,18 @@ namespace dh::vis {
       glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
+
+      // Archetype textures and associates buffers and vectors
+      _archetypeClasses = std::vector<uint>();
+      _buffersTextureDataArchetypes = std::vector<GLuint>();
+      _texturesArchetypes = std::vector<GLuint>(_params->nArchetypeClasses);
+      glCreateTextures(GL_TEXTURE_2D, _params->nArchetypeClasses, _texturesArchetypes.data());
+      for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
+        glTextureParameteri(_texturesArchetypes[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(_texturesArchetypes[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
+        glTextureStorage2D(_texturesArchetypes[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
+      }
     }
 
     _classNames = std::vector<std::string>(_params->nClasses, "");
@@ -329,6 +342,17 @@ namespace dh::vis {
     return sumValues / sumWeights;
   }
 
+  void AttributeRenderTask::addArchetype(uint archetypeClass) {
+    GLuint archetypeDataHandle;
+    glCreateBuffers(1, &archetypeDataHandle);
+    glNamedBufferStorage(archetypeDataHandle, _params->nHighDims * sizeof(float), nullptr, 0);
+    glCopyNamedBufferSubData(_buffersTextureData[currentTabIndex()], archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
+
+    _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
+    _archetypeClasses.push_back(archetypeClass);
+    glAssert();
+  }
+
   void AttributeRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
     if (!enable) {
       return;
@@ -341,8 +365,15 @@ namespace dh::vis {
         GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
         glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
       }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[_buffersTextureData.size()-1]);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
       glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+
+      // Archetypes
+      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
+        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+      }
     }
     glAssert();
 
@@ -426,9 +457,9 @@ namespace dh::vis {
     if (ImGui::BeginTabItem(text)) {
       _currentTabLower = tabLower;
       if(_params->imageDataset) {
-        drawImGuiTexture(currentTabIndex());
+        drawImGuiTexture();
       } else {
-        drawImPlotBarPlot(currentTabIndex());
+        drawImPlotBarPlot();
       }
       ImGui::EndTabItem();
     }
@@ -441,9 +472,10 @@ namespace dh::vis {
     return value;
   }
 
-  void AttributeRenderTask::drawImGuiTexture(uint index) {
+  void AttributeRenderTask::drawImGuiTexture() {
+    uint textureIndex = currentTabIndex();
     ImGui::Spacing();
-    ImGui::ImageButton((void*)(intptr_t)_textures[index], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
+    ImGui::ImageButton((void*)(intptr_t)_textures[textureIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
       ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
@@ -454,18 +486,18 @@ namespace dh::vis {
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-      float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
-      ImGui::Text(promptsValuetype[index].c_str(), texelValue);
+      float texelValue = getBufferValue(_buffersTextureData[textureIndex], hoveredTexel * _params->imgDepth);
+      ImGui::Text(promptsValuetype[textureIndex].c_str(), texelValue);
       std::string pairtype = "";
-      if(index > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
-      ImGui::Text(("Averaged over: " + promptsDenomtype[index] + pairtype).c_str(), _denominators[index]);
+      if(textureIndex > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
+      ImGui::Text(("Averaged over: " + promptsDenomtype[textureIndex] + pairtype).c_str(), _denominators[textureIndex]);
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
       else { _draggedTexel = -1; }
 
       if(_input.z) {
-        std::cout << "\n" << sumWeightedAttributeValues(index) << "\n";
+        std::cout << "\n" << sumWeightedAttributeValues(textureIndex) << "\n";
       }
     } else {
       _draggedTexel = -1;
@@ -502,31 +534,26 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
 
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
-    for(int i = -3; i < -1; ++i) {
-      ImGui::ImageButton((void*)(intptr_t)_textures[_buffersTextureData.size()+i], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0); ImGui::SameLine();
+    for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
+      if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypes[ac], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0)) {
+        addArchetype(ac);
+      }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
-        } else
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          if(_classesSet.size() == 1) {
-            dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false, *_classesSet.begin(), _minimizationBuffers.labels);
-          } else {
-            dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false);
-          }
-        }
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
       }
+      ImGui::SameLine();
     }
   }
 
-  void AttributeRenderTask::drawImPlotBarPlot(uint index) {
+  void AttributeRenderTask::drawImPlotBarPlot() {
+    uint tabIndex = currentTabIndex();
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##", ImVec2(400, 200), ImPlotFlags_NoFrame | ImPlotFlags_Crosshairs | ImPlotFlags_CanvasOnly)) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
-      glGetNamedBufferSubData(_buffersTextureData[index], 0, _params->nHighDims * sizeof(float), ys.data());
+      glGetNamedBufferSubData(_buffersTextureData[tabIndex], 0, _params->nHighDims * sizeof(float), ys.data());
 
       ImPlot::SetupAxis(ImAxis_X1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
       ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
@@ -546,11 +573,11 @@ namespace dh::vis {
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
         ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-        float texelValue = getBufferValue(_buffersTextureData[index], hoveredTexel * _params->imgDepth);
-        ImGui::Text(promptsValuetype[index].c_str(), texelValue);
+        float texelValue = getBufferValue(_buffersTextureData[tabIndex], hoveredTexel * _params->imgDepth);
+        ImGui::Text(promptsValuetype[tabIndex].c_str(), texelValue);
         std::string pairtype = "";
-        if(index > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
-        ImGui::Text(("Averaged over: " + promptsDenomtype[index] + pairtype).c_str(), _denominators[index]);
+        if(tabIndex > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
+        ImGui::Text(("Averaged over: " + promptsDenomtype[tabIndex] + pairtype).c_str(), _denominators[tabIndex]);
         ImGui::EndTooltip();
 
         if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -591,20 +618,16 @@ namespace dh::vis {
     if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
 
-    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     std::array<const char*, 9> buttons = {" A ", " B "};
-    for(int i = -3; i < -1; ++i) {
-      ImGui::Button(buttons[i+3]); ImGui::SameLine();
-      if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        glCopyNamedBufferSubData(_buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], 0, 0, _params->nHighDims * sizeof(float));
-      } else
-      if(ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-        if(_classesSet.size() == 1) {
-          dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false, *_classesSet.begin(), _minimizationBuffers.labels);
-        } else {
-          dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, _selectionCounts[0], _buffersTextureData[index], _buffersTextureData[_buffersTextureData.size()+i], false);
-        }
+    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
+    for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
+      if(ImGui::Button(buttons[ac])) {
+        addArchetype(ac);
       }
+      if(ImGui::IsItemHovered()) {
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
+      }
+      ImGui::SameLine();
     }
   }
 
@@ -732,107 +755,107 @@ namespace dh::vis {
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
   }
 
-  void AttributeRenderTask::assess(uint symmetricSize) {
-    // Create and initialize temp buffers
-    GLuint watBuffer;
-    glCreateBuffers(1, &watBuffer);
-    std::vector<uint> attributeIndices;
-    if(_weightedAttributeIndices.size() > 0) {
-      attributeIndices = std::vector<uint>(_weightedAttributeIndices.begin(), _weightedAttributeIndices.end());
-    } else {
-      attributeIndices = std::vector<uint>(_params->nHighDims);
-      std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
-    }
-    glNamedBufferStorage(watBuffer, attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
+  // void AttributeRenderTask::assess(uint symmetricSize) {
+  //   // Create and initialize temp buffers
+  //   GLuint watBuffer;
+  //   glCreateBuffers(1, &watBuffer);
+  //   std::vector<uint> attributeIndices;
+  //   if(_weightedAttributeIndices.size() > 0) {
+  //     attributeIndices = std::vector<uint>(_weightedAttributeIndices.begin(), _weightedAttributeIndices.end());
+  //   } else {
+  //     attributeIndices = std::vector<uint>(_params->nHighDims);
+  //     std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
+  //   }
+  //   glNamedBufferStorage(watBuffer, attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
 
-    GLuint classGuesses;
-    glCreateBuffers(1, &classGuesses);
-    std::vector<uint> zeros(_params->n, 0);
-    glNamedBufferStorage(classGuesses, _params->n * sizeof(uint), zeros.data(), 0);
+  //   GLuint classGuesses;
+  //   glCreateBuffers(1, &classGuesses);
+  //   std::vector<uint> zeros(_params->n, 0);
+  //   glNamedBufferStorage(classGuesses, _params->n * sizeof(uint), zeros.data(), 0);
 
-    std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
+  //   std::pair<int, int> classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
 
-    auto &program = _programs(ProgramType::dGuessClasses);
-    program.bind();
-    glAssert();
+  //   auto &program = _programs(ProgramType::dGuessClasses);
+  //   program.bind();
+  //   glAssert();
 
-    program.template uniform<uint>("nPoints", _params->n);
-    program.template uniform<uint>("nHighDims", _params->nHighDims);
-    program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
-    program.template uniform<uint>("classA", classes.first);
-    program.template uniform<uint>("classB", classes.second);
+  //   program.template uniform<uint>("nPoints", _params->n);
+  //   program.template uniform<uint>("nHighDims", _params->nHighDims);
+  //   program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
+  //   program.template uniform<uint>("classA", classes.first);
+  //   program.template uniform<uint>("classB", classes.second);
 
-    // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTextureData(TextureType::eSnapslotA));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureType::eSnapslotB));
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, watBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.dataset);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.attributeWeights);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, classGuesses);
+  //   // Set buffer bindings
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTextureData(TextureType::eSnapslotA));
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureType::eSnapslotB));
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, watBuffer);
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.dataset);
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.attributeWeights);
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, classGuesses);
 
-    // Dispatch shader
-    glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    glAssert();
+  //   // Dispatch shader
+  //   glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);
+  //   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+  //   glAssert();
 
-    std::vector<uint> selc(_params->n);
-    glGetNamedBufferSubData(_minimizationBuffers.selection, 0, _params->n * sizeof(uint), selc.data());
-    std::vector<int> labl(_params->n);
-    glGetNamedBufferSubData(_minimizationBuffers.labels, 0, _params->n * sizeof(int), labl.data());
-    std::vector<uint> gues(_params->n);
-    glGetNamedBufferSubData(classGuesses, 0, _params->n * sizeof(uint), gues.data());
+  //   std::vector<uint> selc(_params->n);
+  //   glGetNamedBufferSubData(_minimizationBuffers.selection, 0, _params->n * sizeof(uint), selc.data());
+  //   std::vector<int> labl(_params->n);
+  //   glGetNamedBufferSubData(_minimizationBuffers.labels, 0, _params->n * sizeof(int), labl.data());
+  //   std::vector<uint> gues(_params->n);
+  //   glGetNamedBufferSubData(classGuesses, 0, _params->n * sizeof(uint), gues.data());
 
-    uint countClassCorrect = 0;
-    int classCorrect = 1;
-    int classIncorrect = 0;
-    for(uint i = 0; i < _params->n; ++i) {
-      if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
+  //   uint countClassCorrect = 0;
+  //   int classCorrect = 1;
+  //   int classIncorrect = 0;
+  //   for(uint i = 0; i < _params->n; ++i) {
+  //     if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
 
-      if(labl[i] == gues[i]) {
-        countClassCorrect++;
-        glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classCorrect);
-      } else {
-        glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classIncorrect);
-      }
+  //     if(labl[i] == gues[i]) {
+  //       countClassCorrect++;
+  //       glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classCorrect);
+  //     } else {
+  //       glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &classIncorrect);
+  //     }
 
-      glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &gues[i]);
-      glAssert();
-    }
+  //     glNamedBufferSubData(_minimizationBuffers.labels, i * sizeof(int), sizeof(int), &gues[i]);
+  //     glAssert();
+  //   }
 
-    std::cout << "\nDatapoint class guesses: " << countClassCorrect << " / " << _selectionCounts[0] << " = " << (float) countClassCorrect / (float) _selectionCounts[0] << "\n";
+  //   std::cout << "\nDatapoint class guesses: " << countClassCorrect << " / " << _selectionCounts[0] << " = " << (float) countClassCorrect / (float) _selectionCounts[0] << "\n";
 
-    std::vector<uint> neig(symmetricSize);
-    glGetNamedBufferSubData(_similaritiesBuffers.neighbors, 0, symmetricSize * sizeof(uint), neig.data());
-    std::vector<uint> layo(_params->n * 2);
-    glGetNamedBufferSubData(_similaritiesBuffers.layout, 0, _params->n * 2 * sizeof(uint), layo.data());
+  //   std::vector<uint> neig(symmetricSize);
+  //   glGetNamedBufferSubData(_similaritiesBuffers.neighbors, 0, symmetricSize * sizeof(uint), neig.data());
+  //   std::vector<uint> layo(_params->n * 2);
+  //   glGetNamedBufferSubData(_similaritiesBuffers.layout, 0, _params->n * 2 * sizeof(uint), layo.data());
 
-    uint countNeighbortypeCorrect = 0;
-    uint countNeighbortypeCorrectInter = 0;
-    uint countNeighbortypeCorrectIntra = 0;
-    uint countNeighbors = 0;
-    uint countNeighborsInter = 0;
-    uint countNeighborsIntra = 0;
-    for(uint i = 0; i < _params->n; ++i) {
-      if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
-      for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
-        uint j = neig[ij];
-        if(selc[j] != 1 || (labl[j] != classes.first && labl[j] != classes.second)) { continue; }
-        countNeighbors++;
-        if(labl[i] == labl[j]) { countNeighborsIntra++; } else
-        if(labl[i] != labl[j]) { countNeighborsInter++; }
+  //   uint countNeighbortypeCorrect = 0;
+  //   uint countNeighbortypeCorrectInter = 0;
+  //   uint countNeighbortypeCorrectIntra = 0;
+  //   uint countNeighbors = 0;
+  //   uint countNeighborsInter = 0;
+  //   uint countNeighborsIntra = 0;
+  //   for(uint i = 0; i < _params->n; ++i) {
+  //     if(selc[i] != 1 || (labl[i] != classes.first && labl[i] != classes.second)) { continue; }
+  //     for(uint ij = layo[i*2+0]; ij < layo[i*2+0] + layo[i*2+1]; ++ij) {
+  //       uint j = neig[ij];
+  //       if(selc[j] != 1 || (labl[j] != classes.first && labl[j] != classes.second)) { continue; }
+  //       countNeighbors++;
+  //       if(labl[i] == labl[j]) { countNeighborsIntra++; } else
+  //       if(labl[i] != labl[j]) { countNeighborsInter++; }
 
-        if((gues[i] == gues[j]) == (labl[i] == labl[j])) {
-          countNeighbortypeCorrect++;
-          if(labl[i] == labl[j]) { countNeighbortypeCorrectIntra++; } else
-          if(labl[i] != labl[j]) { countNeighbortypeCorrectInter++; }
-        }
-      }
-    }
+  //       if((gues[i] == gues[j]) == (labl[i] == labl[j])) {
+  //         countNeighbortypeCorrect++;
+  //         if(labl[i] == labl[j]) { countNeighbortypeCorrectIntra++; } else
+  //         if(labl[i] != labl[j]) { countNeighbortypeCorrectInter++; }
+  //       }
+  //     }
+  //   }
 
-    std::cout << "Neighbour type guesses: " << countNeighbortypeCorrect << " / " << countNeighbors << " = " << (float) countNeighbortypeCorrect / (float) countNeighbors << "\n";
-    std::cout << "Neighbour type guesses (inter): " << countNeighbortypeCorrectInter << " / " << countNeighborsInter << " = " << (float) countNeighbortypeCorrectInter / (float) countNeighborsInter << "\n";
-    std::cout << "Neighbour type guesses (intra): " << countNeighbortypeCorrectIntra << " / " << countNeighborsIntra << " = " << (float) countNeighbortypeCorrectIntra / (float) countNeighborsIntra << "\n";
-  }
+  //   std::cout << "Neighbour type guesses: " << countNeighbortypeCorrect << " / " << countNeighbors << " = " << (float) countNeighbortypeCorrect / (float) countNeighbors << "\n";
+  //   std::cout << "Neighbour type guesses (inter): " << countNeighbortypeCorrectInter << " / " << countNeighborsInter << " = " << (float) countNeighbortypeCorrectInter / (float) countNeighborsInter << "\n";
+  //   std::cout << "Neighbour type guesses (intra): " << countNeighbortypeCorrectIntra << " / " << countNeighborsIntra << " = " << (float) countNeighbortypeCorrectIntra / (float) countNeighborsIntra << "\n";
+  // }
 
 } // dh::vis

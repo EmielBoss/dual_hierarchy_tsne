@@ -54,8 +54,8 @@ namespace dh::vis {
     void drawImGuiComponentSecondary() override;
 
     void drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text);
-    void drawImGuiTexture(GLuint textureHandle);
-    void drawImPlotBarPlot(uint selectionIndex);
+    void drawImGuiTexture();
+    void drawImPlotBarPlot();
 
     float getBufferValue(GLuint buffer, int index);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
@@ -74,6 +74,7 @@ namespace dh::vis {
     void update(std::vector<uint> selectionCounts);
     void clear();
     uint currentTabIndex() { return _currentTabUpper * 2 + _currentTabLower; }
+    void addArchetype(uint archetypeClass);
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
     
@@ -95,9 +96,6 @@ namespace dh::vis {
       ePairwiseDiffsAll,
       ePairwiseDiffsInter,
       ePairwiseDiffsIntra,
-
-      eSnapslotA,
-      eSnapslotB,
 
       eOverlay,
 
@@ -140,13 +138,16 @@ namespace dh::vis {
     std::vector<glm::vec4> _colors;
     bool _vizAllPairs;
     std::vector<uint> _denominators;
+    std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
     sne::SimilaritiesBuffers _similaritiesBuffers;
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<TextureType, GLuint> _buffersTextureData;
+    std::vector<GLuint> _buffersTextureDataArchetypes;
     util::EnumArray<TextureType, GLuint> _textures;
+    std::vector<GLuint> _texturesArchetypes;
     std::vector<GLuint> _classTextures;
     GLuint _colorBuffer;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
@@ -160,7 +161,10 @@ namespace dh::vis {
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
     int getClassButtonPressed() { return _classButtonPressed; }
-    std::pair<uint, uint> getSnapslotHandles() { return std::pair<GLuint, GLuint>(_buffersTextureData(TextureType::eSnapslotA), _buffersTextureData(TextureType::eSnapslotB)); }
+    std::vector<uint> getArchetypeClasses() { return _archetypeClasses; }
+    void setArchetypeClasses(std::vector<uint> archetypeClasses) { _archetypeClasses = archetypeClasses; }
+    std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
+    void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
 
@@ -191,13 +195,16 @@ namespace dh::vis {
       swap(a._classesSet, b._classesSet);
       swap(a._setChanged, b._setChanged);
       swap(a._classButtonPressed, b._classButtonPressed);
+      swap(a._archetypeClasses, b._archetypeClasses);
       swap(a._buffers, b._buffers);
       swap(a._buffersTextureData, b._buffersTextureData);
-      swap(a._minimizationBuffers, b._minimizationBuffers);
-      swap(a._similaritiesBuffers, b._similaritiesBuffers);
+      swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);
       swap(a._textures, b._textures);
+      swap(a._texturesArchetypes, b._texturesArchetypes);
       swap(a._colors, b._colors);
       swap(a._colorBuffer, b._colorBuffer);
+      swap(a._minimizationBuffers, b._minimizationBuffers);
+      swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._programs, b._programs);
     }
   };

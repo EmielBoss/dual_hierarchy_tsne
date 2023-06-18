@@ -519,19 +519,25 @@ namespace dh::sne {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
-  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::pair<uint, uint> snapslotHandles, uint nHighDims) {
+  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses) {
     // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> attributeIndices;
     if(weightedAttributeIndices.size() > 0) {
       attributeIndices = std::vector<uint>(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     } else {
-      attributeIndices = std::vector<uint>(nHighDims);
+      attributeIndices = std::vector<uint>(_params->nHighDims);
       std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
       const std::vector<float> zeroes(_params->nHighDims, 0.f);
       glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zeroes.data());
     }
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
+    uint nArchetypes = archetypeClasses.size();
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypeClasses), nArchetypes * sizeof(uint), archetypeClasses.data(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypes), nArchetypes * _params->nHighDims * sizeof(float), nullptr, 0);
+    for(uint i = 0; i < nArchetypes; ++i) {
+      glCopyNamedBufferSubData(archetypeHandles[i], _buffersTemp(BufferTempType::eArchetypes), 0, i * _params->nHighDims * sizeof(float), _params->nHighDims * sizeof(float));
+    }
 
     // Weighting the similarities
     {
@@ -542,11 +548,12 @@ namespace dh::sne {
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
       program.template uniform<uint>("nWeightedAttribs", attributeIndices.size());
+      program.template uniform<uint>("nArchetypes", nArchetypes);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, snapslotHandles.first);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, snapslotHandles.second);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eArchetypes));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eArchetypeClasses));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eDataset));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eAttributeWeights));

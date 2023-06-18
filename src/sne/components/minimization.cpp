@@ -420,7 +420,7 @@ namespace dh::sne {
         _similarities->weighSimilaritiesPerAttributeRange(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
       }
       if(button == 26) { // Recalc similarities (resemble)
-        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getSnapslotHandles(), _params->nHighDims);
+        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
       }
       if(button == 3) { // Reset similarities
         _similarities->reset();
@@ -462,13 +462,18 @@ namespace dh::sne {
     }
 
     if(_embeddingRenderTask->getButtonPressed() == 10) { // Import state
-      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getSnapslotHandles());
+      std::vector<GLuint> archetypeHandles;
+      std::vector<uint> archetypeClasses;
+      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeClasses);
       syncBufferHandles();
+      _attributeRenderTask->mirrorWeightsToOverlay();
+      _attributeRenderTask->setArchetypeHandles(archetypeHandles);
+      _attributeRenderTask->setArchetypeClasses(archetypeClasses);
       _attributeRenderTask->mirrorWeightsToOverlay();
       compIterationSelect(true);
     } else
     if(_embeddingRenderTask->getButtonPressed() == 11) { // Export state
-      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getSnapslotHandles());
+      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
     }
 
     // Reset some stuff upon axis change
@@ -487,10 +492,10 @@ namespace dh::sne {
     //   return true;
     // }
 
-    if(_input.ctrl && !__assessed) {
-      _attributeRenderTask->assess(_similarities->getSymmetricSize());
-      __assessed = true;
-    }
+    // if(_input.ctrl && !__assessed) {
+    //   _attributeRenderTask->assess(_similarities->getSymmetricSize());
+    //   __assessed = true;
+    // }
 
     glAssert();
     return false;
