@@ -72,10 +72,10 @@ void main() {
       Layout ljp = layoutsPrevBuffer[j];
       uint ji = search_ij(j, i, lj.offset + ljp.size, lj.size - ljp.size);
       
-      float p_ij = (similaritiesBuffer[ij] * factorsBuffer[i] + similaritiesBuffer[ji] * factorsBuffer[j]) / 4.f;
+      float p_ij = (similaritiesBuffer[ij] * factorsBuffer[i] + similaritiesBuffer[ji] * factorsBuffer[j]) / 3.f;
       similaritiesBuffer[ij] = p_ij;
       similaritiesBuffer[ji] = p_ij;
-      float p_ij_b = (similaritiesBackup[ij] * factorsBuffer[i] + similaritiesBackup[ji] * factorsBuffer[j]) / 4.f;
+      float p_ij_b = (similaritiesBackup[ij] * factorsBuffer[i] + similaritiesBackup[ji] * factorsBuffer[j]) / 3.f;
       similaritiesBackup[ij] = p_ij_b;
       similaritiesBackup[ji] = p_ij_b;
     }

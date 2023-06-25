@@ -357,7 +357,8 @@ namespace dh::vis {
     if (!enable) {
       return;
     }
-    
+    glAssert();
+
     // Copy texture data to textures
     if(_params->imageDataset) {
       for(uint i = 0; i < _textures.size() - 1; ++i) {
@@ -367,6 +368,7 @@ namespace dh::vis {
       }
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
       glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+      glAssert();
 
       // Archetypes
       for(uint i = 0; i < _archetypeClasses.size(); ++i) {

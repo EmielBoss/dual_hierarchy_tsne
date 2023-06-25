@@ -33,7 +33,6 @@ namespace dh::sne {
     uint n = 0;
     uint nHighDims = 0;
     uint nLowDims = 2; // 2 or 3 only
-    int nClusters = 10; // If unsure, leave this at the default 10
     int nClasses = -1; // -1 indicates all classes
     uint nTexels; // Number of texels of images in case imageDataset
     bool normalizeData = false;

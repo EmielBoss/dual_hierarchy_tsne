@@ -76,7 +76,6 @@ void cli(int argc, char** argv) {
     ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
     ("imgDepth", "Image number of components (default: 1)", cxxopts::value<uint>())
     ("nClasses", "Use only the first n classes (default: number of distinct labels)", cxxopts::value<int>())
-    ("nClusters", "An estimate of the number of t-SNE clusters, used for fixed datapoint force weighting", cxxopts::value<int>())
     ("lbl", "Input data file contains label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
@@ -125,7 +124,6 @@ void cli(int argc, char** argv) {
   if (result.count("imgHeight")) { params.imgHeight = result["imgHeight"].as<uint>(); }
   if (result.count("imgDepth")) { params.imgDepth = result["imgDepth"].as<uint>(); }
   if (result.count("nClasses")) { params.nClasses = result["nClasses"].as<int>(); }
-  if (result.count("nClusters")) { params.nClusters = result["nClusters"].as<int>(); }
   if (result.count("perplexity")) { params.perplexity = result["perplexity"].as<float>(); }
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }
@@ -158,7 +156,6 @@ void sne() {
   }
   if(!includeAllClasses) {
     params.n = data.size() / params.nHighDims;
-    params.nClusters = params.nClasses;  
   }
 
   // Create OpenGL context (and accompanying invisible window)

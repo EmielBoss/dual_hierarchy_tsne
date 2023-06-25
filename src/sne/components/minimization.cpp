@@ -280,7 +280,6 @@ namespace dh::sne {
   void Minimization<D, DD>::deselect() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
-    _embeddingRenderTask->setWeighForces(true); // Use force weighting again; optional but may be convenient for the user
     _attributeRenderTask->clear();
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
   }
@@ -342,11 +341,9 @@ namespace dh::sne {
       _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
     }
 
-    // Deselect
-    if(_input.d) { deselect(); }
+    if(_input.d) { deselect(); } // Deselect
     
-    // Clear translations if not translating
-    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); }
+    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); } // Clear translations if not translating
     
     // Free/unfix fixed datapoints
     if(_input.f) {
@@ -596,7 +593,7 @@ namespace dh::sne {
       // Set uniforms
       program.template uniform<uint>("nPos", _params->n);
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params->n));
-      program.template uniform<float>("weightFalloff", _embeddingRenderTask->getWeightFalloff());
+      program.template uniform<float>("weightFalloff", _embeddingRenderTask->getForceWeightFalloff());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -832,9 +829,6 @@ namespace dh::sne {
       _selectionCounts[s] = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eSelection), 3, _params->n, 0, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
-
-      // Turn off force weighing if too many datapoints are selected at once, which is likely not what the user wants
-      if(_selectionCounts[0] - selectionCountPrev > _params->n / 500) { _embeddingRenderTask->setWeighForces(false); }
     }
 
     _attributeRenderTask->update(_selectionCounts);
@@ -866,8 +860,7 @@ namespace dh::sne {
     program.template uniform<float, D>("shiftRel", shiftRel);
     program.template uniform<bool>("translationStarted", !_mouseRightPrev);
     program.template uniform<bool>("translationFinished", !_input.mouseRight && _mouseRightPrev);
-    program.template uniform<bool>("weighForces", _embeddingRenderTask->getWeighForces());
-    program.template uniform<float>("weight", _embeddingRenderTask->getWeightFixed());
+    program.template uniform<float>("forceWeight", std::max(_embeddingRenderTask->getForceWeight() / _selectionCounts[0], 1.f));
 
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eSelection));

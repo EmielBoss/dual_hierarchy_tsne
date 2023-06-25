@@ -44,8 +44,7 @@ layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform vec3 shiftRel;
 layout(location = 2) uniform bool translationStarted;
 layout(location = 3) uniform bool translationFinished;
-layout(location = 4) uniform bool weighForces;
-layout(location = 5) uniform float weightFixed;
+layout(location = 4) uniform float forceWeight;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
@@ -60,5 +59,5 @@ void main() {
   if(!translationFinished) { positionsRelativeBuffer[i] += shiftRel; }
   fixedBuffer[i] = int(true);
   movingBuffer[i] = int(true);
-  if(weighForces) { weightsBuffer[i] = weightFixed; }
+  weightsBuffer[i] = forceWeight;
 }

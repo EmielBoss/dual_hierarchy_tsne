@@ -62,10 +62,8 @@ namespace dh::vis {
     void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
     uint getColorMapping() { return _colorMapping; }
     GLuint getColorBuffer() { return _colorBuffer; }
-    bool getWeighForces() { return _weighForces; }
-    void setWeighForces(bool weighForces) { _weighForces = weighForces; }
-    float getWeightFixed() { return _weightFixed; }
-    float getWeightFalloff() { return _weightFalloff; }
+    float getForceWeight() { return _forceWeight; }
+    float getForceWeightFalloff() { return _forceWeightFalloff; }
     float getPerplexity() { return _perplexity; }
     uint getButtonPressed() { return _buttonPressed; }
     uint getK() { return (uint) _k; }
@@ -88,11 +86,8 @@ namespace dh::vis {
     sne::Params* _params;
 
     // ImGui state
-    bool _weighForces;
-    float _weightFixed;
-    float _weightFalloff;
-    // int _numClusters;
-    // int _numClustersPrev;
+    float _forceWeight;
+    float _forceWeightFalloff;
     bool _selectLabeledOnly;
     uint _colorMapping;
     float _pointRadius;
@@ -128,9 +123,8 @@ namespace dh::vis {
       swap(a._params, b._params);
       swap(a._iteration, b._iteration);
       swap(a._klDivergence, b._klDivergence);
-      swap(a._weighForces, b._weighForces);
-      swap(a._weightFixed, b._weightFixed);
-      swap(a._weightFalloff, b._weightFalloff);
+      swap(a._forceWeight, b._forceWeight);
+      swap(a._forceWeightFalloff, b._forceWeightFalloff);
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);

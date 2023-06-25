@@ -47,10 +47,6 @@ namespace dh::vis {
   constexpr std::array<uint, 6> quadElements = {
     0, 1, 2,  2, 3, 0
   };
-
-  float calculateFalloff(uint n, uint k, int nClusters) {
-    return 1.25 * std::pow(1.f / k, 1/(std::log2((float) n / nClusters) / std::log2(k)));
-  }
   
   template <uint D>
   EmbeddingRenderTask<D>::EmbeddingRenderTask()
@@ -65,11 +61,8 @@ namespace dh::vis {
     _minimizationBuffers(minimizationBuffers),
     _params(params),
     _colorMapping(ColorMapping::labels),
-    _weighForces(true),
-    _weightFixed(params->k),
-    _weightFalloff(calculateFalloff(params->n, params->k, params->nClusters)),
-    // _numClusters(params->nClusters),
-    // _numClustersPrev(params->nClusters),
+    _forceWeight(params->k * 1.5f),
+    _forceWeightFalloff(0.1f),
     _pointRadius(100.f / _params->n),
     _pointOpacity(1.0f),
     _buttonPressed(0),
@@ -242,12 +235,6 @@ namespace dh::vis {
     // Perform draw
     glBindVertexArray(_vaoHandle);
     glDrawElementsInstanced(GL_TRIANGLES, quadElements.size(), GL_UNSIGNED_INT, nullptr, _params->n);
-
-    // Check if user changed numClusters and update weightFalloff if so
-    // if(_numClusters != _numClustersPrev) {
-    //   _weightFalloff = calculateFalloff(_params->n, _params->k, _numClusters);
-    //   _numClustersPrev = _numClusters;
-    // }
   }
 
   template <uint D>
@@ -273,9 +260,8 @@ namespace dh::vis {
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
       ImGui::Spacing();
-      ImGui::Checkbox("Fixed datapoint force weighting", &_weighForces);
-      ImGui::SliderFloat("Fixed datapoint weight", &_weightFixed, 1.0f, _params->k * 5.0f);
-      ImGui::SliderFloat("weight falloff", &_weightFalloff, 0.f, 1.f, "%.4f");
+      ImGui::SliderFloat("Force weight", &_forceWeight, 1.0f, _params->k * 5.0f);
+      ImGui::SliderFloat("Force weight falloff", &_forceWeightFalloff, 0.f, 1.f, "%.4f");
       // ImGui::Text("or set the number of clusters you see:");
       // ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();
@@ -284,7 +270,7 @@ namespace dh::vis {
       ImGui::SliderFloat("Perpl.", &_perplexity, 1.0f, 100.f);
       if(ImGui::IsItemHovered() && ImGui::IsItemActive()) { _k = (int) std::min(_params->kMax, 3 * (uint)(_perplexity) + 1); }
       ImGui::SameLine(); ImGui::SliderInt("k", &_k, 2, _params->kMax);
-      if(ImGui::SameLine(); ImGui::Button("Focus")) { _buttonPressed = 1; }
+      if(ImGui::SameLine(); ImGui::Button("Isolate")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Restarts minimization with only the selected datapoints and hyperparameters."); ImGui::EndTooltip(); }
       ImGui::PopItemWidth();
     }
