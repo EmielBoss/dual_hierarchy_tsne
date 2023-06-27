@@ -44,6 +44,8 @@ layout(binding = 4, std430) restrict buffer Nei { uint neighborsBuffer[]; };
 layout(location = 0) uniform uint nSelected;
 layout(location = 1) uniform uint nSelectedOther;
 layout(location = 2) uniform uint offsetOther;
+layout(location = 3) uniform float omissionRatio;
+layout(location = 4) uniform float omissionRatioOther;
 
 const uint offset = offsetOther == 0 ? nSelectedOther : 0;
 
@@ -58,29 +60,14 @@ bool alreadyNeighbors(uint i, uint j, uint offset, uint size) {
   return false;
 }
 
-// Calculates upper bound based on the order of magnitude of the selection size. Examples: upperBound(7) = 0.9,  upperBound(43) = 0.9, upperBound(123) = 0.99, upperBound(12368) = 0.9999
-float upperBound(uint n) {
-  float nDigits = floor(log2(float(n)) / log2(10)) + 1;
-  float multiplier = pow(10.f, nDigits - 1);
-  float bound = floor(0.999999999 * multiplier) / multiplier;
-  return max(bound, 0.9);
-}
-
 float hash(uint x) {
   float nDigits = floor(log2(float(max(nSelected, nSelectedOther))) / log2(10)) + 1;
   float granularity = pow(10.f, nDigits - 1);
   return float(x % uint(granularity) + 1) / granularity;
 }
 
-bool omitNeighbors(uint idx, uint size, uint jdx, uint sjze) {
-  uint k_i = idx - offset;
-  uint k_j = jdx - offsetOther;
-  float omissionRatio = clamp(1.f - (size / 2.f) / nSelected, 0.f, upperBound(nSelectedOther));
-  float omjssionRatio = clamp(1.f - (sjze / 2.f) / nSelectedOther, 0.f, upperBound(nSelected));
-  float hashVal = hash(k_i + k_j);
-  bool omit = hashVal < omissionRatio;
-  bool omjt = hashVal < omjssionRatio;
-  return omit || omjt;
+bool omitNeighbors(uint i, uint j) {
+  return hash(i + j) < max(omissionRatio, omissionRatioOther);
 }
 
 void main() {
@@ -95,7 +82,7 @@ void main() {
   for (uint jdx = offsetOther + gl_SubgroupInvocationID; jdx < offsetOther + nSelectedOther; jdx += gl_SubgroupSize) {
     uint j = indicesBuffer[jdx];
     Layout ljp = layoutsPrevBuffer[j];
-    if(omitNeighbors(idx, lip.size, jdx, ljp.size) || alreadyNeighbors(i, j, li.offset, lip.size)) { continue; }
+    if(omitNeighbors(i, j) || alreadyNeighbors(i, j, li.offset, lip.size)) { continue; }
     uint k = atomicAdd(countsBuffer[idx], 1); // k is assigned the old value of countsBuffer[i]
     uint ij = li.offset + lip.size + k;
     neighborsBuffer[ij] = j;

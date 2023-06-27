@@ -32,6 +32,7 @@
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
 #include <algorithm>
+#include <cmath>
 #include <typeinfo> //
 #include <numeric> //
 #include <imgui.h> //
@@ -579,6 +580,14 @@ namespace dh::sne {
   }
 
   void Similarities::addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight) {
+    // Calculates upper bound based on the order of magnitude of the selection size. Examples: upperBound(7) = 0.9,  upperBound(43) = 0.9, upperBound(123) = 0.99, upperBound(12368) = 0.9999
+    auto omissionRatioUpperBound = [](uint n) { 
+      float nDigits = std::floor(std::log2((float) n) / std::log2(10)) + 1;
+      float multiplier = std::pow(10.f, nDigits - 1);
+      float bound = floor(0.999999999 * multiplier) / multiplier;
+      return std::max(bound, 0.9f);
+    };
+
     if(selectionCounts[0] == 0 || selectionCounts[1] == 0) { return; }
 
     glCreateBuffers(_buffersFuse.size(), _buffersFuse.data());
@@ -609,17 +618,18 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersFuse(BufferFuseType::eSizes));
       glAssert();
 
-      program.template uniform<uint>("nSelected", selectionCounts[0]);
-      program.template uniform<uint>("nSelectedOther", selectionCounts[1]);
-      program.template uniform<uint>("offsetOther", selectionCounts[0]);
-      glDispatchCompute(ceilDiv(selectionCounts[0], 256u / 32u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      for(uint i = 0; i < 2; ++i) {
+        uint nSelected = selectionCounts[i];
+        uint nSelectedOther = selectionCounts[1 - i];
+        program.template uniform<uint>("nSelected", nSelected);
+        program.template uniform<uint>("nSelectedOther", nSelectedOther);
+        program.template uniform<uint>("offsetOther", (1 - i) * selectionCounts[0]);
+        program.template uniform<float>("omissionRatio", std::clamp(1.f - (float) _params->k / nSelectedOther, 0.f, omissionRatioUpperBound(nSelectedOther)));
+        program.template uniform<float>("omissionRatioOther", std::clamp(1.f - (float) _params->k / nSelected, 0.f, omissionRatioUpperBound(nSelected)));
+        glDispatchCompute(ceilDiv(nSelected, 256u / 32u), 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      }
 
-      program.template uniform<uint>("nSelected", selectionCounts[1]);
-      program.template uniform<uint>("nSelectedOther", selectionCounts[0]);
-      program.template uniform<uint>("offsetOther", 0);
-      glDispatchCompute(ceilDiv(selectionCounts[1], 256u / 32u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
 
@@ -693,17 +703,18 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersFuse(BufferFuseType::eCounts));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffersFuse(BufferFuseType::eNeighbors));
 
-      program.template uniform<uint>("nSelected", selectionCounts[0]);
-      program.template uniform<uint>("nSelectedOther", selectionCounts[1]);
-      program.template uniform<uint>("offsetOther", selectionCounts[0]);
-      glDispatchCompute(ceilDiv(selectionCounts[0], 256u / 32u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      for(uint i = 0; i < 2; ++i) {
+        uint nSelected = selectionCounts[i];
+        uint nSelectedOther = selectionCounts[1 - i];
+        program.template uniform<uint>("nSelected", nSelected);
+        program.template uniform<uint>("nSelectedOther", nSelectedOther);
+        program.template uniform<uint>("offsetOther", (1 - i) * selectionCounts[0]);
+        program.template uniform<float>("omissionRatio", std::clamp(1.f - (float) _params->k / nSelectedOther, 0.f, omissionRatioUpperBound(nSelectedOther)));
+        program.template uniform<float>("omissionRatioOther", std::clamp(1.f - (float) _params->k / nSelected, 0.f, omissionRatioUpperBound(nSelected)));
+        glDispatchCompute(ceilDiv(nSelected, 256u / 32u), 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      }
 
-      program.template uniform<uint>("nSelected", selectionCounts[1]);
-      program.template uniform<uint>("nSelectedOther", selectionCounts[0]);
-      program.template uniform<uint>("offsetOther", 0);
-      glDispatchCompute(ceilDiv(selectionCounts[1], 256u / 32u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       glAssert();
     }
 
@@ -797,6 +808,7 @@ namespace dh::sne {
     glDeleteBuffers(_buffersFuse.size(), _buffersFuse.data());
     glAssert();
   }
+
 
   void Similarities::reset() {
     glCopyNamedBufferSubData(_buffers(BufferType::eSimilaritiesOriginal), _buffers(BufferType::eSimilarities), 0, 0, _symmetricSize * sizeof(float));
