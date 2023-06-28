@@ -40,7 +40,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     SNE();
-    SNE(Params* params, std::vector<char> axisMapping, const std::vector<float>& data, const std::vector<int>& labels = {});
+    SNE(Params* params, const std::vector<float>& data, const std::vector<int>& labels = {});
     ~SNE();
 
     // Copy constr/assignment is explicitly deleted (no copying underlying handles)
@@ -51,8 +51,6 @@ namespace dh::sne {
     SNE(SNE&&) noexcept;
     SNE& operator=(SNE&&) noexcept;
 
-    void constructMinimization();
-    
     // Main computation functions
     void comp();                  // Compute similarities and then perform minimization
     void compSimilarities();      // Only compute similarities
@@ -69,14 +67,13 @@ namespace dh::sne {
     // sne::Minimization<D> uses template argument D to specify numbers of low dimensions
     // but is identical in structure (on the CPU side, at least).
     // Given that, we define both in the same place and use std::visit for runtime polymorphism
-    using Minimization = std::variant<sne::Minimization<2, 2>, sne::Minimization<2, 3>, sne::Minimization<3, 3>>;
+    using Minimization = std::variant<sne::Minimization<2>, sne::Minimization<3>>;
 
     // State
     bool _isInit;
     const float* _dataPtr;
     const int* _labelPtr;
     Params* _params;
-    std::vector<char> _axisMapping;
     util::ChronoTimer _similaritiesTimer;
     util::ChronoTimer _minimizationTimer;
 
@@ -92,7 +89,6 @@ namespace dh::sne {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._axisMapping, b._axisMapping);
       swap(a._similaritiesTimer, b._similaritiesTimer);
       swap(a._minimizationTimer, b._minimizationTimer);
       swap(a._similarities, b._similarities);

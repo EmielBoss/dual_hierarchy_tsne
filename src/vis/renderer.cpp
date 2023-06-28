@@ -47,10 +47,9 @@ namespace dh::vis {
   Renderer::Renderer()
   : _isInit(false), _fboSize(0) { }
 
-  Renderer::Renderer(sne::Params* params, char* axisMapping, const util::GLWindow& window)
+  Renderer::Renderer(sne::Params* params, const util::GLWindow& window)
   : _isInit(false),
     _params(params),
-    _axisMapping(axisMapping),
     _windowHandle(&window),
     _fboSize(0) {
     

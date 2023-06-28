@@ -50,16 +50,16 @@ namespace dh::sne {
   // Params for field size
   constexpr uint fieldMinSize = 5;
 
-  template <uint D, uint DD>
-  Minimization<D, DD>::Minimization()
+  template <uint D>
+  Minimization<D>::Minimization()
   : _isInit(false) {
     // ...
   }
 
-  template <uint D, uint DD>
-  Minimization<D, DD>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping)
+  template <uint D>
+  Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
-    _selectionCounts(2, 0), _params(params), _axisMapping(axisMapping), _axisMappingPrev(axisMapping), _axisIndexPrev(-1),
+    _selectionCounts(2, 0), _params(params),
     _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
     Logger::newt() << prefix << "Initializing...";
 
@@ -73,25 +73,16 @@ namespace dh::sne {
         _programs(ProgramType::eAttractiveComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/attractive.comp"));
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/gradients.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/centerEmbedding.comp"));
+        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
+        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
+        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
       } else if constexpr (D == 3) {
         _programs(ProgramType::eBoundsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/bounds.comp"));
         _programs(ProgramType::eZComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/Z.comp"));
         _programs(ProgramType::eAttractiveComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/attractive.comp"));
         _programs(ProgramType::eGradientsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/gradients.comp"));
         _programs(ProgramType::eCenterEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/centerEmbedding.comp"));
-      }
-      if constexpr (DD == 2) {
-        _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/selection.comp"));
-      } else if constexpr (DD == 3) {
         _programs(ProgramType::eSelectionComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/selection.comp"));
-      }
-      if constexpr (D == 2 && DD == 3) {
-        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D_3DD/updateEmbedding.comp"));
-        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D_3DD/translation.comp"));
-      } else if constexpr (D == 2) {
-        _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/updateEmbedding.comp"));
-        _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/2D/translation.comp"));
-      } else if constexpr (D == 3) {
         _programs(ProgramType::eUpdateEmbeddingComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/updateEmbedding.comp"));
         _programs(ProgramType::eTranslationComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/3D/translation.comp"));
       }
@@ -113,7 +104,7 @@ namespace dh::sne {
       // glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, 0);
       glNamedBufferStorage(_buffers(BufferType::eLabels), _params->n * sizeof(int), labelPtr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbedding), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vecc), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelative), _params->n * sizeof(vec), nullptr, GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eEmbeddingRelativeBeforeTranslation), _params->n * sizeof(vec), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eBounds), 4 * sizeof(vec), unitvecs.data(), GL_DYNAMIC_STORAGE_BIT);
       glNamedBufferStorage(_buffers(BufferType::eBoundsReduce), 256 * sizeof(vec), unitvecs.data(), 0);
@@ -138,13 +129,6 @@ namespace dh::sne {
       glAssert();
     }
 
-    // Calculate nPCs number of principal components and stores the values in _pcs
-    if(!_params->disablePCA) {
-      faiss::PCAMatrix matrixPCA(_params->nHighDims, _params->nPCs);
-      matrixPCA.train(_params->n, dataPtr);
-      _pcs = matrixPCA.apply(_params->n, dataPtr);
-    }
-
     initializeEmbeddingRandomly(_params->seed);
 
     // Output memory use of OpenGL buffer objects
@@ -158,14 +142,13 @@ namespace dh::sne {
     // Setup input tasks
     if (auto& queue = vis::InputQueue::instance(); queue.isInit()) {
       _selectionInputTask = std::dynamic_pointer_cast<vis::SelectionInputTask>(vis::InputQueue::instance().find("SelectionInputTask"));
-      if(DD == 3) { _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask")); }
+      if(D == 3) { _trackballInputTask = std::dynamic_pointer_cast<vis::TrackballInputTask>(vis::InputQueue::instance().find("TrackballInputTask")); }
     }
 
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
-      std::string axistypesAbbr = "tpa-"; // Used to determine index of the selected axistype
-      _axesRenderTask = queue.emplace(vis::AxesRenderTask<DD>(buffers(), _params, _axisMapping, axistypesAbbr.find(_axisMapping[2]), 1));
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<DD>(_params, 0, buffers()));
+      _axesRenderTask = queue.emplace(vis::AxesRenderTask<D>(buffers(), _params, 1));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(_params, 0, buffers()));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_params, 5));
       _attributeRenderTask = queue.emplace(vis::AttributeRenderTask(_params, 10, buffers(), _similaritiesBuffers, _embeddingRenderTask->getColorBuffer(), labelPtr));
     }
@@ -179,8 +162,8 @@ namespace dh::sne {
 
   // Generate randomized embedding data
   // TODO: look at CUDA-tSNE's approach, they have several options available for initialization
-  template <uint D, uint DD>
-  void Minimization<D, DD>::initializeEmbeddingRandomly(int seed) {
+  template <uint D>
+  void Minimization<D>::initializeEmbeddingRandomly(int seed) {
     
     // Copy over embedding buffer to host
     std::vector<vec> embedding(_params->n);
@@ -211,28 +194,28 @@ namespace dh::sne {
     glAssert();
   }
 
-  template <uint D, uint DD>
-  Minimization<D, DD>::~Minimization() {
+  template <uint D>
+  Minimization<D>::~Minimization() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
       _isInit = false;
     }
   }
 
-  template <uint D, uint DD>
-  Minimization<D, DD>::Minimization(Minimization<D, DD>&& other) noexcept {
+  template <uint D>
+  Minimization<D>::Minimization(Minimization<D>&& other) noexcept {
     swap(*this, other);
   }
 
-  template <uint D, uint DD>
-  Minimization<D, DD>& Minimization<D, DD>::operator=(Minimization<D, DD>&& other) noexcept {
+  template <uint D>
+  Minimization<D>& Minimization<D>::operator=(Minimization<D>&& other) noexcept {
     swap(*this, other);
     return *this;
   }
 
   // Restarts the minimization
-  template <uint D, uint DD>
-  void Minimization<D, DD>::restartMinimization() {
+  template <uint D>
+  void Minimization<D>::restartMinimization() {
     if(_iteration < 100) { return; }
     if(_input.alt) { initializeEmbeddingRandomly(_iteration); } else
     if(_input.num >= 0) { initializeEmbeddingRandomly(_input.num); }
@@ -246,76 +229,51 @@ namespace dh::sne {
   }
 
   // Restarts the exaggeration by pushing the exaggeration end iteration further ahead
-  template <uint D, uint DD>
-  void Minimization<D, DD>::restartExaggeration(uint nExaggerationIters) {
+  template <uint D>
+  void Minimization<D>::restartExaggeration(uint nExaggerationIters) {
     _removeExaggerationIter = _iteration + nExaggerationIters;
   }
 
-  // Configures the axes on request of change
-  // template <uint D, uint DD>
-  // void Minimization<D, DD>::reconfigureZAxis() {
-  //   if constexpr (D == DD) { return; }
-
-  //   std::vector<float> axisVals(_params->n);
-  //   if(_axisMapping[2] == 'p') {
-  //     for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _pcs[i*_params->nPCs + _axisIndex]; }
-  //   } else
-  //   if(_axisMapping[2] == 'a') {
-  //     for(uint i = 0; i < _params->n; ++i) { axisVals[i] = _dataPtr[i*_params->nHighDims + _axisIndex]; }
-  //     if(_params->imageDataset) { _attributeRenderTask->setOverlayTexel(_axisIndex, {0.f, 1.f, 0.f, 1.f}); }
-  //   }
-  //   auto [minIt, maxIt] = std::minmax_element(axisVals.begin(), axisVals.end());
-  //   float min = *minIt;
-  //   float range = *maxIt - *minIt;
-  //   float rangeInv = range > 0 ? 1 / range : 1;
-  //   uint stride = (DD == 2) ? 2 : 4;
-  //   for(uint i = 0; i < _params->n; ++i) {
-  //     float valRel = (axisVals[i] - min) * rangeInv;
-  //     glNamedBufferSubData(_buffers(BufferType::eEmbeddingRelative), (i*stride + D) * sizeof(float), sizeof(float), &valRel);
-  //   }
-  //   glAssert();
-  // }
-
-  template <uint D, uint DD>
-  void Minimization<D, DD>::deselect() {
+  template <uint D>
+  void Minimization<D>::deselect() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _attributeRenderTask->clear();
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::selectAll() {
+  template <uint D>
+  void Minimization<D>::selectAll() {
     dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
     if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::selectInverse() {
+  template <uint D>
+  void Minimization<D>::selectInverse() {
     dh::util::BufferTools::instance().flip<uint>(_buffers(BufferType::eSelection), _params->n);
     if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::syncBufferHandles() {
+  template <uint D>
+  void Minimization<D>::syncBufferHandles() {
     _similaritiesBuffers = _similarities->getBuffers();
     _embeddingRenderTask->setMinimizationBuffers(buffers()); 
     _attributeRenderTask->setMinimizationBuffers(buffers());
     _attributeRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::comp() {
+  template <uint D>
+  void Minimization<D>::comp() {
     while (_iteration < _params->iterations) {
       compIteration();
     }
   }
 
   // Core function handling everything that needs to happen each frame
-  template <uint D, uint DD>
-  bool Minimization<D, DD>::compIteration() {
+  template <uint D>
+  bool Minimization<D>::compIteration() {
     _input = _selectionInputTask->getInput();
 
     _selectionRenderTask->setInput(_input);
@@ -336,7 +294,7 @@ namespace dh::sne {
     glm::vec2 resolution = glm::vec2(_window->size());
     _model_view_2D = glm::translate(glm::vec3(-0.5f, -0.5f, -1.0f)); // TODO: get this directly from Rendered
     _proj_2D = glm::infinitePerspective(1.0f, resolution.x / resolution.y, 0.0001f); // TODO: get this directly from renderer
-    if(DD == 3) {
+    if(D == 3) {
       _model_view_3D = _trackballInputTask->matrix() * glm::translate(glm::vec3(-0.5f, -0.5f, -0.5f)); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)
       _proj_3D = glm::perspectiveFov(0.5f, resolution.x, resolution.y, 0.0001f, 1000.f); // TODO: get this from Rendered (and remove trackballInputTask from Minimizatiion)  
     }
@@ -473,22 +431,6 @@ namespace dh::sne {
       dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
     }
 
-    // Reset some stuff upon axis change
-    // _axisMapping = _axesRenderTask->getAxisMapping();
-    // _axisIndex = _axesRenderTask->getSelectedIndex();
-    // if(_axisIndex != _axisIndexPrev || _axisMapping != _axisMappingPrev) {
-    //   reconfigureZAxis();
-    //   _axisMappingPrev = _axisMapping;
-    //   _axisIndexPrev = _axisIndex;
-    // }
-
-    // Reconstruct this Minimization if adding subtracting a t-SNE dimension
-    // _axisMapping = _axesRenderTask->getAxisMapping();
-    // _axisIndex = _axesRenderTask->getSelectedIndex();
-    // if((_axisMapping[2] == 't' || _axisMappingPrev[2] == 't') && _axisMapping[2] != _axisMappingPrev[2]) {
-    //   return true;
-    // }
-
     // if(_input.ctrl && !__assessed) {
     //   _attributeRenderTask->assess(_similarities->getSymmetricSize());
     //   __assessed = true;
@@ -498,8 +440,8 @@ namespace dh::sne {
     return false;
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationMinimize() {
+  template <uint D>
+  void Minimization<D>::compIterationMinimize() {
 
     // 1.
     // Compute embedding bounds
@@ -785,8 +727,8 @@ namespace dh::sne {
     }
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationSelect(bool skipEval) {
+  template <uint D>
+  void Minimization<D>::compIterationSelect(bool skipEval) {
     uint si = _input.s; // Selection index
     uint sn = si + 1; // Selection number
 
@@ -802,8 +744,8 @@ namespace dh::sne {
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
-      program.template uniform<float, 4, 4>("model_view", DD == 2 ? _model_view_2D : _model_view_3D);
-      program.template uniform<float, 4, 4>("proj", DD == 2 ? _proj_2D : _proj_3D);
+      program.template uniform<float, 4, 4>("model_view", D == 2 ? _model_view_2D : _model_view_3D);
+      program.template uniform<float, 4, 4>("proj", D == 2 ? _proj_2D : _proj_3D);
       program.template uniform<bool>("deselect", _input.mouseMiddle);
       program.template uniform<bool>("unfix", _input.u);
 
@@ -834,8 +776,8 @@ namespace dh::sne {
     _attributeRenderTask->update(_selectionCounts);
   }
 
-  template <uint D, uint DD>
-  void Minimization<D, DD>::compIterationTranslate() {
+  template <uint D>
+  void Minimization<D>::compIterationTranslate() {
 
     if(!_mouseRightPrev) {
       glm::vec2 min = dh::util::BufferTools::instance().reduce<glm::vec2>(_buffers(BufferType::eEmbeddingRelative), 1, _params->n, _buffers(BufferType::eSelection));
@@ -880,7 +822,6 @@ namespace dh::sne {
   }
 
   // Template instantiations for 2/3 dimensions
-  template class Minimization<2, 2>;
-  template class Minimization<2, 3>;
-  template class Minimization<3, 3>;
+  template class Minimization<2>;
+  template class Minimization<3>;
 } // dh::sne

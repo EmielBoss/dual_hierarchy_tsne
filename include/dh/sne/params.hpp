@@ -78,8 +78,7 @@ namespace dh::sne {
     // Program params
     uint resWidth = 1920;
     uint resHeight = 920;
-    int nPCs = 10;
-    bool disablePCA = false;
+    int nPrincipalComponents = -1; // -1 indicates no PCA processing; uses original dimensions
     float maxAttributeWeight = 2.f;
     float maxSimilarityWeight = 3.f;
     uint nArchetypeClasses = 2;

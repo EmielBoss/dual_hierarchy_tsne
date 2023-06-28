@@ -45,18 +45,17 @@
 #include "dh/vis/components/attribute_render_task.hpp"
 
 namespace dh::sne {
-  template <uint D, uint DD> // Number of t-SNE axes and total number of axes
+  template <uint D>
   class Minimization {
     // aligned types
     using Bounds = util::AlignedBounds<D>;
     using vec = util::AlignedVec<D, float>;
-    using vecc = util::AlignedVec<DD, float>;
     using uvec = util::AlignedVec<D, uint>;
 
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params, std::vector<char> axisMapping);
+    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params);
     ~Minimization();
 
     // Copy constr/assignment is explicitly deleted
@@ -74,8 +73,6 @@ namespace dh::sne {
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void syncBufferHandles();
-    // void reconfigureZAxis();
-    // std::vector<char> getAxisMapping() { return _axisMapping; }
 
     // Computation
     void comp();                                                                // Compute full minimization (i.e. params.iterations)
@@ -143,10 +140,6 @@ namespace dh::sne {
     bool _isInit;
     bool _loggedNewline;
     Params* _params;
-    std::vector<char> _axisMapping;
-    std::vector<char> _axisMappingPrev;
-    int _axisIndex;
-    int _axisIndexPrev;
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     util::GLWindow* _window;
@@ -183,8 +176,8 @@ namespace dh::sne {
     std::shared_ptr<vis::SelectionInputTask> _selectionInputTask;
     std::shared_ptr<vis::TrackballInputTask> _trackballInputTask;
     std::shared_ptr<vis::SelectionRenderTask> _selectionRenderTask;
-    std::shared_ptr<vis::EmbeddingRenderTask<DD>> _embeddingRenderTask;
-    std::shared_ptr<vis::AxesRenderTask<DD>> _axesRenderTask;
+    std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
+    std::shared_ptr<vis::AxesRenderTask<D>> _axesRenderTask;
     std::shared_ptr<vis::AttributeRenderTask> _attributeRenderTask;
     KLDivergence _klDivergence;
 
@@ -207,14 +200,10 @@ namespace dh::sne {
     bool isInit() const { return _isInit; }
 
     // std::swap impl
-    friend void swap(Minimization<D, DD>& a, Minimization<D, DD>& b) noexcept {
+    friend void swap(Minimization<D>& a, Minimization<D>& b) noexcept {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._params, b._params);
-      swap(a._axisMapping, b._axisMapping);
-      swap(a._axisMappingPrev, b._axisMappingPrev);
-      swap(a._axisIndex, b._axisIndex);
-      swap(a._axisIndexPrev, b._axisIndexPrev);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._pcs, b._pcs);

@@ -64,15 +64,11 @@ namespace dh::vis {
   }
 
   template <uint D>
-  AxesRenderTask<D>::AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params* params, std::vector<char> axisMapping, int selectedAxistype, int priority)
+  AxesRenderTask<D>::AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params* params, int priority)
   : RenderTask(priority, "AxesRenderTask"), 
     _isInit(false),
     _minimization(minimization),
-    _params(params),
-    _axisMapping(axisMapping),
-    _axisMappingPrev(axisMapping),
-    _selectedAxistype(selectedAxistype),
-    _selectedIndex(0) {
+    _params(params) {
     // Enable/disable render task by default
     enable = DH_VIS_EMBEDDING_INIT;
 
@@ -174,28 +170,8 @@ namespace dh::vis {
 
   template <uint D>
   void AxesRenderTask<D>::drawImGuiComponent() {
-    const char* axistypes[3] = {"t-SNE", "Attribute", "PCA"};
-    const char axistypesAbbr[3] = {'t', 'a', 'p'};
-    const char* axistypesNoPCA[2] = {"t-SNE", "Attribute"};
     if(ImGui::CollapsingHeader("Axes settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Spacing();
-      if(D == 3) {
-        ImGui::Text("Z");
-        if(!_params->disablePCA) { ImGui::Combo("Axis type", &_selectedAxistype, axistypes, IM_ARRAYSIZE(axistypes)); }
-        else {                    ImGui::Combo("Axis type", &_selectedAxistype, axistypesNoPCA, IM_ARRAYSIZE(axistypes)); }
-        _axisMapping[2] = axistypesAbbr[_selectedAxistype];
-        if(_axisMapping != _axisMappingPrev) {
-          _selectedIndex = 0;
-          _axisMappingPrev = _axisMapping;
-        }
-        if(_axisMapping[2] == 'p' && !_params->disablePCA) {
-          ImGui::SliderInt("Principal component", &_selectedIndex, 0, _params->nPCs-1);
-        } else
-        if(_axisMapping[2] == 'a') {
-          ImGui::SliderInt("Attribute", &_selectedIndex, 0, _params->nHighDims-1);
-        }
-        ImGui::Spacing();
-      }
     }
   }
 

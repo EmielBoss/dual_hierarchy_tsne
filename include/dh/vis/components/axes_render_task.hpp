@@ -39,7 +39,7 @@ namespace dh::vis {
 
   public:
     AxesRenderTask();
-    AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params* params, std::vector<char> axisMapping, int selectedAxistype, int priority);
+    AxesRenderTask(sne::MinimizationBuffers minimization, sne::Params* params, int priority);
     ~AxesRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -52,20 +52,12 @@ namespace dh::vis {
 
     void render(glm::mat4 model_view, glm::mat4 proj) override;
     void drawImGuiComponent() override;
-    std::vector<char> getAxisMapping() { return _axisMapping; }
-    int getSelectedIndex() { return _selectedIndex; }
 
   private:
     // State
     bool _isInit;
     sne::MinimizationBuffers _minimization;
     sne::Params* _params;
-    std::vector<char> _axisMapping;
-    std::vector<char> _axisMappingPrev;
-
-    // ImGui state
-    int _selectedAxistype;
-    int _selectedIndex;
 
     // Objects
     GLuint _vboHandlePositions;
@@ -89,10 +81,6 @@ namespace dh::vis {
       swap(a._isInit, b._isInit);
       swap(a._minimization, b._minimization);
       swap(a._params, b._params);
-      swap(a._axisMapping, b._axisMapping);
-      swap(a._axisMappingPrev, b._axisMappingPrev);
-      swap(a._selectedAxistype, b._selectedAxistype);
-      swap(a._selectedIndex, b._selectedIndex);
       swap(a._vboHandlePositions, b._vboHandlePositions);
       swap(a._vboHandleColors, b._vboHandleColors);
       swap(a._program, b._program);
