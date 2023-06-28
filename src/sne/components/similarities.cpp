@@ -28,7 +28,6 @@
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 #include "dh/util/gl/buffertools.hpp"
-#include "dh/util/io.hpp"
 #include "dh/util/cu/inclusive_scan.cuh"
 #include "dh/util/cu/knn.cuh"
 #include <algorithm>
@@ -90,8 +89,6 @@ namespace dh::sne {
       const std::vector<float> ones(_params->nHighDims, 1.0f);
       std::vector<float> data;
       data.assign(dataPtr, dataPtr + _params->n * _params->nHighDims);
-      if(_params->uniformDims || _params->imageDataset) { dh::util::normalizeData(data, _params->n, _params->nHighDims); }
-      else { dh::util::normalizeDataNonUniformDims(data, _params->n, _params->nHighDims); }
 
       glNamedBufferStorage(_buffers(BufferType::eDataset), _params->n * _params->nHighDims * sizeof(float), data.data(), 0); // Original dataset
       glNamedBufferStorage(_buffers(BufferType::eLayout), _params->n * 2 * sizeof(uint), nullptr, 0); // n structs of two uints; the first is its expanded neighbor set offset (eScan[i - 1]), the second is its expanded neighbor set size (eScan[i] - eScan[i - 1])

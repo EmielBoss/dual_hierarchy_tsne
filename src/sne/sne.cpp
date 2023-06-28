@@ -91,8 +91,7 @@ namespace dh::sne {
   void SNE::compMinimizationStep() {
     // Run timer to track full minimization computation
     _minimizationTimer.tick();
-    bool reconstructionNeeded = false;
-    std::visit([&](auto& m) { reconstructionNeeded = m.compIteration(); }, _minimization);
+    std::visit([&](auto& m) { m.compIteration(); }, _minimization);
     _minimizationTimer.tock();
     _minimizationTimer.poll();
   }

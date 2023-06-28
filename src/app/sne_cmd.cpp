@@ -28,6 +28,7 @@
 #include <vector>
 #include <cmath>
 #include <cxxopts.hpp>
+#include <faiss/VectorTransform.h>
 #include "dh/util/io.hpp"
 #include "dh/util/logger.hpp"
 #include "dh/util/gl/window.hpp"
@@ -81,6 +82,7 @@ void cli(int argc, char** argv) {
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
     ("normalize", "Normalize data as preprocessing step", cxxopts::value<bool>())
     ("nonUniformDims", "Treat the dimensions/attributes as having different ranges and properties", cxxopts::value<bool>())
+    ("pca", "Number of principal components that t-SNE will use as dimensions (default: no PCA, original data dimensions)", cxxopts::value<int>())
     ("h,help", "Print this help message and exit");
 
   options.parse_positional({"iptFilename", "nPoints", "nHighDims", "nLowDims"});
@@ -124,8 +126,7 @@ void cli(int argc, char** argv) {
   if (result.count("visAfter")) { progDoVisAfter = true; }
   if (result.count("normalize")) { params.normalizeData = true; }
   if (result.count("nonUniformDims")) { params.uniformDims = false; }
-  params.datasetName = iptFilename.substr(0, iptFilename.length() - 4);
-  params.nTexels = params.nHighDims / params.imgDepth;
+  if (result.count("pca")) { params.nPrincipalComponents = result["pca"].as<int>(); }
 }
 
 void sne() {
@@ -137,13 +138,23 @@ void sne() {
   std::vector<int> labels;
   bool includeAllClasses = params.nClasses < 0;
   dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
-  if(params.normalizeData) {
-    if(params.uniformDims) { dh::util::normalizeData(data, params.n, params.nHighDims, 0.f, 255.f); }
+  if(params.normalizeData || params.imageDataset) {
+    if(params.uniformDims || params.imageDataset) { dh::util::normalizeData(data, params.n, params.nHighDims); }
     else { dh::util::normalizeDataNonUniformDims(data, params.n, params.nHighDims); }
   }
   if(!includeAllClasses) {
     params.n = data.size() / params.nHighDims;
   }
+  if(params.nPrincipalComponents > 0) {
+    faiss::PCAMatrix matrixPCA(params.nHighDims, params.nPrincipalComponents);
+    matrixPCA.train(params.n, data.data());
+    float* _pcaPtr = matrixPCA.apply(params.n, data.data());
+    data = std::vector<float>(_pcaPtr, _pcaPtr + params.n * params.nPrincipalComponents);
+    params.nHighDims = params.nPrincipalComponents;
+    params.imageDataset = false;
+  }
+  params.datasetName = iptFilename.substr(0, iptFilename.length() - 4);
+  params.nTexels = params.nHighDims / params.imgDepth;
 
   // Create OpenGL context (and accompanying invisible window)
   dh::util::GLWindowInfo info;

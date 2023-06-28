@@ -76,7 +76,7 @@ namespace dh::sne {
 
     // Computation
     void comp();                                                                // Compute full minimization (i.e. params.iterations)
-    bool compIteration();                                                       // Compute a single iteration: minimization + selection + translation
+    void compIteration();                                                       // Compute a single iteration: minimization + selection + translation
     void compIterationMinimize();                                               // Compute the minimization part of a single iteration
     void compIterationSelect(bool skipEval = false);                            // Compute the selection part of a single iteration
     void compIterationTranslate();                                              // Compute the translation part of a single iteration
@@ -143,7 +143,6 @@ namespace dh::sne {
     Similarities* _similarities;
     SimilaritiesBuffers _similaritiesBuffers;
     util::GLWindow* _window;
-    float* _pcs;
     uint _iteration;
     uint _iterationIntense;
     uint _removeExaggerationIter;
@@ -206,7 +205,6 @@ namespace dh::sne {
       swap(a._params, b._params);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
-      swap(a._pcs, b._pcs);
       swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);

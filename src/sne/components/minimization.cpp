@@ -37,7 +37,6 @@
 #include "dh/util/gl/buffertools.hpp"
 #include "dh/vis/input_queue.hpp"
 #include "dh/util/cu/knn.cuh"
-#include <faiss/VectorTransform.h>
 #include <imgui.h>
 #include <implot.h>
 #include <numeric> //
@@ -273,7 +272,7 @@ namespace dh::sne {
 
   // Core function handling everything that needs to happen each frame
   template <uint D>
-  bool Minimization<D>::compIteration() {
+  void Minimization<D>::compIteration() {
     _input = _selectionInputTask->getInput();
 
     _selectionRenderTask->setInput(_input);
@@ -437,7 +436,6 @@ namespace dh::sne {
     // }
 
     glAssert();
-    return false;
   }
 
   template <uint D>
