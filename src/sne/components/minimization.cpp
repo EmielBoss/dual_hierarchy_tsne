@@ -334,7 +334,7 @@ namespace dh::sne {
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
       glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
-      _embeddingRenderTask->setPointRadius(100.f / _params->n);
+      _embeddingRenderTask->setPointRadius(std::min(100.f / _params->n, 0.005f));
     }
 
     _mousePosClipPrev = _input.mousePosClip;

@@ -63,7 +63,7 @@ namespace dh::vis {
     _colorMapping(ColorMapping::labels),
     _forceWeight(params->k * 1.5f),
     _forceWeightFalloff(0.1f),
-    _pointRadius(100.f / _params->n),
+    _pointRadius(std::min(100.f / _params->n, 0.005f)),
     _pointOpacity(1.0f),
     _buttonPressed(0),
     _perplexity(params->perplexity),
@@ -258,7 +258,7 @@ namespace dh::vis {
         if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
-      ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.01f, "%.4f");
+      ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.005f, "%.4f");
       ImGui::Spacing();
       ImGui::SliderFloat("Force weight", &_forceWeight, 1.0f, _params->k * 5.0f);
       ImGui::SliderFloat("Force weight falloff", &_forceWeightFalloff, 0.f, 1.f, "%.4f");

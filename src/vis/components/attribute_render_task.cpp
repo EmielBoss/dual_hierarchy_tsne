@@ -25,6 +25,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <string>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -72,7 +73,7 @@ namespace dh::vis {
     _draggedTexel(-1),
     _buttonPressed(0),
     _attributeWeight(0.f),
-    _brushRadius(1),
+    _brushRadius(_params->imageDataset ? 1 : 0),
     _similarityWeight(2.f),
     _autoselectPercentage(0.025f),
     _currentTabUpper(0),
@@ -557,20 +558,35 @@ namespace dh::vis {
       std::vector<float> ys(_params->nHighDims);
       glGetNamedBufferSubData(_buffersTextureData[tabIndex], 0, _params->nHighDims * sizeof(float), ys.data());
 
-      ImPlot::SetupAxis(ImAxis_X1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_AutoFit : 0)); // ImPlot 0.14 or later
-      ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_X1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | ImPlotAxisFlags_AutoFit); // ImPlot 0.14 or later
+      ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | ImPlotAxisFlags_AutoFit | (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
 
       ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(1), 1.f);
       ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(1), 0.f);
       ImPlot::PlotBars("Average", xs.data(), ys.data(), _params->nHighDims, 1.f);
 
-      if(ImPlot::IsPlotHovered() && _input.x) {
+      // Plotting the weights
+      if(ImPlot::IsPlotHovered()) {
         glGetNamedBufferSubData(_similaritiesBuffers.attributeWeights, 0, _params->nHighDims * sizeof(float), ys.data());
+        float max = ImPlot::GetPlotLimits().Max().y;
+        float min = ImPlot::GetPlotLimits().Min().y;
+        std::vector<float> ys_min(_params->nHighDims);
+        std::vector<float> ys_max(_params->nHighDims);
+        for(uint i = 0; i < _params->nHighDims; ++i) {
+          ys_min[i] = ys[i] * min;
+          ys_max[i] = ys[i] * max;
+        }
+
         ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
         ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
-        ImPlot::PlotBars("Weights", xs.data(), ys.data(), _params->nHighDims, 1.f);
+        ImPlot::PlotBars("Weights", xs.data(), ys_max.data(), _params->nHighDims, 1.f);
+        if(max * min < 0) { // If max and min have a different sign, also plot the other side of the axis
+          ImPlot::SetNextFillStyle(ImPlot::GetColormapColor(0), 0.5f);
+          ImPlot::SetNextLineStyle(ImPlot::GetColormapColor(0), 0.f);
+          ImPlot::PlotBars("Weights", xs.data(), ys_min.data(), _params->nHighDims, 1.f);
+        }
 
-        uint hoveredTexel = ImPlot::GetPlotMousePos().x;
+        uint hoveredTexel = std::max(std::round((float) ImPlot::GetPlotMousePos().x), 0.f);
 
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
