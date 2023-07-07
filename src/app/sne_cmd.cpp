@@ -138,10 +138,6 @@ void sne() {
   std::vector<int> labels;
   bool includeAllClasses = params.nClasses < 0;
   dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
-  if(params.normalizeData || params.imageDataset) {
-    if(params.uniformDims || params.imageDataset) { dh::util::normalizeData(data, params.n, params.nHighDims); }
-    else { dh::util::normalizeDataNonUniformDims(data, params.n, params.nHighDims); }
-  }
   if(!includeAllClasses) {
     params.n = data.size() / params.nHighDims;
   }
@@ -151,7 +147,10 @@ void sne() {
     float* _pcaPtr = matrixPCA.apply(params.n, data.data());
     data = std::vector<float>(_pcaPtr, _pcaPtr + params.n * params.nPrincipalComponents);
     params.nHighDims = params.nPrincipalComponents;
-    params.imageDataset = false;
+  }
+  if(params.normalizeData || params.imageDataset || params.nPrincipalComponents > 0) {
+    if(params.uniformDims || params.imageDataset) { dh::util::normalizeData(data, params.n, params.nHighDims); }
+    else { dh::util::normalizeDataNonUniformDims(data, params.n, params.nHighDims); }
   }
   params.datasetName = iptFilename.substr(0, iptFilename.length() - 4);
   params.nTexels = params.nHighDims / params.imgDepth;

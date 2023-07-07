@@ -157,6 +157,8 @@ namespace dh::sne {
 
     _isInit = true;
     glAssert();
+
+    _attributeRenderTask->update(_selectionCounts); // Avoids the visualization showing initial values
   }
 
   // Generate randomized embedding data
