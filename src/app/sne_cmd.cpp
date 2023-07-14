@@ -48,7 +48,7 @@ dh::sne::Params params;
 
 // Program parameters, set by cli(...)
 bool progDoKlDivergence = false;
-bool progDoLabels = false;
+bool progNoLabels = false;
 bool progDoVisDuring = false;
 bool progDoVisAfter = false;
 
@@ -76,7 +76,7 @@ void cli(int argc, char** argv) {
     ("imgHeight", "Image resolution height (default: 28)", cxxopts::value<uint>())
     ("imgDepth", "Image number of components (default: 1)", cxxopts::value<uint>())
     ("nClasses", "Use only the first n classes (default: number of distinct labels)", cxxopts::value<int>())
-    ("lbl", "Input data file contains label data", cxxopts::value<bool>())
+    ("noLabels", "Don't read label data", cxxopts::value<bool>())
     ("kld", "Compute KL-Divergence", cxxopts::value<bool>())
     ("visDuring", "Visualize embedding during/after minimization", cxxopts::value<bool>())
     ("visAfter", "Visualize embedding after minimization", cxxopts::value<bool>())
@@ -121,7 +121,7 @@ void cli(int argc, char** argv) {
   if (result.count("iterations")) { params.iterations = result["iterations"].as<uint>(); }
   if (result.count("theta")) { params.dualHierarchyTheta = result["theta"].as<float>(); }
   if (result.count("kld")) { progDoKlDivergence = true; }
-  if (result.count("lbl")) { progDoLabels = true; }
+  if (result.count("noLabels")) { progNoLabels = true; }
   if (result.count("visDuring")) { progDoVisDuring = true; }
   if (result.count("visAfter")) { progDoVisAfter = true; }
   if (result.count("normalize")) { params.normalizeData = true; }
@@ -136,11 +136,7 @@ void sne() {
   // Load dataset
   std::vector<float> data;
   std::vector<int> labels;
-  bool includeAllClasses = params.nClasses == 0;
-  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
-  if(!includeAllClasses) {
-    params.n = data.size() / params.nHighDims;
-  }
+  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progNoLabels, params.nClasses);
   if(params.nPrincipalComponents > 0) {
     faiss::PCAMatrix matrixPCA(params.nHighDims, params.nPrincipalComponents);
     matrixPCA.train(params.n, data.data());
@@ -198,7 +194,7 @@ void sne() {
 
   // If requested, output embedding to file 
   if (!optFilename.empty()) {
-    dh::util::writeBinFile(optFilename, sne.embedding(), labels, params.n, params.nLowDims, progDoLabels);
+    dh::util::writeBinFile(optFilename, sne.embedding(), labels, params.n, params.nLowDims, progNoLabels);
   }
 
   // If requested, run visualization after minimization is completed

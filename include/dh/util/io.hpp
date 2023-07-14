@@ -36,21 +36,20 @@ namespace dh::util {
    * Read a binary data file and interpret it as N D-dimensional vectors. Should the data file
    * contain labels for each vector, these can be read assuming they are stored as 32 bit uints.
    */
-  void readBinFile(const std::string &fileName, 
-                   std::vector<float> &data,
-                   std::vector<int> &labels, 
-                   uint n,
-                   uint d,
-                   bool withLabels,
-                   int& nClasses,
-                   bool includeAllClasses);
+  void readBinFile(const std::string fileName, 
+                   std::vector<float>& data,
+                   std::vector<int>& labels, 
+                   uint& n,
+                   uint& d,
+                   bool& noLabels,
+                   int& nClasses);
 
   /**
    * readTxtClassNames(...)
    * 
    * Read a text data file in which each line is a class name
    */
-  void readTxtClassNames(const std::string &fileName,
+  void readTxtClassNames(std::string fileName,
                          std::vector<std::string>& classNames,
                          int nClasses);
   
@@ -60,9 +59,9 @@ namespace dh::util {
    * Write a binary data file, storing N D-dimensional vectors. Should labels be available for
    * each vector, these can be interleaved with the data as 32 bit uints.
    */
-  void writeBinFile(const std::string &fileName,
-                    const std::vector<float> &data,
-                    const std::vector<int> &labels,
+  void writeBinFile(std::string fileName,
+                    const std::vector<float>& data,
+                    const std::vector<int>& labels,
                     uint n,
                     uint d,
                     bool withLabels = false);
@@ -72,8 +71,8 @@ namespace dh::util {
    * 
    * Write a text file, storing specified string values. Useful for outputting time/kl divergence.
    */
-  void writeTextValuesFile(const std::string &fileName,
-                           const std::vector<std::string> &values);
+  void writeTextValuesFile(std::string fileName,
+                           std::vector<std::string> values);
 
   /**
    * readGLBuffer

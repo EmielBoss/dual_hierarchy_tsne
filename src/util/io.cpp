@@ -31,58 +31,56 @@
 #include "dh/util/gl/metric.hpp"
 
 namespace dh::util {
-  void readBinFile(const std::string &fileName,
-                   std::vector<float> &data,
-                   std::vector<int> &labels,
-                   uint n,
-                   uint d,
-                   bool withLabels,
-                   int& nClasses,
-                   bool includeAllClasses)
+  void readBinFile(std::string fileName,
+                   std::vector<float>& data,
+                   std::vector<int>& labels,
+                   uint& n,
+                   uint& d,
+                   bool& noLabels,
+                   int& nClasses)
   {
-    std::ifstream ifs(fileName, std::ios::in | std::ios::binary);
-    if (!ifs) {
-      throw std::runtime_error("Input file cannot be accessed: " + fileName);
-    }
+    bool includeAllClasses = nClasses == 0;
 
     // Clear vectors and create space to store data in
     data = std::vector<float>(n * d);
     labels = std::vector<int>(n, -1);
 
-    // Read data, either in a single call (no labels) or intermittently (to extract labels)
-    if (withLabels) {
-      if(includeAllClasses) {
-        std::set<int> classes;
-        for (uint i = 0; i < n; ++i) {
-          ifs.read((char *) &labels[i], sizeof(int));
-          ifs.read((char *) &data[d * i], d * sizeof(float));
-          classes.insert(labels[i]);
-        }
+    std::ifstream ifsData(fileName + ".dat", std::ios::in | std::ios::binary);
+    std::ifstream ifsLabels(fileName + ".lab", std::ios::in | std::ios::binary);
+    if(!ifsData) { throw std::runtime_error("Input data file cannot be accessed: " + fileName + ".dat"); }
+    if(!ifsLabels || noLabels) { noLabels = true; }
+
+    if(includeAllClasses) {
+      ifsData.read((char *) data.data(), data.size() * sizeof(float));
+      if(!noLabels) {
+        ifsLabels.read((char *) labels.data(), labels.size() * sizeof(float));
+        std::set<int> classes(labels.begin(), labels.end());
         nClasses = classes.size();
         if(classes.find(0) == classes.end()) { // No 0 in classes means the first class is 1
           for (uint i = 0; i < n; ++i) { labels[i]--; }
         }
-      } else {
-        int count = 0;
-        for (uint i = 0; i < n; ++i) {
-          int label = ifs.peek();
-          if(label < nClasses) {
-            ifs.read((char *) &labels[count], sizeof(int));
-            ifs.read((char *) &data[d * count], d * sizeof(float));
-            count++;
-          } else {
-            ifs.ignore(sizeof(int) + d * sizeof(float));
-          }
-        }
-        labels.resize(count);
-        data.resize(d * count);
       }
     } else {
-      ifs.read((char *) data.data(), data.size() * sizeof(float));
+      if(!ifsData) { throw std::runtime_error("Input label file cannot be accessed: " + fileName + ".dat (needed for --nClasses option)"); }
+      int count = 0;
+      for (uint i = 0; i < n; ++i) {
+        int label = ifsLabels.peek();
+        if(label < nClasses) {
+          ifsData.read((char *) &data[d * count], d * sizeof(float));
+          ifsLabels.read((char *) &labels[count], sizeof(int));
+          count++;
+        } else {
+          ifsData.ignore(d * sizeof(float));
+          ifsLabels.ignore(sizeof(int));
+        }
+      }
+      labels.resize(count);
+      data.resize(d * count);
+      n = count;
     }
   }
 
-  void readTxtClassNames(const std::string &fileName, std::vector<std::string>& classNames, int nClasses) {
+  void readTxtClassNames(std::string fileName, std::vector<std::string>& classNames, int nClasses) {
     std::ifstream file(fileName);
     if (!file) {
       return;
@@ -96,9 +94,9 @@ namespace dh::util {
     }
   }
 
-  void writeBinFile(const std::string &fileName,
-                    const std::vector<float> &data,
-                    const std::vector<int> &labels,
+  void writeBinFile(const std::string fileName,
+                    const std::vector<float>& data,
+                    const std::vector<int>& labels,
                     uint n,
                     uint d,
                     bool withLabels)
@@ -118,7 +116,7 @@ namespace dh::util {
     }
   }
   
-  void writeTextValuesFile(const std::string &fileName, const std::vector<std::string> &values)
+  void writeTextValuesFile(const std::string fileName, const std::vector<std::string>& values)
   {
     std::ofstream ofs (fileName, std::ios::out);
     if (!ofs) {
