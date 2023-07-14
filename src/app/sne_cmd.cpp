@@ -136,7 +136,7 @@ void sne() {
   // Load dataset
   std::vector<float> data;
   std::vector<int> labels;
-  bool includeAllClasses = params.nClasses < 0;
+  bool includeAllClasses = params.nClasses == 0;
   dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progDoLabels, params.nClasses, includeAllClasses);
   if(!includeAllClasses) {
     params.n = data.size() / params.nHighDims;

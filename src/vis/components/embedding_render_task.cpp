@@ -167,6 +167,7 @@ namespace dh::vis {
     // };
 
     std::vector<glm::vec4> colors = {
+      glm::vec4(150, 150, 150, 255),
       glm::vec4(230, 25, 75, 255),
       glm::vec4(60, 180, 75, 255),
       glm::vec4(255, 225, 25, 255),
@@ -194,7 +195,7 @@ namespace dh::vis {
     }
 
     glCreateBuffers(1, &_colorBuffer);
-    glNamedBufferStorage(_colorBuffer, _params->nClasses * sizeof(glm::vec4), colors.data(), GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(_colorBuffer, colors.size() * sizeof(glm::vec4), colors.data(), GL_DYNAMIC_STORAGE_BIT);
     glAssert();
   }
 

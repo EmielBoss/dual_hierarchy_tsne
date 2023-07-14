@@ -47,9 +47,7 @@ namespace dh::util {
 
     // Clear vectors and create space to store data in
     data = std::vector<float>(n * d);
-    if (withLabels) {
-      labels = std::vector<int>(n);
-    }
+    labels = std::vector<int>(n, -1);
 
     // Read data, either in a single call (no labels) or intermittently (to extract labels)
     if (withLabels) {

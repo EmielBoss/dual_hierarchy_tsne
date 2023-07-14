@@ -92,7 +92,7 @@ void main() {
     }
   } else
   if(colorMapping == 1) { // Labels
-    vec3 color = colors[canDrawLabels && labels[gl_InstanceID] >= 0 ? labels[gl_InstanceID] : 9];
+    vec3 color = colors[canDrawLabels && labels[gl_InstanceID] >= 0 ? labels[gl_InstanceID] : 0];
     if(!selectLabeledOnly) {
       if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } else
       if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 200.0f, pointOpacity); } else
