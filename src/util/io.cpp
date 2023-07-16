@@ -34,6 +34,7 @@ namespace dh::util {
   void readBinFile(std::string fileName,
                    std::vector<float>& data,
                    std::vector<int>& labels,
+                   std::vector<float>& colors,
                    uint& n,
                    uint& d,
                    bool& noLabels,
@@ -44,21 +45,27 @@ namespace dh::util {
     // Clear vectors and create space to store data in
     data = std::vector<float>(n * d);
     labels = std::vector<int>(n, -1);
+    colors = std::vector<float>(n * 3, 0.f);
+    for(uint i = 0; i < n; ++i) { colors[i * 3] = 255.f; } // Make colors red by default
 
     std::ifstream ifsData(fileName + ".dat", std::ios::in | std::ios::binary);
     std::ifstream ifsLabels(fileName + ".lab", std::ios::in | std::ios::binary);
+    std::ifstream ifsColors(fileName + ".col", std::ios::in | std::ios::binary);
     if(!ifsData) { throw std::runtime_error("Input data file cannot be accessed: " + fileName + ".dat"); }
-    if(!ifsLabels || noLabels) { noLabels = true; }
 
     if(includeAllClasses) {
       ifsData.read((char *) data.data(), data.size() * sizeof(float));
-      if(!noLabels) {
+      if(ifsLabels && !noLabels) {
         ifsLabels.read((char *) labels.data(), labels.size() * sizeof(float));
         std::set<int> classes(labels.begin(), labels.end());
         nClasses = classes.size();
         if(classes.find(0) == classes.end()) { // No 0 in classes means the first class is 1
           for (uint i = 0; i < n; ++i) { labels[i]--; }
         }
+      }
+      if(ifsColors) {
+        ifsColors.read((char *) colors.data(), colors.size() * sizeof(float));
+        std::cout << colors[0] << "," << colors[1] << std::endl;
       }
     } else {
       if(!ifsData) { throw std::runtime_error("Input label file cannot be accessed: " + fileName + ".dat (needed for --nClasses option)"); }
@@ -68,10 +75,12 @@ namespace dh::util {
         if(label < nClasses) {
           ifsData.read((char *) &data[d * count], d * sizeof(float));
           ifsLabels.read((char *) &labels[count], sizeof(int));
+          if(ifsColors) { ifsColors.read((char *) &colors[count * 3], sizeof(float) * 3); }
           count++;
         } else {
           ifsData.ignore(d * sizeof(float));
           ifsLabels.ignore(sizeof(int));
+          if(ifsColors) { ifsColors.ignore(sizeof(float) * 3); }
         }
       }
       labels.resize(count);

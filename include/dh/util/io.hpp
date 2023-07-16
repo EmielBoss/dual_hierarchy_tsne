@@ -36,9 +36,10 @@ namespace dh::util {
    * Read a binary data file and interpret it as N D-dimensional vectors. Should the data file
    * contain labels for each vector, these can be read assuming they are stored as 32 bit uints.
    */
-  void readBinFile(const std::string fileName, 
+  void readBinFile(std::string fileName,
                    std::vector<float>& data,
-                   std::vector<int>& labels, 
+                   std::vector<int>& labels,
+                   std::vector<float>& colors,
                    uint& n,
                    uint& d,
                    bool& noLabels,

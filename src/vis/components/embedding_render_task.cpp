@@ -55,7 +55,7 @@ namespace dh::vis {
   }
 
   template <uint D>
-  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers)
+  EmbeddingRenderTask<D>::EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers, const float* colorsPtr)
   : RenderTask(priority, "EmbeddingRenderTask"),
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
@@ -97,6 +97,18 @@ namespace dh::vis {
     createVAO();
 
     generateClassColors();
+
+    {
+      std::vector<glm::vec3> colorsVec3(_params->n);
+      for (uint i = 0; i < _params->n; ++i) {
+        colorsVec3[i] = glm::vec3(colorsPtr[i * 3 + 0], colorsPtr[i * 3 + 1], colorsPtr[i * 3 + 2]);
+      }
+
+      glCreateBuffers(1, &_bufferPointColors);
+      glNamedBufferStorage(_bufferPointColors, _params->n * sizeof(glm::vec3), colorsVec3.data(), 0);
+      glAssert();
+    }
+
     _isInit = true;
   }
 
@@ -105,7 +117,7 @@ namespace dh::vis {
     if (_isInit) {
       glDeleteVertexArrays(1, &_vaoHandle);
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteBuffers(1, &_colorBuffer);
+      glDeleteBuffers(1, &_bufferClassColors);
     }
   }
 
@@ -153,49 +165,49 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::generateClassColors() {
     
-    // std::vector<glm::vec4> colors = {
-    //   glm::vec4(16, 78, 139, 255),
-    //   glm::vec4(0, 128, 0, 255),
-    //   glm::vec4(139, 90, 43, 255),
-    //   glm::vec4(138, 43, 226, 255),
-    //   glm::vec4(255, 150, 0, 255),
-    //   glm::vec4(204, 40, 40, 255),
-    //   glm::vec4(131, 139, 131, 255),
-    //   glm::vec4(0, 205, 0, 255),
-    //   glm::vec4(0, 150, 255, 255),
-    //   glm::vec4(220, 220, 220, 255)
+    // std::vector<glm::vec3> colors = {
+    //   glm::vec3(16, 78, 139),
+    //   glm::vec3(0, 128, 0),
+    //   glm::vec3(139, 90, 43),
+    //   glm::vec3(138, 43, 226),
+    //   glm::vec3(255, 150, 0),
+    //   glm::vec3(204, 40, 40),
+    //   glm::vec3(131, 139, 131),
+    //   glm::vec3(0, 205, 0),
+    //   glm::vec3(0, 150, 255),
+    //   glm::vec3(220, 220, 220)
     // };
 
-    std::vector<glm::vec4> colors = {
-      glm::vec4(150, 150, 150, 255),
-      glm::vec4(230, 25, 75, 255),
-      glm::vec4(60, 180, 75, 255),
-      glm::vec4(255, 225, 25, 255),
-      glm::vec4(0, 130, 200, 255),
-      glm::vec4(245, 130, 48, 255),
-      glm::vec4(0, 128, 128, 255),
-      glm::vec4(70, 240, 240, 255),
-      glm::vec4(145, 30, 180, 255),
-      glm::vec4(250, 190, 212, 255),
-      glm::vec4(170, 110, 40, 255),
-      glm::vec4(255, 250, 200, 255),
-      glm::vec4(128, 0, 0, 255),
-      glm::vec4(170, 255, 195, 255),
-      glm::vec4(128, 128, 0, 255),
-      glm::vec4(255, 215, 180, 255),
-      glm::vec4(0, 0, 128, 255),
-      glm::vec4(128, 128, 128, 255)
+    std::vector<glm::vec3> classColors = {
+      glm::vec3(150, 150, 150),
+      glm::vec3(230, 25, 75),
+      glm::vec3(60, 180, 75),
+      glm::vec3(255, 225, 25),
+      glm::vec3(0, 130, 200),
+      glm::vec3(245, 130, 48),
+      glm::vec3(0, 128, 128),
+      glm::vec3(70, 240, 240),
+      glm::vec3(145, 30, 180),
+      glm::vec3(250, 190, 212),
+      glm::vec3(170, 110, 40),
+      glm::vec3(255, 250, 200),
+      glm::vec3(128, 0, 0),
+      glm::vec3(170, 255, 195),
+      glm::vec3(128, 128, 0),
+      glm::vec3(255, 215, 180),
+      glm::vec3(0, 0, 128),
+      glm::vec3(128, 128, 128)
     };
 
-    int nColorsToAdd = _params->nClasses - colors.size();
+    int nColorsToAdd = _params->nClasses - classColors.size();
     for(int i = 0; i < nColorsToAdd; ++i) {
-      glm::vec4 newColor = colors[i] + colors[i+1];
+      glm::vec3 newColor = classColors[i] + classColors[i+1];
       newColor /= 2.f;
-      colors.push_back(newColor);
+      classColors.push_back(newColor);
     }
 
-    glCreateBuffers(1, &_colorBuffer);
-    glNamedBufferStorage(_colorBuffer, colors.size() * sizeof(glm::vec4), colors.data(), GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &_bufferClassColors);
+    glNamedBufferStorage(_bufferClassColors, classColors.size() * sizeof(glm::vec3), classColors.data(), GL_DYNAMIC_STORAGE_BIT);
     glAssert();
   }
 
@@ -231,7 +243,8 @@ namespace dh::vis {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.fixed);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.selection);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _minimizationBuffers.neighborhoodPreservation);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _colorBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _bufferClassColors);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _bufferPointColors);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
@@ -250,11 +263,13 @@ namespace dh::vis {
       if(ImGui::SameLine(); ImGui::Button("Export")) { _buttonPressed = 11; }
 
       if (_minimizationBuffers.labels > 0) {
-        ImGui::Text("Color mapping:");
+        ImGui::Text("Color map:");
         ImGui::SameLine();
         if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
         ImGui::SameLine();
-        if (ImGui::RadioButton("Neighborhood preser.", _colorMapping==ColorMapping::neighborhoodPreservation)) { _colorMapping = ColorMapping::neighborhoodPreservation; }
+        if (ImGui::RadioButton("Colors", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("kNN preservation", _colorMapping==ColorMapping::knnPreservation)) { _colorMapping = ColorMapping::knnPreservation; }
         ImGui::SameLine();
         if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }

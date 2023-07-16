@@ -67,7 +67,7 @@ namespace dh::vis {
     _isInit(false),
     _minimizationBuffers(minimizationBuffers),
     _similaritiesBuffers(similaritiesBuffers),
-    _colorBuffer(colorBuffer),
+    _bufferClassColors(colorBuffer),
     _params(params),
     _selectionCounts(2, 0),
     _draggedTexel(-1),
@@ -169,8 +169,8 @@ namespace dh::vis {
     _classNames = std::vector<std::string>(_params->nClasses, "");
     dh::util::readTxtClassNames(_params->datasetName + ".txt", _classNames, _params->nClasses);
 
-    _colors = std::vector<glm::vec4>(_params->nClasses);
-    glGetNamedBufferSubData(_colorBuffer, 0, _params->nClasses * sizeof(glm::vec4), _colors.data());
+    _classColors = std::vector<glm::vec3>(_params->nClasses);
+    glGetNamedBufferSubData(_bufferClassColors, 0, _params->nClasses * sizeof(glm::vec3), _classColors.data());
 
     _isInit = true;
   }
@@ -656,13 +656,13 @@ namespace dh::vis {
     if (ImGui::CollapsingHeader("Classes", ImGuiTreeNodeFlags_DefaultOpen)) {
       for(uint i = 0; i < _params->nClasses; ++i) {
         if(ImGui::ImageButton((void*)(intptr_t)_classTextures[i], ImVec2(19, 19), ImVec2(0,0), ImVec2(1,1), 0)) { _classButtonPressed = i; }
-        ImVec4 color = ImVec4(_colors[i].x / 400.f, _colors[i].y / 400.f, _colors[i].z / 400.f, _colors[i].w / 255.f);
+        ImVec4 color = ImVec4(_classColors[i].x / 400.f, _classColors[i].y / 400.f, _classColors[i].z / 400.f, 1.f);
         std::string leadingZeros = i < 10 ? "0" : "";
         std::string text = leadingZeros + std::to_string(i) + " | " + std::to_string(_classCounts[i]) + " / " + std::to_string(_classCountsSelected[i]) + " " + _classNames[i];
         if(ImGui::SameLine(); ImGui::ColorEdit3(text.c_str(), (float*) &color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoBorder)) {
-          glm::vec4 colorUpdated = glm::vec4(color.x * 400.f, color.y * 400.f, color.z * 400.f, 255.f);
-          _colors[i] = colorUpdated;
-          glNamedBufferSubData(_colorBuffer, i * sizeof(glm::vec4), sizeof(glm::vec4), &colorUpdated);
+          glm::vec3 colorUpdated(color.x * 400.f, color.y * 400.f, color.z * 400.f);
+          _classColors[i] = colorUpdated;
+          glNamedBufferSubData(_bufferClassColors, i * sizeof(glm::vec3), sizeof(glm::vec3), &colorUpdated);
         }
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 100);

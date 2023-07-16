@@ -40,7 +40,7 @@ namespace dh::vis {
 
   public:
     EmbeddingRenderTask();
-    EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers);
+    EmbeddingRenderTask(sne::Params* params, int priority, sne::MinimizationBuffers minimizationBuffers, const float* colorsPtr);
     ~EmbeddingRenderTask();
 
     // Copy constr/assignment is explicitly deleted
@@ -61,7 +61,7 @@ namespace dh::vis {
     void setKLDivergence(float klDivergence) { _klDivergence = klDivergence; }
     void setPointRadius(float pointRadius) { _pointRadius = pointRadius; }
     uint getColorMapping() { return _colorMapping; }
-    GLuint getColorBuffer() { return _colorBuffer; }
+    GLuint getClassColorBuffer() { return _bufferClassColors; }
     float getForceWeight() { return _forceWeight; }
     float getForceWeightFalloff() { return _forceWeightFalloff; }
     float getPerplexity() { return _perplexity; }
@@ -101,7 +101,8 @@ namespace dh::vis {
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
     sne::MinimizationBuffers _minimizationBuffers;
-    GLuint _colorBuffer;
+    GLuint _bufferPointColors;
+    GLuint _bufferClassColors;
     util::GLProgram _program;
     GLuint _vaoHandle;
 
@@ -111,7 +112,8 @@ namespace dh::vis {
     enum ColorMapping {
       none,
       labels,
-      neighborhoodPreservation
+      colors,
+      knnPreservation
     };
     
     // std::swap impl
@@ -132,7 +134,8 @@ namespace dh::vis {
       swap(a._k, b._k);
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._buffers, b._buffers);
-      swap(a._colorBuffer, b._colorBuffer);
+      swap(a._bufferPointColors, b._bufferPointColors);
+      swap(a._bufferClassColors, b._bufferClassColors);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);
       // swap(a._numClusters, b._numClusters);

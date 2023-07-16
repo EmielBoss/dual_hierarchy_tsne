@@ -51,7 +51,8 @@ layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disab
 layout(binding = 4, std430) restrict readonly buffer FixedBuffer { uint fixxed[]; };
 layout(binding = 5, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
 layout(binding = 6, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
-layout(binding = 7, std430) restrict readonly buffer ColorBuffer { vec3 colors[]; };
+layout(binding = 7, std430) restrict readonly buffer ClassColorBuffer { vec3 classColors[]; };
+layout(binding = 8, std430) restrict readonly buffer PointColorBuffer { vec3 pointColors[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
@@ -92,7 +93,7 @@ void main() {
     }
   } else
   if(colorMapping == 1) { // Labels
-    vec3 color = colors[canDrawLabels && labels[gl_InstanceID] >= 0 ? labels[gl_InstanceID] : 0];
+    vec3 color = classColors[canDrawLabels && labels[gl_InstanceID] >= 0 ? labels[gl_InstanceID] : 0];
     if(!selectLabeledOnly) {
       if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 400.0f, pointOpacity / divider); } else
       if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 200.0f, pointOpacity); } else
@@ -105,7 +106,19 @@ void main() {
       if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
     }
   } else
-  if(colorMapping == 2) { // Neighborhood preservation
+  if(colorMapping == 2) { // Colors
+    vec3 color = pointColors[gl_InstanceID];
+    if(!selectLabeledOnly) {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 255.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(0.f, 0.f, 0.f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    } else {
+      if(selection[gl_InstanceID] == 0) { colorOut = vec4(color / 255.0f, pointOpacity / divider); } else
+      if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.0f, pointOpacity); } else
+      if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
+    }
+  } else
+  if(colorMapping == 3) { // Neighborhood preservation
     float value = neighborhoodPreservation[gl_InstanceID];
     vec3 color = vec3(255, (1-value) * 255, (1-value) * 200);
     if(!selectLabeledOnly) {

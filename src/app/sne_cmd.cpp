@@ -136,7 +136,8 @@ void sne() {
   // Load dataset
   std::vector<float> data;
   std::vector<int> labels;
-  dh::util::readBinFile(iptFilename, data, labels, params.n, params.nHighDims, progNoLabels, params.nClasses);
+  std::vector<float> colors;
+  dh::util::readBinFile(iptFilename, data, labels, colors, params.n, params.nHighDims, progNoLabels, params.nClasses);
   if(params.nPrincipalComponents > 0) {
     faiss::PCAMatrix matrixPCA(params.nHighDims, params.nPrincipalComponents);
     matrixPCA.train(params.n, data.data());
@@ -166,7 +167,7 @@ void sne() {
 
   // Create necessary components
   dh::vis::Renderer renderer(&params, window);
-  dh::sne::SNE sne(&params, data, labels);
+  dh::sne::SNE sne(&params, data, labels, colors);
 
   // If visualization is requested, minimize and render at the same time
   if (progDoVisDuring) {

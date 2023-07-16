@@ -33,9 +33,10 @@ namespace dh::sne {
     // ...
   }
 
-  SNE::SNE(Params* params, const std::vector<float>& data, const std::vector<int>& labels)
+  SNE::SNE(Params* params, const std::vector<float>& data, const std::vector<int>& labels, const std::vector<float>& colors)
   : _dataPtr(data.data()),
     _labelPtr(labels.data()),
+    _colorPtr(colors.data()),
     _params(params),
     _similarities(_dataPtr, params),
     _isInit(true) {
@@ -72,8 +73,8 @@ namespace dh::sne {
     _similaritiesTimer.poll();
 
     // After similarities are available, initialize minimization subcomponent
-    if (_params->nLowDims == 2) { _minimization = sne::Minimization<2>(&_similarities, _dataPtr, _labelPtr, _params); } else
-    if (_params->nLowDims == 3) { _minimization = sne::Minimization<3>(&_similarities, _dataPtr, _labelPtr, _params); }
+    if (_params->nLowDims == 2) { _minimization = sne::Minimization<2>(&_similarities, _dataPtr, _labelPtr, _colorPtr, _params); } else
+    if (_params->nLowDims == 3) { _minimization = sne::Minimization<3>(&_similarities, _dataPtr, _labelPtr, _colorPtr, _params); }
   }
 
   void SNE::compMinimization() {

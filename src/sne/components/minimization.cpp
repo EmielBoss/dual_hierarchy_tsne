@@ -56,7 +56,7 @@ namespace dh::sne {
   }
 
   template <uint D>
-  Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params)
+  Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, const float* colorPtr, Params* params)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
     _selectionCounts(2, 0), _params(params),
     _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
@@ -147,9 +147,9 @@ namespace dh::sne {
     // Setup render tasks
     if (auto& queue = vis::RenderQueue::instance(); queue.isInit()) {
       _axesRenderTask = queue.emplace(vis::AxesRenderTask<D>(buffers(), _params, 1));
-      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(_params, 0, buffers()));
+      _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(_params, 0, buffers(), colorPtr));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_params, 5));
-      _attributeRenderTask = queue.emplace(vis::AttributeRenderTask(_params, 10, buffers(), _similaritiesBuffers, _embeddingRenderTask->getColorBuffer(), labelPtr));
+      _attributeRenderTask = queue.emplace(vis::AttributeRenderTask(_params, 10, buffers(), _similaritiesBuffers, _embeddingRenderTask->getClassColorBuffer(), labelPtr));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 

@@ -135,7 +135,7 @@ namespace dh::vis {
     std::vector<bool> _classIsSet;
     std::set<int> _classesSet;
     bool _setChanged;
-    std::vector<glm::vec4> _colors;
+    std::vector<glm::vec3> _classColors;
     bool _vizAllPairs;
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
@@ -149,7 +149,7 @@ namespace dh::vis {
     util::EnumArray<TextureType, GLuint> _textures;
     std::vector<GLuint> _texturesArchetypes;
     std::vector<GLuint> _classTextures;
-    GLuint _colorBuffer;
+    GLuint _bufferClassColors;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
 
   public:
@@ -201,8 +201,8 @@ namespace dh::vis {
       swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);
       swap(a._textures, b._textures);
       swap(a._texturesArchetypes, b._texturesArchetypes);
-      swap(a._colors, b._colors);
-      swap(a._colorBuffer, b._colorBuffer);
+      swap(a._classColors, b._classColors);
+      swap(a._bufferClassColors, b._bufferClassColors);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._programs, b._programs);

@@ -55,7 +55,7 @@ namespace dh::sne {
   public:
     // Constr/destr
     Minimization();
-    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, Params* params);
+    Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, const float* colorPtr, Params* params);
     ~Minimization();
 
     // Copy constr/assignment is explicitly deleted
