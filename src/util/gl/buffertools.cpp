@@ -172,46 +172,48 @@ namespace dh::util {
   }
 
   template <typename T>
-  uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage) {
-    glCreateBuffers(_buffersRemove.size(), _buffersRemove.data());
-    glNamedBufferStorage(_buffersRemove(BufferRemoveType::eCumSum), n * sizeof(T), nullptr, 0);
+  uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage) {
+    GLuint bufferCumSum;
+    glCreateBuffers(1, &bufferCumSum);
+    glNamedBufferStorage(bufferCumSum, n * sizeof(T), nullptr, 0);
 
     uint nNew;
-    {
-      util::InclusiveScan scan(selectionBuffer, _buffersRemove(BufferRemoveType::eCumSum), n);
-      scan.comp();
-      glGetNamedBufferSubData(_buffersRemove(BufferRemoveType::eCumSum), (n - 1) * sizeof(uint), sizeof(uint), &nNew);
-    }
+    util::InclusiveScan(selectionBuffer, bufferCumSum, n).comp();
+    glGetNamedBufferSubData(bufferCumSum, (n - 1) * sizeof(uint), sizeof(uint), &nNew);
 
-    if(nNew > 0) {
-      glNamedBufferStorage(_buffersRemove(BufferRemoveType::eRemoved), nNew * d * sizeof(T), nullptr, dynamicStorage ? GL_DYNAMIC_STORAGE_BIT : 0);
-
-      dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eRemoveFloatComp) : _programs(ProgramType::eRemoveUintComp);
-      program.bind();
-    
-      program.template uniform<uint>("nPoints", n);
-      program.template uniform<uint>("nDims", d);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToRemove);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersRemove(BufferRemoveType::eCumSum));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersRemove(BufferRemoveType::eRemoved));
-
-      // Dispatch shader
-      glDispatchCompute(ceilDiv(n * d, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-      std::swap(bufferToRemove, _buffersRemove(BufferRemoveType::eRemoved));
-
-      glDeleteBuffers(_buffersRemove.size(), _buffersRemove.data());
-      glAssert();
-      return nNew;
-    }
-    else {
-      glDeleteBuffers(_buffersRemove.size(), _buffersRemove.data());
+    if(nNew == 0) {
+      glDeleteBuffers(1, &bufferCumSum);
       return n;
     }
+
+    bool noDestinationBuffer = bufferRemoved == 0;
+    if(noDestinationBuffer) { glCreateBuffers(1, &bufferRemoved); }
+    glNamedBufferStorage(bufferRemoved, nNew * d * sizeof(T), nullptr, dynamicStorage ? GL_DYNAMIC_STORAGE_BIT : 0);
+
+    dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eRemoveFloatComp) : _programs(ProgramType::eRemoveUintComp);
+    program.bind();
+  
+    program.template uniform<uint>("nPoints", n);
+    program.template uniform<uint>("nDims", d);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToRemove);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bufferCumSum);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferRemoved);
+
+    // Dispatch shader
+    glDispatchCompute(ceilDiv(n * d, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    if(noDestinationBuffer) {
+      std::swap(bufferToRemove, bufferRemoved);
+      glDeleteBuffers(1, &bufferRemoved);
+    }
+
+    glDeleteBuffers(1, &bufferCumSum);
+    glAssert();
+    return nNew;
   }
 
   template <typename T>
@@ -391,8 +393,8 @@ namespace dh::util {
   template void BufferTools::reducePerDatapoint<float>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer);
   template void BufferTools::reducePerDatapoint<uint>(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer);
 
-  template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
-  template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage);
+  template uint BufferTools::remove<float>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage);
+  template uint BufferTools::remove<uint>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage);
 
   template void BufferTools::set<uint>(GLuint& bufferToSet, uint n, uint setVal, uint maskVal, GLuint maskBuffer);
 

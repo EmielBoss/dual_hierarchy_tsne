@@ -39,13 +39,6 @@ namespace dh::util {
     Length
   };
 
-  enum class BufferRemoveType {
-    eCumSum,
-    eRemoved,
-
-    Length
-  };
-
   enum class BufferIndexType {
     eIndicated,
     eScanned,
@@ -107,7 +100,7 @@ namespace dh::util {
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
       template <typename T> T reduce(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer = 0, uint valueToCount = -1, bool largeBuffer = false, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
       template <typename T> void reducePerDatapoint(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer = 0);
-      template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, bool dynamicStorage = false);
+      template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved = 0, bool dynamicStorage = false);
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
       template <typename T> void flip(GLuint& bufferToFlip, uint n);
       void operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference = 0); // Difference: operationType == 0 | Division: operationType == 1
@@ -128,7 +121,6 @@ namespace dh::util {
       // Objects
       util::EnumArray<ProgramType, util::GLProgram> _programs;
       util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
-      util::EnumArray<BufferRemoveType, GLuint> _buffersRemove;
       util::EnumArray<BufferIndexType, GLuint> _buffersIndex;
   };
 } // dh::util

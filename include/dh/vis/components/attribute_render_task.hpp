@@ -53,7 +53,7 @@ namespace dh::vis {
     void drawImGuiComponent() override;
     void drawImGuiComponentSecondary() override;
 
-    void drawImGuiTab(uint selectionIndex, uint typeIndex, const char* text);
+    void drawImGuiTab(uint tabIndex, const char* text);
     void drawImGuiTexture();
     void drawImPlotBarPlot();
 
@@ -73,8 +73,8 @@ namespace dh::vis {
     void unsetClass(int i);
     void update(std::vector<uint> selectionCounts);
     void clear();
-    uint currentTabIndex() { return _currentTabUpper * 2 + _currentTabLower; }
     void addArchetype(uint archetypeClass);
+    void updateSuggestion();
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
     
@@ -85,7 +85,7 @@ namespace dh::vis {
       Length
     };
 
-    enum class TextureType {
+    enum TextureType {
       eAveragePrimary,
       eVariancePrimary,
       eAverageSecondary,
@@ -96,6 +96,8 @@ namespace dh::vis {
       ePairwiseDiffsAll,
       ePairwiseDiffsInter,
       ePairwiseDiffsIntra,
+
+      eArchetypeSuggestion,
 
       eOverlay,
 
@@ -122,9 +124,8 @@ namespace dh::vis {
     int _brushRadius;
     float _autoselectPercentage;
     uint _buttonPressed;
-    uint _currentTabUpper;
-    uint _currentTabLower;
-    uint _previousTabIndex;
+    int _tabIndex;
+    uint _tabIndexPrev;
     int _draggedTexel;
     int _draggedTexelPrev;
     std::set<uint> _weightedAttributeIndices;
@@ -137,6 +138,8 @@ namespace dh::vis {
     bool _setChanged;
     std::vector<glm::vec3> _classColors;
     bool _vizAllPairs;
+    bool _suggestionMode;
+    uint _suggestionIndex;
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
 
@@ -185,8 +188,7 @@ namespace dh::vis {
       swap(a._autoselectPercentage, b._autoselectPercentage);
       swap(a._vizAllPairs, b._vizAllPairs);
       swap(a._denominators, b._denominators);
-      swap(a._currentTabUpper, b._currentTabUpper);
-      swap(a._currentTabLower, b._currentTabLower);
+      swap(a._tabIndex, b._tabIndex);
       swap(a._classTextures, b._classTextures);
       swap(a._classCounts, b._classCounts);
       swap(a._classCountsSelected, b._classCountsSelected);
@@ -194,6 +196,8 @@ namespace dh::vis {
       swap(a._classIsSet, b._classIsSet);
       swap(a._classesSet, b._classesSet);
       swap(a._setChanged, b._setChanged);
+      swap(a._suggestionMode, b._suggestionMode);
+      swap(a._suggestionIndex, b._suggestionIndex);
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._archetypeClasses, b._archetypeClasses);
       swap(a._buffers, b._buffers);

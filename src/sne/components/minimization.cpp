@@ -384,13 +384,14 @@ namespace dh::sne {
     }
     _buttonAttributePrev = button;
 
+    // Isolate selection
     if(_embeddingRenderTask->getButtonPressed() == 1) {
       uint n = _params->n;
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
       // dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection), true);
+      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection), 0, true);
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
@@ -399,6 +400,7 @@ namespace dh::sne {
       _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
       syncBufferHandles(); // Update buffer handles, because BufferTools::remove() deletes and recreates buffers
       restartMinimization();
+      glAssert();
     }
 
     int classToSelect = _attributeRenderTask->getClassButtonPressed();

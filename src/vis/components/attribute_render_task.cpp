@@ -32,30 +32,33 @@
 #include <implot.h>
 #include "dh/util/gl/buffertools.hpp"
 #include "dh/util/gl/error.hpp"
+#include "dh/util/cu/kmeans.cuh"
 #include "dh/vis/components/attribute_render_task.hpp"
 #include "dh/util/io.hpp" //
 
 namespace dh::vis {
 
-  std::array<const std::string, 9> promptsValuetype = {"Mean: %0.2f",
-                                                 "Variance: %0.2f",
-                                                 "Mean: %0.2f",
-                                                 "Variance: %0.2f",
-                                                 "Difference in mean: %0.2f",
-                                                 "Difference in variance: %0.2f",
-                                                 "Pairwise difference (all): %0.2f",
-                                                 "Pairwise difference (interclass): %0.2f",
-                                                 "Pairwise difference (intraclass): %0.2f"};
+  std::array<const std::string, 10> promptsValuetype = {"Mean: %0.2f",
+                                                        "Variance: %0.2f",
+                                                        "Mean: %0.2f",
+                                                        "Variance: %0.2f",
+                                                        "Difference in mean: %0.2f",
+                                                        "Difference in variance: %0.2f",
+                                                        "Pairwise difference (all): %0.2f",
+                                                        "Pairwise difference (interclass): %0.2f",
+                                                        "Pairwise difference (intraclass): %0.2f",
+                                                        "Value: %0.2f"};
 
-  std::array<const std::string, 9> promptsDenomtype = {"%u primary selected datapoints",
-                                                       "%u primary selected datapoints",
-                                                       "%u secondary selected datapoints",
-                                                       "%u secondary selected datapoints",
-                                                       "",
-                                                       "",
-                                                       "%u selected ",
-                                                       "%u selected interclass ",
-                                                       "%u selected intraclass "};
+  std::array<const std::string, 10> promptsDenomtype = {"%u primary selected datapoints",
+                                                        "%u primary selected datapoints",
+                                                        "%u secondary selected datapoints",
+                                                        "%u secondary selected datapoints",
+                                                        "",
+                                                        "",
+                                                        "%u selected ",
+                                                        "%u selected interclass ",
+                                                        "%u selected intraclass ",
+                                                        ""};
   
   AttributeRenderTask::AttributeRenderTask()
   : RenderTask(), _isInit(false) {
@@ -76,13 +79,13 @@ namespace dh::vis {
     _brushRadius(_params->imageDataset ? 1 : 0),
     _similarityWeight(2.f),
     _autoselectPercentage(0.025f),
-    _currentTabUpper(0),
-    _currentTabLower(0),
+    _tabIndex(0),
     _classIsSet(_params->nClasses, false),
     _classesSet(),
     _setChanged(false),
     _classButtonPressed(-1),
     _vizAllPairs(false),
+    _suggestionMode(false),
     _denominators(9, 0) {
 
     // Initialize shader program
@@ -347,10 +350,27 @@ namespace dh::vis {
     GLuint archetypeDataHandle;
     glCreateBuffers(1, &archetypeDataHandle);
     glNamedBufferStorage(archetypeDataHandle, _params->nHighDims * sizeof(float), nullptr, 0);
-    glCopyNamedBufferSubData(_buffersTextureData[currentTabIndex()], archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
+    glCopyNamedBufferSubData(_buffersTextureData[_tabIndex], archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
 
     _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
     _archetypeClasses.push_back(archetypeClass);
+    glAssert();
+  }
+
+  void AttributeRenderTask::updateSuggestion() {
+    GLuint datasetSelectedBuffer;
+    glCreateBuffers(1, &datasetSelectedBuffer);
+    uint nSelected = dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, datasetSelectedBuffer);
+    std::vector<float> buffer(nSelected * _params->nHighDims);
+    glGetNamedBufferSubData(datasetSelectedBuffer, 0, nSelected * _params->nHighDims * sizeof(float), buffer.data());
+
+    util::KMeans kmeans(buffer.data(), nSelected, _params->nHighDims);
+    
+    uint level = std::floor(std::log(static_cast<float>(_suggestionIndex + 2)) / std::log(2.f)); // Nearest power of 2
+    uint nCentroids = std::pow(2, level);
+    kmeans.comp(nCentroids);
+
+    glCopyNamedBufferSubData(kmeans._bufferCentroids, _buffersTextureData(TextureType::eArchetypeSuggestion), (_suggestionIndex - nCentroids + 2) * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
     glAssert();
   }
 
@@ -407,58 +427,79 @@ namespace dh::vis {
 
   void AttributeRenderTask::drawImGuiComponent() {
     _buttonPressed = 0;
+    int tabUpper = -1;
     if (ImGui::CollapsingHeader("Attribute render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       if (ImGui::BeginTabBar("Selection tabs")) {
+
         if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
-          _currentTabUpper = 0;
+          tabUpper = 0;
           ImGui::EndTabItem();
         }
 
         if(_selectionCounts[1] > 0) {
           if (ImGui::BeginTabItem("Selection sec")) {
-            _currentTabUpper = 1;
+            tabUpper = 1;
             ImGui::EndTabItem();
           }
 
           if (ImGui::BeginTabItem("Selection diff")) {
-            _currentTabUpper = 2;
+            tabUpper = 2;
             ImGui::EndTabItem();
           }
         }
 
         if (ImGui::BeginTabItem("Pairwise")) {
-          _currentTabUpper = 3;
+          tabUpper = 3;
           ImGui::EndTabItem();
         }
+
+        if(_suggestionMode) {
+          if (ImGui::BeginTabItem("Suggestion", NULL, ImGuiTabItemFlags_SetSelected)) {
+            tabUpper = 4;
+            ImGui::EndTabItem();
+          }
+        }
+
         ImGui::EndTabBar();
       }
 
       _draggedTexel = -1;
 
       if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-        if(_currentTabUpper <= 2) {
-          drawImGuiTab(_currentTabUpper, 0, "Average");
-          drawImGuiTab(_currentTabUpper, 1, "Variance");
+        if(tabUpper == 0) {
+          drawImGuiTab(0, "Average");
+          drawImGuiTab(1, "Variance");
         } else
-        if(_currentTabUpper == 3) {
-          drawImGuiTab(_currentTabUpper, 0, "All");
+        if(tabUpper == 1) {
+          drawImGuiTab(2, "Average");
+          drawImGuiTab(3, "Variance");
+        } else
+        if(tabUpper == 2) {
+          drawImGuiTab(4, "Average");
+          drawImGuiTab(5, "Variance");
+        } else
+        if(tabUpper == 3) {
+          drawImGuiTab(6, "All");
           if(_classesSet.size() == 2) {
-            drawImGuiTab(_currentTabUpper, 1, "Interclass");
-            drawImGuiTab(_currentTabUpper, 2, "Intraclass");
+            drawImGuiTab(7, "Interclass");
+            drawImGuiTab(8, "Intraclass");
           }
+        } else
+        if(tabUpper == 4) {
+          drawImGuiTab(9, "Current suggestion");
         }
         ImGui::EndTabBar();
       }
     }
 
     // Force selection re-evaluation when switching to the pairwise attr diff tab
-    if(_currentTabUpper == 3 && currentTabIndex() != _previousTabIndex || _setChanged) { update(_selectionCounts); }
-    _previousTabIndex = currentTabIndex();
+    if(tabUpper == 3 && _tabIndex != _tabIndexPrev || _setChanged) { update(_selectionCounts); }
+    _tabIndexPrev = _tabIndex;
   }
 
-  void AttributeRenderTask::drawImGuiTab(uint tabUpper, uint tabLower, const char* text) {
+  void AttributeRenderTask::drawImGuiTab(uint tabIndex, const char* text) {
     if (ImGui::BeginTabItem(text)) {
-      _currentTabLower = tabLower;
+      _tabIndex = tabIndex;
       if(_params->imageDataset) {
         drawImGuiTexture();
       } else {
@@ -476,9 +517,8 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::drawImGuiTexture() {
-    uint textureIndex = currentTabIndex();
     ImGui::Spacing();
-    ImGui::ImageButton((void*)(intptr_t)_textures[textureIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
+    ImGui::ImageButton((void*)(intptr_t)_textures[_tabIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
       ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
@@ -489,18 +529,20 @@ namespace dh::vis {
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-      float texelValue = getBufferValue(_buffersTextureData[textureIndex], hoveredTexel * _params->imgDepth);
-      ImGui::Text(promptsValuetype[textureIndex].c_str(), texelValue);
+      float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
+      ImGui::Text(promptsValuetype[_tabIndex].c_str(), texelValue);
       std::string pairtype = "";
-      if(textureIndex > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
-      ImGui::Text(("Averaged over: " + promptsDenomtype[textureIndex] + pairtype).c_str(), _denominators[textureIndex]);
+      if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
+        pairtype += _vizAllPairs ? "pairs" : "neighbours";
+      }
+      ImGui::Text(("Averaged over: " + promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
       else { _draggedTexel = -1; }
 
       if(_input.z) {
-        std::cout << "\n" << sumWeightedAttributeValues(textureIndex) << "\n";
+        std::cout << "\n" << sumWeightedAttributeValues(_tabIndex) << "\n";
       }
     } else {
       _draggedTexel = -1;
@@ -509,7 +551,7 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_brushRadius, 0, 10, "Brsh\nSize\n%i");
 
-    if(ImGui::Button("Autoweigh")) { autoweighAttributes(currentTabIndex(), _autoselectPercentage); }
+    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex, _autoselectPercentage); }
     ImGui::SameLine(); ImGui::Text("top");
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
     ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
@@ -523,7 +565,7 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Invert weights")) { invertAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { refineAttributeWeights(currentTabIndex()); }
+    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { refineAttributeWeights(_tabIndex); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
 
     ImGui::Text("Recalc simil.");
@@ -540,6 +582,10 @@ namespace dh::vis {
     for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
       if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypes[ac], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0)) {
         addArchetype(ac);
+        if(_suggestionMode) {
+          _suggestionIndex++;
+          updateSuggestion();
+        }
       }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
@@ -547,16 +593,31 @@ namespace dh::vis {
       }
       ImGui::SameLine();
     }
+    if(_suggestionMode) {
+      if(ImGui::SameLine(); ImGui::Button("Skip")) {
+        _suggestionIndex++;
+        updateSuggestion();
+      }
+      if(ImGui::SameLine(); ImGui::Button("Done")) {
+        _suggestionMode = false;
+      }
+    } else {
+      if(ImGui::SameLine(); ImGui::Button("Suggest")) {
+        _suggestionMode = true;
+        _suggestionIndex = 0;
+        updateSuggestion();
+      }
+    }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Suggest archetypes."); ImGui::EndTooltip(); }
   }
 
   void AttributeRenderTask::drawImPlotBarPlot() {
-    uint tabIndex = currentTabIndex();
     ImPlot::SetNextAxesLimits(0.f, (float) _params->nHighDims, 0.f, 1.f);
     if (ImPlot::BeginPlot("##", ImVec2(400, 200), ImPlotFlags_NoFrame | ImPlotFlags_Crosshairs | ImPlotFlags_CanvasOnly)) {
       std::vector<float> xs(_params->nHighDims);
       std::iota(xs.begin(), xs.end(), 0); // Fills xs with 0..nHighDims-1
       std::vector<float> ys(_params->nHighDims);
-      glGetNamedBufferSubData(_buffersTextureData[tabIndex], 0, _params->nHighDims * sizeof(float), ys.data());
+      glGetNamedBufferSubData(_buffersTextureData[_tabIndex], 0, _params->nHighDims * sizeof(float), ys.data());
 
       ImPlot::SetupAxis(ImAxis_X1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | ImPlotAxisFlags_AutoFit); // ImPlot 0.14 or later
       ImPlot::SetupAxis(ImAxis_Y1, NULL, ImPlotAxisFlags_NoHighlight | ImPlotAxisFlags_NoSideSwitch | ImPlotAxisFlags_AutoFit | (_input.x ? ImPlotAxisFlags_Lock : 0) | ImPlotAxisFlags_NoDecorations); // ImPlot 0.14 or later
@@ -591,11 +652,13 @@ namespace dh::vis {
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
         ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-        float texelValue = getBufferValue(_buffersTextureData[tabIndex], hoveredTexel * _params->imgDepth);
-        ImGui::Text(promptsValuetype[tabIndex].c_str(), texelValue);
+        float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
+        ImGui::Text(promptsValuetype[_tabIndex].c_str(), texelValue);
         std::string pairtype = "";
-        if(tabIndex > 5) { pairtype += _vizAllPairs ? "pairs" : "neighbours"; }
-        ImGui::Text(("Averaged over: " + promptsDenomtype[tabIndex] + pairtype).c_str(), _denominators[tabIndex]);
+        if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
+          pairtype += _vizAllPairs ? "pairs" : "neighbours";
+        }
+        ImGui::Text(("Averaged over: " + promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
         ImGui::EndTooltip();
 
         if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -609,7 +672,7 @@ namespace dh::vis {
     ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
     ImGui::SliderInt("##i", &_brushRadius, 0, 10, "Brush size %i");
 
-    if(ImGui::Button("Autoweigh")) { autoweighAttributes(currentTabIndex(), _autoselectPercentage); }
+    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex, _autoselectPercentage); }
     ImGui::SameLine(); ImGui::Text("top");
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
     ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
@@ -623,7 +686,7 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Invert weights")) { invertAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Inverts current attribute weights."); ImGui::EndTooltip(); }
-    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { refineAttributeWeights(currentTabIndex()); }
+    if(ImGui::SameLine(); ImGui::Button("Refine weights")) { refineAttributeWeights(_tabIndex); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Refines current attribute weights."); ImGui::EndTooltip(); }
 
     ImGui::Text("Recalc simil.");
@@ -710,7 +773,7 @@ namespace dh::vis {
     }
 
     // Compute pairwise attribute differences if relevant texture tabs are open
-    if(_currentTabUpper == 3) {
+    if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
       std::pair<int, int> classes;
       glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
       glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
@@ -720,12 +783,12 @@ namespace dh::vis {
 
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
-      if(_classesSet.size() == 2 && _currentTabLower > 0) {
+      if(_classesSet.size() == 2 && _tabIndex != TextureType::ePairwiseDiffsAll) {
         classes = std::pair<int, int>(*_classesSet.begin(), *std::next(_classesSet.begin()));
         program.template uniform<bool>("classesSet", true);
         program.template uniform<int>("classA", classes.first);
         program.template uniform<int>("classB", classes.second);
-        program.template uniform<bool>("inter", _currentTabLower == 1);
+        program.template uniform<bool>("inter", _tabIndex == TextureType::ePairwiseDiffsInter);
       } else {
         program.template uniform<bool>("classesSet", false);
       }
@@ -746,17 +809,17 @@ namespace dh::vis {
       if(!_vizAllPairs) {
         nSelectedPairs = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
       } else
-      if(_currentTabLower == 0) {
+      if(_tabIndex == TextureType::ePairwiseDiffsAll) {
         nSelectedPairs = (_selectionCounts[0] * (_selectionCounts[0] - 1)) / 2;
       } else
-      if(_currentTabLower == 1) {
+      if(_tabIndex == TextureType::ePairwiseDiffsInter) {
         nSelectedPairs = _classCountsSelected[classes.first] * _classCountsSelected[classes.second];
       } else
-      if(_currentTabLower == 2) {
+      if(_tabIndex == TextureType::ePairwiseDiffsIntra) {
         nSelectedPairs = _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) / 2 + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1) / 2;
       }
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[currentTabIndex()]);
-      _denominators[currentTabIndex()] = nSelectedPairs;
+      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[_tabIndex]);
+      _denominators[_tabIndex] = nSelectedPairs;
       glAssert();
     }
 

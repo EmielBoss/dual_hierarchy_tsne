@@ -65,7 +65,6 @@ namespace dh::sne {
     void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses);
     void addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight);
     void reset();
-    uint getSymmetricSize() { return _symmetricSize; }
     void assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
   private:
@@ -178,6 +177,7 @@ namespace dh::sne {
         _buffers(BufferType::eNeighborsSelected)
       };
     }
+    uint getSymmetricSize() { return _symmetricSize; }
 
     // std::swap impl
     friend void swap(Similarities& a, Similarities& b) noexcept {
