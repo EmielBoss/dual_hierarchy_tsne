@@ -607,8 +607,19 @@ namespace dh::vis {
         _suggestionIndex = 0;
         updateSuggestion();
       }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Suggest archetypes."); ImGui::EndTooltip(); }
+      if(ImGui::SameLine(); ImGui::Button("Erase")) {
+        glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
+        _buffersTextureDataArchetypes.clear();
+        _archetypeClasses.clear();
+
+        for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
+          GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+          glClearTexImage(_texturesArchetypes[i], 0, format, GL_FLOAT, nullptr);
+        }
+      }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove current archetypes."); ImGui::EndTooltip(); }
     }
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Suggest archetypes."); ImGui::EndTooltip(); }
   }
 
   void AttributeRenderTask::drawImPlotBarPlot() {
