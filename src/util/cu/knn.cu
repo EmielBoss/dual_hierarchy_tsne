@@ -91,7 +91,7 @@ namespace dh::util {
     return *this;
   }
 
-  void KNN::comp() {
+  void KNN::comp(const float* dataPtrQuery, uint nQuery) {
     // Map interop buffers for access on CUDA side
     _interopBuffers(BufferType::eDistances).map();
     _interopBuffers(BufferType::eIndices).map();
@@ -139,17 +139,28 @@ namespace dh::util {
     void * tempIndicesHandle;
     cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::Index::idx_t));
 
-    // Perform search in batches   
-    for (size_t i = 0; i < ceilDiv((size_t) _n, searchBatchSize); ++i) {
-      const size_t offset = i * searchBatchSize;
-      const size_t size = std::min(searchBatchSize, _n - offset);
+    // Perform search in batches
+    if(dataPtrQuery) {
       faissIndex.search(
-        size,
-        dataPtr + (_d * offset),
+        nQuery,
+        dataPtrQuery,
         _k,
-        ((float *) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
-        ((faiss::Index::idx_t *) tempIndicesHandle) + (_k * offset)
+        (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
+        (faiss::Index::idx_t *) tempIndicesHandle
       );
+      cuAssert(cudaDeviceSynchronize());
+    } else {
+      for (size_t i = 0; i < ceilDiv((size_t) _n, searchBatchSize); ++i) {
+        const size_t offset = i * searchBatchSize;
+        const size_t size = std::min(searchBatchSize, _n - offset);
+        faissIndex.search(
+          size,
+          dataPtr + (_d * offset),
+          _k,
+          ((float *) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
+          ((faiss::Index::idx_t *) tempIndicesHandle) + (_k * offset)
+        );
+      }
     }
     
     // Tell FAISS to bugger off
@@ -157,7 +168,8 @@ namespace dh::util {
     faissIndex.reclaimMemory();
 
     // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
-    kernDownCast<<<1024, 256>>>(_n * _k, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
+    uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;
+    kernDownCast<<<1024, 256>>>(nIndices, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
     cudaDeviceSynchronize();
     cudaFree(tempIndicesHandle);
 

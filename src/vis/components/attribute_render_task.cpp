@@ -32,7 +32,7 @@
 #include <implot.h>
 #include "dh/util/gl/buffertools.hpp"
 #include "dh/util/gl/error.hpp"
-#include "dh/util/cu/kmeans.cuh"
+#include "dh/util/cu/kclustering.cuh"
 #include "dh/vis/components/attribute_render_task.hpp"
 #include "dh/util/io.hpp" //
 
@@ -364,13 +364,13 @@ namespace dh::vis {
     std::vector<float> buffer(nSelected * _params->nHighDims);
     glGetNamedBufferSubData(datasetSelectedBuffer, 0, nSelected * _params->nHighDims * sizeof(float), buffer.data());
 
-    util::KMeans kmeans(buffer.data(), nSelected, _params->nHighDims);
+    util::KClustering kClustering(buffer.data(), nSelected, _params->nHighDims);
     
     uint level = std::floor(std::log(static_cast<float>(_suggestionIndex + 2)) / std::log(2.f)); // Nearest power of 2
     uint nCentroids = std::pow(2, level);
-    kmeans.comp(nCentroids);
+    kClustering.comp(nCentroids, true);
 
-    glCopyNamedBufferSubData(kmeans._bufferCentroids, _buffersTextureData(TextureType::eArchetypeSuggestion), (_suggestionIndex - nCentroids + 2) * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
+    glCopyNamedBufferSubData(kClustering.getResultsBuffer(), _buffersTextureData(TextureType::eArchetypeSuggestion), (_suggestionIndex - nCentroids + 2) * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
     glAssert();
   }
 

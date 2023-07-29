@@ -29,27 +29,26 @@
 #include "dh/util/cu/interop.cuh"
 
 namespace dh::util {
-  class KMeans {
+  class KClustering {
   public:
-    KMeans();
-    KMeans(const float* dataPtr, uint n, uint d);
+    KClustering();
+    KClustering(const float* dataPtr, uint n, uint d);
     // KMeans(GLuint datasetBuffer, uint n, uint d);  // Faiss' kMeans doesn't take GPU buffers :(
-    ~KMeans();
+    ~KClustering();
 
     // Copy constr/assignment is explicitly deleted (no copying handles)
-    KMeans(const KMeans&) = delete;
-    KMeans& operator=(const KMeans&) = delete;
+    KClustering(const KClustering&) = delete;
+    KClustering& operator=(const KClustering&) = delete;
 
     // Move constr/operator moves handles
-    KMeans(KMeans&&) noexcept;
-    KMeans& operator=(KMeans&&) noexcept;
+    KClustering(KClustering&&) noexcept;
+    KClustering& operator=(KClustering&&) noexcept;
 
-    // Perform KMeans computation, storing results in provided buffers
-    void comp(uint nCentroids, bool spherical = false);
+    // Perform k-means/k-medoids computation, storing results in provided buffers
+    void comp(uint nCentroids, bool medoids = false);
 
     bool isInit() const { return _isInit; }
-
-    GLuint _bufferCentroids;
+    GLuint getResultsBuffer() const { return _bufferResults; }
 
   private:
     enum class BufferType {
@@ -58,20 +57,32 @@ namespace dh::util {
       Length
     };
 
+    enum class BufferMedoidsType {
+      eDataset,
+      eDistances,
+      eIndices,
+      eIndicated,
+      eThisNeedsToBeHereToAvoidACompileErrorForSomeReason,
+
+      Length
+    };
+
     bool _isInit;
     uint _n, _d;
     const float* _dataPtr;
+    GLuint _bufferResults;
+    EnumArray<BufferMedoidsType, GLuint> _buffersMedoids;
     EnumArray<BufferType, CUGLInteropBuffer> _interopBuffers;
 
   public:
     // std::swap impl
-    friend void swap(KMeans& a, KMeans& b) noexcept {
+    friend void swap(KClustering& a, KClustering& b) noexcept {
       using std::swap;
       swap(a._isInit, b._isInit);
       swap(a._n, b._n);
       swap(a._d, b._d);
       swap(a._dataPtr, b._dataPtr);
-      swap(a._bufferCentroids, b._bufferCentroids);
+      swap(a._bufferResults, b._bufferResults);
       swap(a._interopBuffers, b._interopBuffers);
     }
   };

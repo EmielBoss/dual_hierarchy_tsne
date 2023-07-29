@@ -45,7 +45,7 @@ namespace dh::util {
     KNN& operator=(KNN&&) noexcept;
 
     // Perform KNN computation, storing results in provided buffers
-    void comp();
+    void comp(const float* dataPtrQuery = nullptr, uint nQuery = 0);
 
     bool isInit() const { return _isInit; }
 

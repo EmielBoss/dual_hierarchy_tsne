@@ -518,6 +518,8 @@ namespace dh::sne {
   }
 
   void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses) {
+    if(archetypeHandles.size() < 1) { return; }
+    
     // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     std::vector<uint> attributeIndices;
