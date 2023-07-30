@@ -379,50 +379,6 @@ namespace dh::vis {
       return;
     }
     glAssert();
-
-    // Copy texture data to textures
-    if(_params->imageDataset) {
-      for(uint i = 0; i < _textures.size() - 1; ++i) {
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
-        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-      }
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
-      glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
-      glAssert();
-
-      // Archetypes
-      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
-        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-      }
-    }
-    glAssert();
-
-    if(_params->imageDataset) {
-      // Draw dragselected attributes in texture
-      if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          brushTexels(_draggedTexel, _brushRadius, _attributeWeight);
-        } else
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-          eraseTexels(_draggedTexel, _brushRadius);
-        }
-        _draggedTexelPrev = _draggedTexel;
-      }
-    } else {
-      if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
-        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-          for(int i = -_brushRadius; i <= _brushRadius; ++i) {
-            if(_draggedTexel + i < 0 || _draggedTexel + i >= _params->nHighDims) { continue; }
-            setTexelWeight(_draggedTexel + i, _attributeWeight);
-          }
-        }
-        _draggedTexelPrev = _draggedTexel;
-      }
-    }
-    glAssert();
   }
 
   void AttributeRenderTask::drawImGuiComponent() {
@@ -517,6 +473,23 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::drawImGuiTexture() {
+    // Copy texture data to textures
+    for(uint i = 0; i < _textures.size() - 1; ++i) {
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
+      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+      glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+    }
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
+    glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+    glAssert();
+
+    // Copy texture data to textures for archetypes
+    for(uint i = 0; i < _archetypeClasses.size(); ++i) {
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
+      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+      glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+    }
+
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[_tabIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
@@ -620,6 +593,17 @@ namespace dh::vis {
       }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove current archetypes."); ImGui::EndTooltip(); }
     }
+
+    // Draw dragselected attributes in texture
+    if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        brushTexels(_draggedTexel, _brushRadius, _attributeWeight);
+      } else
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        eraseTexels(_draggedTexel, _brushRadius);
+      }
+      _draggedTexelPrev = _draggedTexel;
+    }
   }
 
   void AttributeRenderTask::drawImPlotBarPlot() {
@@ -720,6 +704,17 @@ namespace dh::vis {
         ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
+    }
+
+    // Draw dragselected attributes in barplot
+    if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        for(int i = -_brushRadius; i <= _brushRadius; ++i) {
+          if(_draggedTexel + i < 0 || _draggedTexel + i >= _params->nHighDims) { continue; }
+          setTexelWeight(_draggedTexel + i, _attributeWeight);
+        }
+      }
+      _draggedTexelPrev = _draggedTexel;
     }
   }
 
