@@ -239,7 +239,7 @@ namespace dh::sne {
   void Minimization<D>::deselect() {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
-    _attributeRenderTask->clear();
+    _attributeRenderTask->clearSelection();
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
   }
 

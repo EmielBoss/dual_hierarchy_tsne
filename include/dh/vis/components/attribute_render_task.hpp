@@ -54,6 +54,7 @@ namespace dh::vis {
     void drawImGuiComponentSecondary() override;
 
     void drawImGuiTab(uint tabIndex, const char* text);
+    void drawImGuiSuggestor();
     void drawImGuiTexture();
     void drawImPlotBarPlot();
 
@@ -72,9 +73,10 @@ namespace dh::vis {
     void setClass(int i);
     void unsetClass(int i);
     void update(std::vector<uint> selectionCounts);
-    void clear();
-    void addArchetype(uint archetypeClass);
-    void updateSuggestion();
+    void clearSelection();
+    void addArchetype(uint archetypeClass, GLuint bufferArchetypeData = 0);
+    void eraseArchetypes();
+    void updateSuggestions();
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
     
@@ -96,8 +98,6 @@ namespace dh::vis {
       ePairwiseDiffsAll,
       ePairwiseDiffsInter,
       ePairwiseDiffsIntra,
-
-      eArchetypeSuggestion,
 
       eOverlay,
 
@@ -138,10 +138,10 @@ namespace dh::vis {
     bool _setChanged;
     std::vector<glm::vec3> _classColors;
     bool _vizAllPairs;
-    bool _suggestionMode;
-    uint _suggestionIndex;
+    uint _suggestionLevel;
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
+    int _archetypeClassSelected;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
@@ -149,8 +149,10 @@ namespace dh::vis {
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<TextureType, GLuint> _buffersTextureData;
     std::vector<GLuint> _buffersTextureDataArchetypes;
+    std::vector<GLuint> _buffersTextureDataArchetypeSuggestions;
     util::EnumArray<TextureType, GLuint> _textures;
     std::vector<GLuint> _texturesArchetypes;
+    std::vector<GLuint> _texturesArchetypeSuggestions;
     std::vector<GLuint> _classTextures;
     GLuint _bufferClassColors;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
@@ -196,10 +198,10 @@ namespace dh::vis {
       swap(a._classIsSet, b._classIsSet);
       swap(a._classesSet, b._classesSet);
       swap(a._setChanged, b._setChanged);
-      swap(a._suggestionMode, b._suggestionMode);
-      swap(a._suggestionIndex, b._suggestionIndex);
+      swap(a._suggestionLevel, b._suggestionLevel);
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._archetypeClasses, b._archetypeClasses);
+      swap(a._archetypeClassSelected, b._archetypeClassSelected);
       swap(a._buffers, b._buffers);
       swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);

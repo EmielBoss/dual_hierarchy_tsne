@@ -85,8 +85,8 @@ namespace dh::vis {
     _setChanged(false),
     _classButtonPressed(-1),
     _vizAllPairs(false),
-    _suggestionMode(false),
-    _denominators(9, 0) {
+    _denominators(9, 0),
+    _archetypeClassSelected(0) {
 
     // Initialize shader program
     {
@@ -159,7 +159,9 @@ namespace dh::vis {
       // Archetype textures and associates buffers and vectors
       _archetypeClasses = std::vector<uint>();
       _buffersTextureDataArchetypes = std::vector<GLuint>();
+      _buffersTextureDataArchetypeSuggestions = std::vector<GLuint>();
       _texturesArchetypes = std::vector<GLuint>(_params->nArchetypeClasses);
+      _texturesArchetypeSuggestions = std::vector<GLuint>();
       glCreateTextures(GL_TEXTURE_2D, _params->nArchetypeClasses, _texturesArchetypes.data());
       for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
         glTextureParameteri(_texturesArchetypes[i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -179,8 +181,15 @@ namespace dh::vis {
   }
 
   AttributeRenderTask::~AttributeRenderTask() {
+    glDeleteBuffers(_buffers.size(), _buffers.data());
+    glDeleteBuffers(_buffersTextureData.size(), _buffersTextureData.data());
+    glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
+    glDeleteBuffers(_buffersTextureDataArchetypeSuggestions.size(), _buffersTextureDataArchetypeSuggestions.data());
     glDeleteTextures(_textures.size(), _textures.data());
-    glDeleteBuffers(_classTextures.size(), _classTextures.data());
+    glDeleteTextures(_texturesArchetypes.size(), _texturesArchetypes.data());
+    glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
+    glDeleteTextures(_classTextures.size(), _classTextures.data());
+    glDeleteTextures(1, &_bufferClassColors);
   }
 
   AttributeRenderTask::AttributeRenderTask(AttributeRenderTask&& other) noexcept {
@@ -346,18 +355,42 @@ namespace dh::vis {
     return sumValues / sumWeights;
   }
 
-  void AttributeRenderTask::addArchetype(uint archetypeClass) {
+  void AttributeRenderTask::addArchetype(uint archetypeClass, GLuint bufferArchetypeData) {
     GLuint archetypeDataHandle;
     glCreateBuffers(1, &archetypeDataHandle);
     glNamedBufferStorage(archetypeDataHandle, _params->nHighDims * sizeof(float), nullptr, 0);
-    glCopyNamedBufferSubData(_buffersTextureData[_tabIndex], archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
+    GLuint buffer = bufferArchetypeData ? bufferArchetypeData : _buffersTextureData[_tabIndex];
+    glCopyNamedBufferSubData(buffer, archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
 
     _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
     _archetypeClasses.push_back(archetypeClass);
     glAssert();
+
+    // Copy texture data to textures for archetypes
+    if(_params->imageDataset) {
+      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
+        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+      }
+    }
   }
 
-  void AttributeRenderTask::updateSuggestion() {
+  void AttributeRenderTask::eraseArchetypes() {
+    glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
+    _buffersTextureDataArchetypes.clear();
+    _archetypeClasses.clear();
+
+    for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
+      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+      glClearTexImage(_texturesArchetypes[i], 0, format, GL_FLOAT, nullptr);
+    }
+  }
+
+  void AttributeRenderTask::updateSuggestions() {
+    uint nSuggestionsNew = std::pow(2, _suggestionLevel);
+    uint nSuggestionsPrev = nSuggestionsNew - 2;
+
     GLuint datasetSelectedBuffer;
     glCreateBuffers(1, &datasetSelectedBuffer);
     uint nSelected = dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, datasetSelectedBuffer);
@@ -365,12 +398,25 @@ namespace dh::vis {
     glGetNamedBufferSubData(datasetSelectedBuffer, 0, nSelected * _params->nHighDims * sizeof(float), buffer.data());
 
     util::KClustering kClustering(buffer.data(), nSelected, _params->nHighDims);
-    
-    uint level = std::floor(std::log(static_cast<float>(_suggestionIndex + 2)) / std::log(2.f)); // Nearest power of 2
-    uint nCentroids = std::pow(2, level);
-    kClustering.comp(nCentroids, true);
+    kClustering.comp(nSuggestionsNew, true);
 
-    glCopyNamedBufferSubData(kClustering.getResultsBuffer(), _buffersTextureData(TextureType::eArchetypeSuggestion), (_suggestionIndex - nCentroids + 2) * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
+    _buffersTextureDataArchetypeSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
+    _texturesArchetypeSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
+    glCreateBuffers(nSuggestionsNew, &_buffersTextureDataArchetypeSuggestions[nSuggestionsPrev]);
+    glCreateTextures(GL_TEXTURE_2D, nSuggestionsNew, &_texturesArchetypeSuggestions[nSuggestionsPrev]);
+    for(uint i = 0; i < nSuggestionsNew; ++i) {
+      glNamedBufferStorage(_buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i], _params->nHighDims * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glCopyNamedBufferSubData(kClustering.getResultsBuffer(), _buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i], i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
+      glTextureParameteri(_texturesArchetypeSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_texturesArchetypeSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
+      glTextureStorage2D(_texturesArchetypeSuggestions[nSuggestionsPrev + i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i]);
+      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+      glTextureSubImage2D(_texturesArchetypeSuggestions[nSuggestionsPrev + i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+    }
+
+    _suggestionLevel++;
     glAssert();
   }
 
@@ -409,11 +455,9 @@ namespace dh::vis {
           ImGui::EndTabItem();
         }
 
-        if(_suggestionMode) {
-          if (ImGui::BeginTabItem("Suggestion", NULL, ImGuiTabItemFlags_SetSelected)) {
-            tabUpper = 4;
-            ImGui::EndTabItem();
-          }
+        if (ImGui::BeginTabItem("Suggestions")) {
+          tabUpper = 4;
+          ImGui::EndTabItem();
         }
 
         ImGui::EndTabBar();
@@ -442,15 +486,73 @@ namespace dh::vis {
           }
         } else
         if(tabUpper == 4) {
-          drawImGuiTab(9, "Current suggestion");
+          _tabIndex = -1;
+          drawImGuiSuggestor();
         }
         ImGui::EndTabBar();
       }
     }
 
     // Force selection re-evaluation when switching to the pairwise attr diff tab
-    if(tabUpper == 3 && _tabIndex != _tabIndexPrev || _setChanged) { update(_selectionCounts); }
+    if(_tabIndex != _tabIndexPrev || _setChanged) {
+      if(tabUpper == 3) {
+        update(_selectionCounts);
+      } else
+      if(tabUpper == 4) {
+        _suggestionLevel = 1;
+        glDeleteBuffers(_buffersTextureDataArchetypeSuggestions.size(), _buffersTextureDataArchetypeSuggestions.data());
+        glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
+        if(_selectionCounts[0] > 2) { updateSuggestions(); }
+      }
+    }
     _tabIndexPrev = _tabIndex;
+  }
+
+  void AttributeRenderTask::drawImGuiSuggestor() {
+    uint nSuggestions = _buffersTextureDataArchetypeSuggestions.size();
+    uint nCols = 6;
+    uint nRows = nSuggestions / nCols + 1;
+    uint childWidth = 400;
+    uint childHeight = 400;
+    uint imageWidth = (childWidth - 20) / nCols;
+    uint imageHeight = imageWidth * (_params->imgHeight / _params->imgWidth);
+
+    ImVec2 defaultSpacing = ImGui::GetStyle().ItemSpacing;
+    ImGui::GetStyle().ItemSpacing = ImVec2(0, 0);
+
+    ImGui::BeginChild("Suggestions", ImVec2(childWidth, childHeight), false, ImGuiWindowFlags_HorizontalScrollbar);
+    for (uint i = 0; i < nRows; i++) {
+      for(uint j = 0; j < nCols; j++) {
+        if(i * nCols + j >= nSuggestions || nSuggestions == 0) { break; }
+        if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypeSuggestions[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), 0)) {
+          addArchetype(_archetypeClassSelected, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
+        }
+        if(ImGui::IsItemHovered()) {
+          ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+        }
+        if(j < nCols - 1) { ImGui::SameLine(); }
+      }
+    }
+    if(_selectionCounts[0] > std::pow(2, _suggestionLevel)) {
+      if(ImGui::Button("...", ImVec2(imageWidth, imageHeight))) { updateSuggestions(); }
+    }
+    ImGui::EndChild();
+
+    ImGui::GetStyle().ItemSpacing = defaultSpacing;
+
+    ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
+    for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
+      if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypes[ac], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), ac == _archetypeClassSelected)) {
+        _archetypeClassSelected = ac;
+      }
+      if(ImGui::IsItemHovered()) {
+        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
+      }
+      ImGui::SameLine();
+    }
+    if(ImGui::SameLine(); ImGui::Button("Erase")) { eraseArchetypes(); }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove current archetypes."); ImGui::EndTooltip(); }
   }
 
   void AttributeRenderTask::drawImGuiTab(uint tabIndex, const char* text) {
@@ -482,13 +584,6 @@ namespace dh::vis {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
     glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
     glAssert();
-
-    // Copy texture data to textures for archetypes
-    for(uint i = 0; i < _archetypeClasses.size(); ++i) {
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
-      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-      glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-    }
 
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[_tabIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
@@ -555,10 +650,6 @@ namespace dh::vis {
     for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
       if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypes[ac], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0)) {
         addArchetype(ac);
-        if(_suggestionMode) {
-          _suggestionIndex++;
-          updateSuggestion();
-        }
       }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
@@ -566,33 +657,8 @@ namespace dh::vis {
       }
       ImGui::SameLine();
     }
-    if(_suggestionMode) {
-      if(ImGui::SameLine(); ImGui::Button("Skip")) {
-        _suggestionIndex++;
-        updateSuggestion();
-      }
-      if(ImGui::SameLine(); ImGui::Button("Done")) {
-        _suggestionMode = false;
-      }
-    } else {
-      if(ImGui::SameLine(); ImGui::Button("Suggest")) {
-        _suggestionMode = true;
-        _suggestionIndex = 0;
-        updateSuggestion();
-      }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Suggest archetypes."); ImGui::EndTooltip(); }
-      if(ImGui::SameLine(); ImGui::Button("Erase")) {
-        glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
-        _buffersTextureDataArchetypes.clear();
-        _archetypeClasses.clear();
-
-        for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
-          GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-          glClearTexImage(_texturesArchetypes[i], 0, format, GL_FLOAT, nullptr);
-        }
-      }
-      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove current archetypes."); ImGui::EndTooltip(); }
-    }
+    if(ImGui::SameLine(); ImGui::Button("Erase")) { eraseArchetypes(); }
+    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove current archetypes."); ImGui::EndTooltip(); }
 
     // Draw dragselected attributes in texture
     if(_draggedTexel >= 0 && _draggedTexel != _draggedTexelPrev) {
@@ -835,11 +901,12 @@ namespace dh::vis {
 
   }
 
-  void AttributeRenderTask::clear() {
+  void AttributeRenderTask::clearSelection() {
     for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
     }
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
+    _selectionCounts = std::vector<uint>(2, 0);
   }
 
   // void AttributeRenderTask::assess(uint symmetricSize) {
