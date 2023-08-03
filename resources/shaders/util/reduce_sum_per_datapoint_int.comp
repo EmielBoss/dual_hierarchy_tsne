@@ -35,11 +35,11 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Selc { uint selectionBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Selc { int selectionBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 3, std430) restrict readonly buffer TRed { uint bufferToReduce[]; };
-layout(binding = 4, std430) restrict writeonly buffer Acc { uint accumulationPerDatapointBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer TRed { int bufferToReduce[]; };
+layout(binding = 4, std430) restrict writeonly buffer Acc { int accumulationPerDatapointBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -56,7 +56,7 @@ void main() {
   
   Layout l = layoutBuffer[i];
 
-  uint sum = 0;
+  int sum = 0;
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
     if(!selectedOnly || selectionBuffer[j] > 0) { sum += bufferToReduce[ij]; }

@@ -26,20 +26,21 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer BufferToRemove { uint bufferToRemove[]; };
-layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
-layout(binding = 2, std430) restrict readonly buffer CumSum { uint cumsum[]; };
-layout(binding = 3, std430) restrict writeonly buffer BufferRemoved { uint bufferRemoved[]; };
+// Buffer bindings
+layout(binding = 0, std430) restrict readonly buffer BufferToIndex { int bufferToIndex[]; };
+layout(binding = 1, std430) restrict readonly buffer Scanned { uint scanned[]; };
+layout(binding = 2, std430) restrict writeonly buffer IndicesBuffer { uint indices[]; };
 
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint nDims;
+// Uniform values
+layout(location = 0) uniform uint n;
+layout(location = 1) uniform int value;
 
 void main() {
-  uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / nDims;
-  uint d = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) % nDims;
-  if (i >= nPoints) { return; }
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if(selection[i] > 0) {
-    bufferRemoved[(cumsum[i]-1) * nDims + d] = bufferToRemove[i * nDims + d];
+  if (i >= n) { return; }
+
+  if(bufferToIndex[i] == value) {
+    indices[scanned[i] - 1] = i;
   }
 }

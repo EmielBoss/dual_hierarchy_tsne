@@ -31,7 +31,7 @@ layout(binding = 1, std430) restrict buffer PosRel { vec2 PositionsRelative[]; }
 layout(binding = 2, std430) restrict readonly buffer Grad { vec2 Gradients[]; };
 layout(binding = 3, std430) restrict buffer PrevGrad { vec2 PrevGradients[]; };
 layout(binding = 4, std430) restrict buffer Gains { vec2 Gain[]; };
-layout(binding = 5, std430) restrict readonly buffer Fix { uint Fixed[]; };
+layout(binding = 5, std430) restrict readonly buffer Fix { int Fixed[]; };
 layout(binding = 6, std430) restrict readonly buffer Bounds { 
   vec2 minBounds;
   vec2 maxBounds;

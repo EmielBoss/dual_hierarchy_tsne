@@ -26,12 +26,12 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Selection { uint selectionBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Selection { int selectionBuffer[]; };
 layout(binding = 1, std430) restrict readonly buffer Positions { vec2 positionsBuffer[]; };
 layout(binding = 2, std430) restrict buffer PosRel { vec2 positionsRelativeBuffer[]; };
 layout(binding = 3, std430) restrict buffer PositionsBeforeTranslation { vec2 positionsRelativeBeforeTranslationBuffer[]; };
-layout(binding = 4, std430) restrict buffer Fixed { uint fixedBuffer[]; };
-layout(binding = 5, std430) restrict writeonly buffer Moving { uint movingBuffer[]; };
+layout(binding = 4, std430) restrict buffer Fixed { int fixedBuffer[]; };
+layout(binding = 5, std430) restrict writeonly buffer Moving { int movingBuffer[]; };
 layout(binding = 6, std430) restrict writeonly buffer Weights { float weightsBuffer[]; };
 layout(binding = 7, std430) restrict readonly buffer Bounds {
   vec2 minBounds;

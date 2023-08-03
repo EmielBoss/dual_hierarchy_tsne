@@ -26,16 +26,18 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer Mask { int mask[]; };
-layout(binding = 1, std430) restrict writeonly buffer BufferToSet { uint bufferToSet[]; };
+// Buffer bindings
+layout(binding = 0, std430) restrict readonly buffer BufferToIndicate { int bufferToIndicate[]; };
+layout(binding = 1, std430) restrict writeonly buffer Indicated { uint indicated[]; };
 
-layout(location = 0) uniform uint nPoints;
-layout(location = 1) uniform uint maskVal;
-layout(location = 2) uniform uint setVal;
+// Uniform values
+layout(location = 0) uniform uint n;
+layout(location = 1) uniform int value;
 
 void main() {
-  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-  if (i >= nPoints) { return; }
+  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
 
-  if(mask[i] == maskVal) { bufferToSet[i] = setVal; }
+  if (i >= n) { return; }
+
+  indicated[i] = int(bufferToIndicate[i] == value);
 }

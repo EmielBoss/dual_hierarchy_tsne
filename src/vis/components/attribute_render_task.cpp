@@ -117,7 +117,7 @@ namespace dh::vis {
     _classCounts = std::vector<uint>(_params->nClasses);
     for(uint i = 0; i < _params->nClasses; ++i) {
       // uint classCount = std::count(labelPtr, labelPtr + _params->n, i);
-      uint classCount = dh::util::BufferTools::instance().reduce<uint>(_minimizationBuffers.labels, 3, _params->n, 0, i);
+      uint classCount = dh::util::BufferTools::instance().reduce<int>(_minimizationBuffers.labels, 3, _params->n, 0, i);
       _classCounts[i] = classCount;
     }
 
@@ -879,7 +879,7 @@ namespace dh::vis {
 
       uint nSelectedPairs;
       if(!_vizAllPairs) {
-        nSelectedPairs = dh::util::BufferTools::instance().reduce<uint>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+        nSelectedPairs = dh::util::BufferTools::instance().reduce<int>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
       } else
       if(_tabIndex == TextureType::ePairwiseDiffsAll) {
         nSelectedPairs = (_selectionCounts[0] * (_selectionCounts[0] - 1)) / 2;
@@ -896,7 +896,7 @@ namespace dh::vis {
     }
 
     for(uint c = 0; c < _params->nClasses; ++c) {
-      _classCountsSelected[c] = dh::util::BufferTools::instance().reduce<uint>(_minimizationBuffers.labels, 3, _params->n, _minimizationBuffers.selection, c);
+      _classCountsSelected[c] = dh::util::BufferTools::instance().reduce<int>(_minimizationBuffers.labels, 3, _params->n, _minimizationBuffers.selection, c);
     }
 
   }

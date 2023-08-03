@@ -35,7 +35,7 @@
 namespace dh::util {
   void indicateLabeled(const int* labelPtr, uint n, uint nClasses, uint nLabeledPerClass, GLuint bufferLabeled)
   {
-    std::vector<uint> labeled(n, 0);
+    std::vector<int> labeled(n, 0);
     
     for(uint c = 0; c < nClasses; ++c) {
       uint count = 0;
@@ -47,7 +47,7 @@ namespace dh::util {
       }
     }
 
-    glNamedBufferStorage(bufferLabeled, n * sizeof(uint), labeled.data(), 0);
+    glNamedBufferStorage(bufferLabeled, n * sizeof(int), labeled.data(), 0);
   }
 
   void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 23> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeClasses)

@@ -27,7 +27,7 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer BufferToRemove { float bufferToRemove[]; };
-layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
+layout(binding = 1, std430) restrict readonly buffer Selection { int selection[]; };
 layout(binding = 2, std430) restrict readonly buffer CumSum { uint cumsum[]; };
 layout(binding = 3, std430) restrict writeonly buffer BufferRemoved { float bufferRemoved[]; };
 

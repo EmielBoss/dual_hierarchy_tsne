@@ -96,7 +96,7 @@ namespace dh::sne {
     {
       const std::vector<vec> zerovecs(_params->n, vec(0));
       const std::vector<vec> unitvecs(_params->n, vec(1));
-      const std::vector<uint> falses(_params->n, 0); // TODO: use bools instead of uints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
+      const std::vector<int> falses(_params->n, 0); // TODO: use bools instead of ints (but I can't seem to initialize buffers with bools; std::vector specializes <bool>)
       const std::vector<float> ones(_params->n, 1.0f);
 
       glCreateBuffers(_buffers.size(), _buffers.data());
@@ -118,12 +118,12 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eNeighborsEmb), _params->n * _params->k * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eDistancesEmb), _params->n * _params->k * sizeof(float), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eNeighborhoodPreservation), _params->n * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(uint), falses.data(), GL_DYNAMIC_STORAGE_BIT);
-      // glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(uint), labeled.data(), 0); // Indicates whether datapoints are labeled
+      glNamedBufferStorage(_buffers(BufferType::eSelection), _params->n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT);
+      // glNamedBufferStorage(_buffers(BufferType::eLabeled), _params->n * sizeof(int), labeled.data(), 0); // Indicates whether datapoints are labeled
       dh::util::indicateLabeled(labelPtr, _params->n, _params->nClasses, 1, _buffers(BufferType::eLabeled));
-      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
-      glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are fixed
-      glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(uint), falses.data(), 0); // Indicates whether datapoints are being translated
+      glNamedBufferStorage(_buffers(BufferType::eDisabled), _params->n * sizeof(int), falses.data(), 0); // Indicates whether datapoints are disabled/inactive/"deleted"
+      glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(int), falses.data(), 0); // Indicates whether datapoints are fixed
+      glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(int), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
       glAssert();
     }
@@ -240,20 +240,20 @@ namespace dh::sne {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _attributeRenderTask->clearSelection();
-    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
   }
 
   template <uint D>
   void Minimization<D>::selectAll() {
-    dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
-    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 1, 0, _buffers(BufferType::eDisabled));
+    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
   }
 
   template <uint D>
   void Minimization<D>::selectInverse() {
-    dh::util::BufferTools::instance().flip<uint>(_buffers(BufferType::eSelection), _params->n);
-    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
+    dh::util::BufferTools::instance().flip<int>(_buffers(BufferType::eSelection), _params->n);
+    if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
   }
 
@@ -302,13 +302,13 @@ namespace dh::sne {
 
     if(_input.d) { deselect(); } // Deselect
     
-    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr); } // Clear translations if not translating
+    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr); } // Clear translations if not translating
     
     // Free/unfix fixed datapoints
     if(_input.f) {
       const std::vector<float> ones(_params->n, 1.0f);
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
-      glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
     }
 
     if(_input.r) { restartMinimization(); } // Restart
@@ -323,19 +323,19 @@ namespace dh::sne {
     if(_input.mouseRight || _mouseRightPrev) { compIterationTranslate(); } // Translate
     
     if(_input.del) { // Disable
-      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracDisabled = (float) _selectionCounts[0] / (float) nEnabled;
-      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
+      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 0, 1, _buffers(BufferType::eDisabled));
       compIterationSelect(true);
       _similarities->weighSimilarities(1.f / (1.f - fracDisabled));
       _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
     }
     if(_input.ins) { // Enable
-      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
-      glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
       _embeddingRenderTask->setPointRadius(std::min(100.f / _params->n, 0.005f));
     }
 
@@ -390,13 +390,13 @@ namespace dh::sne {
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));
-      // dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection), 0, true);
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
-      dh::util::BufferTools::instance().remove<uint>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
+      // dh::util::BufferTools::instance().remove<int>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<int>(_buffers(BufferType::eLabels), n, 1, _buffers(BufferType::eSelection), 0, true);
+      dh::util::BufferTools::instance().remove<int>(_buffers(BufferType::eLabeled), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<int>(_buffers(BufferType::eFixed), n, 1, _buffers(BufferType::eSelection));
+      dh::util::BufferTools::instance().remove<int>(_buffers(BufferType::eDisabled), n, 1, _buffers(BufferType::eSelection));
       deselect();
-      uint nEnabled = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
+      uint nEnabled = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       _embeddingRenderTask->setPointRadius(std::min(100.f / (nEnabled - _selectionCounts[0]), 0.005f));
       syncBufferHandles(); // Update buffer handles, because BufferTools::remove() deletes and recreates buffers
       restartMinimization();
@@ -405,8 +405,8 @@ namespace dh::sne {
 
     int classToSelect = _attributeRenderTask->getClassButtonPressed();
     if(classToSelect >= 0) {
-      dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, _input.s ? 2 : 1, (uint) classToSelect, _buffers(BufferType::eLabels));
-      if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<uint>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
+      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, _input.s ? 2 : 1, (uint) classToSelect, _buffers(BufferType::eLabels));
+      if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
       compIterationSelect(true);
     }
 
@@ -414,7 +414,7 @@ namespace dh::sne {
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
     if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
       uint sn = _input.s + 1; // Selection number
-      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(uint), sizeof(uint), &sn);
+      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(int), sizeof(int), &sn);
       compIterationSelect(true);
       _selectedDatapointPrev = selectedDatapoint;
     }
@@ -541,13 +541,12 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eDisabled));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eWeights));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _similaritiesBuffers.similarities); // Corresponding similarities
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eAttractive));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eWeights));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.similarities); // Corresponding similarities
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint
@@ -742,7 +741,7 @@ namespace dh::sne {
 
       // Set uniform
       program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<uint>("selectionNumber", sn);
+      program.template uniform<int>("selectionNumber", sn);
       program.template uniform<float, 2>("mousePosClip", _input.mousePosClip);
       program.template uniform<float>("selectionRadiusRel", _selectionRadiusRel);
       program.template uniform<float>("selectOnlyLabeled", _selectOnlyLabeled);
@@ -770,7 +769,7 @@ namespace dh::sne {
     // Count number of selected datapoints
     for (uint s = 0; s < 2; ++s) {
       uint selectionCountPrev = _selectionCounts[0];
-      _selectionCounts[s] = dh::util::BufferTools::instance().reduce<uint>(_buffers(BufferType::eSelection), 3, _params->n, 0, s + 1);
+      _selectionCounts[s] = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eSelection), 3, _params->n, 0, s + 1);
 
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
     }

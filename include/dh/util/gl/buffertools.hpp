@@ -48,32 +48,32 @@ namespace dh::util {
 
   enum class ProgramType {
     eReduceSumPerDatapointFloatComp,
-    eReduceSumPerDatapointUintComp,
+    eReduceSumPerDatapointIntComp,
     eReduceMinPerDatapointFloatComp,
     eReduceMaxPerDatapointFloatComp,
     eReduceSumFloatComp,
-    eReduceSumUintComp,
+    eReduceSumIntComp,
     eReduceMinFloatComp,
     eReduceMinVec2Comp,
     eReduceMaxFloatComp,
     eReduceMaxVec2Comp,
-    eReduceCountUintComp,
+    eReduceCountIntComp,
 
     eRemoveFloatComp,
-    eRemoveUintComp,
+    eRemoveIntComp,
 
-    eSetUintComp,
+    eSetIntComp,
 
-    eFlipUintComp,
+    eFlipIntComp,
 
     eAverageTexturedataComp,
 
     eOperateFloatComp,
 
-    eIndicateComp,
-    eIndexComp,
+    eIndicateIntComp,
+    eIndexIntComp,
 
-    eSubsample,
+    eSubsample_Uint,
 
     Length,
   };
@@ -98,13 +98,13 @@ namespace dh::util {
       // largeBuffer means larger than _params->n, in which case its contents are first accumulated per (selected) datapoint
       // If largeBuffer, layoutBuffer and neighborBuffer need to be > 0 as well
       // If countVal > 0, instead of summing all (selected) values, the number of occurences of countVal are counted
-      template <typename T> T reduce(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer = 0, uint valueToCount = -1, bool largeBuffer = false, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
+      template <typename T> T reduce(GLuint& bufferToReduce, uint reductionType, uint n, GLuint selectionBuffer = 0, int valueToCount = -1, bool largeBuffer = false, GLuint layoutBuffer = 0, GLuint neighborsBuffer = 0);
       template <typename T> void reducePerDatapoint(GLuint& bufferToReduce, uint reductionType, uint n, GLuint bufferReducedPerDatapoint, GLuint layoutBuffer, GLuint neighborsBuffer, GLuint selectionBuffer = 0);
       template <typename T> uint remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved = 0, bool dynamicStorage = false);
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
       template <typename T> void flip(GLuint& bufferToFlip, uint n);
       void operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference = 0); // Difference: operationType == 0 | Division: operationType == 1
-      void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer = 0, bool calcVariance = false, int maskClass = -1, GLuint labelsBuffer = 0);
+      void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, int maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer = 0, bool calcVariance = false, int maskClass = -1, GLuint labelsBuffer = 0);
       void index(GLuint& buffer, uint n, uint value, GLuint indicesBuffer);
       void subsample(GLuint& buffer, uint n, uint every, uint outOf, GLuint subsampledBuffer);
 

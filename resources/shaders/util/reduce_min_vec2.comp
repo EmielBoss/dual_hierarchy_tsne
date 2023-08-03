@@ -27,7 +27,7 @@
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, std430) restrict readonly buffer BufferToReduce { vec2 bufferToReduce[]; };
-layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
+layout(binding = 1, std430) restrict readonly buffer Selection { int selection[]; };
 layout(binding = 2, std430) restrict buffer BufferReduce { vec2 bufferReduce[128]; };
 layout(binding = 3, std430) restrict writeonly buffer BufferReduced { vec2 bufferReduced; };
 

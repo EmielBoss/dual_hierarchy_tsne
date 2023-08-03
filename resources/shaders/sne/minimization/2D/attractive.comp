@@ -36,13 +36,12 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
 layout(binding = 0, std430) restrict readonly buffer Posi { vec2 positionsBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Fixd { uint fixedBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Dsbl { uint disabledBuffer[]; };
-layout(binding = 3, std430) restrict buffer Wght { float weightsBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
-layout(binding = 5, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 6, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
-layout(binding = 7, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Dsbl { int disabledBuffer[]; };
+layout(binding = 2, std430) restrict buffer Wght { float weightsBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 5, std430) restrict readonly buffer Simi { float similaritiesBuffer[]; };
+layout(binding = 6, std430) restrict writeonly buffer Att { vec2 attrForcesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPos;

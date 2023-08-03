@@ -26,13 +26,16 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict buffer BufferToFlip { uint bufferToFlip[]; };
+layout(binding = 0, std430) restrict readonly buffer Mask { int mask[]; };
+layout(binding = 1, std430) restrict writeonly buffer BufferToSet { int bufferToSet[]; };
 
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform int maskVal;
+layout(location = 2) uniform int setVal;
 
 void main() {
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   if (i >= nPoints) { return; }
 
-  bufferToFlip[i] = (bufferToFlip[i] + 1) % 2;
+  if(mask[i] == maskVal) { bufferToSet[i] = setVal; }
 }

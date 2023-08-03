@@ -26,14 +26,14 @@
 
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, std430) restrict readonly buffer BufferToReduce { uint bufferToReduce[]; };
-layout(binding = 1, std430) restrict readonly buffer Selection { uint selection[]; };
+layout(binding = 0, std430) restrict readonly buffer BufferToReduce { int bufferToReduce[]; };
+layout(binding = 1, std430) restrict readonly buffer Selection { int selection[]; };
 layout(binding = 2, std430) restrict buffer BufferReduce { uint bufferReduce[128]; };
 layout(binding = 3, std430) restrict writeonly buffer BufferReduced { uint bufferReduced; };
 
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform bool selectedOnly;
-layout(location = 2) uniform uint valueToCount;
+layout(location = 2) uniform int valueToCount;
 layout(location = 3) uniform uint iter;
 
 const uint halfGroupSize = gl_WorkGroupSize.x / 2;
