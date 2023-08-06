@@ -422,10 +422,10 @@ namespace dh::vis {
             ImGui::EndTabItem();
           }
 
-          if (ImGui::BeginTabItem("Selection diff")) {
-            tabUpper = TabUpperType::eSelectionDifference;
-            ImGui::EndTabItem();
-          }
+          // if (ImGui::BeginTabItem("Selection diff")) {
+          //   tabUpper = TabUpperType::eSelectionDifference;
+          //   ImGui::EndTabItem();
+          // }
         }
 
         if (ImGui::BeginTabItem("Pairwise")) {

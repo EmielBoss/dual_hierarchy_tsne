@@ -380,8 +380,6 @@ namespace dh::sne {
   }
 
   void Similarities::weighSimilarities(float weight, GLuint selectionBufferHandle, bool interOnly) {
-    if(interOnly) { weight = std::pow(weight, 3); }
-
     auto &program = _programs(ProgramType::eWeighSimilaritiesComp);
     program.bind();
 

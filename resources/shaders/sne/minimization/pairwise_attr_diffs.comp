@@ -70,8 +70,8 @@ void main() {
        i >= j ||
       (discriminate && maskBuffer[j] != maskValueA && maskBuffer[j] != maskValueB) ||
       (discriminate && (( inter && maskBuffer[i] == maskBuffer[j]) ||
-                        (!inter && maskBuffer[i] != maskBuffer[j])))
-      ) { continue; }
+                        (!inter && maskBuffer[i] != maskBuffer[j]))))
+      { continue; }
 
     pairwiseAttrDistsBuffer[i * nHighDims + d] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
     if(d == 0) {

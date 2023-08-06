@@ -351,7 +351,7 @@ namespace dh::sne {
       }
       if(button == 10) { // Apply similarity weight to intersimilarities between selections
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
-        _similarities->renormalizeSimilarities(_buffers(BufferType::eSelection));
+        _similarities->renormalizeSimilarities();
       }
       if(button == 11) { // Add similarities
         _similarities->addSimilarities(_buffers(BufferType::eSelection), _selectionCounts, _selectionRenderTask->getSimilarityWeight());
