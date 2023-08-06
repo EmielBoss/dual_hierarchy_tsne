@@ -137,9 +137,9 @@ namespace dh::sne {
 
     // Clear hierarchy data
     if (rebuild) {
-      glClearNamedBufferData(_buffers(BufferType::eNode), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eNode), GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, NULL);
     }
-    glClearNamedBufferData(_buffers(BufferType::eField), GL_RGBA32F, GL_RGBA, GL_FLOAT, nullptr);
+    glClearNamedBufferData(_buffers(BufferType::eField), GL_RGBA32F, GL_RGBA, GL_FLOAT, NULL);
 
     // 2.
     // Compute leaf nodes. Essentially just fill in BufferType::eNode for used pixels

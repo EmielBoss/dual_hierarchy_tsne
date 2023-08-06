@@ -260,7 +260,6 @@ namespace dh::sne {
     glNamedBufferStorage(_buffers(BufferType::eNeighbors), _symmetricSize * sizeof(uint), nullptr, 0); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
     glNamedBufferStorage(_buffers(BufferType::eSimilarities), _symmetricSize * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT); // Corresponding similarities
     glNamedBufferStorage(_buffers(BufferType::eDistancesL1), _symmetricSize * sizeof(float), zeroesF.data(), 0); // Corresponding distances
-    glNamedBufferStorage(_buffers(BufferType::eNeighborsSelected), _symmetricSize * sizeof(uint), zeroesU.data(), 0); // Buffer used only by Minimization; creating it here because here we know the size
 
     // 6.
     // Generate expanded similarities and neighbor buffers, symmetrized and ready for use during the minimization
@@ -369,8 +368,6 @@ namespace dh::sne {
     glCreateBuffers(1, &_buffers(BufferType::eSimilaritiesOriginal));
     glDeleteBuffers(1, &_buffers(BufferType::eDistancesL1));
     glCreateBuffers(1, &_buffers(BufferType::eDistancesL1));
-    glDeleteBuffers(1, &_buffers(BufferType::eNeighborsSelected));
-    glCreateBuffers(1, &_buffers(BufferType::eNeighborsSelected));
     comp();
   }
 
@@ -456,7 +453,7 @@ namespace dh::sne {
     std::vector<uint> setvec(weightedAttributeIndices.begin(), weightedAttributeIndices.end());
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), weightedAttributeIndices.size() * sizeof(uint), setvec.data(), 0);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eSubDistancesL1), _symmetricSize * sizeof(float), nullptr, 0);
-    glClearNamedBufferData(_buffersTemp(BufferTempType::eSubDistancesL1), GL_R32F, GL_RED, GL_FLOAT, nullptr); // Initialize with all zeros
+    glClearNamedBufferData(_buffersTemp(BufferTempType::eSubDistancesL1), GL_R32F, GL_RED, GL_FLOAT, NULL); // Initialize with all zeros
 
     // Obtaining the subdistances across the weighted attributes
     {
@@ -528,8 +525,7 @@ namespace dh::sne {
     } else {
       attributeIndices = std::vector<uint>(_params->nHighDims);
       std::iota(attributeIndices.begin(), attributeIndices.end(), 0);
-      const std::vector<float> zeroes(_params->nHighDims, 0.f);
-      glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, zeroes.data());
+      glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, NULL);
     }
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
     uint nArchetypes = archetypeClasses.size();
@@ -662,7 +658,6 @@ namespace dh::sne {
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eSimilaritiesOriginal), _symmetricSize * sizeof(float), nullptr, 0); // Corresponding similarities
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eDistancesL1), _symmetricSize * sizeof(float), zeroesF.data(), 0); // Corresponding distances
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eDistancesL2), _symmetricSize * sizeof(float), zeroesF.data(), 0); // Corresponding distances
-    glNamedBufferStorage(_buffersFuse(BufferFuseType::eNeighborsSelected), _symmetricSize * sizeof(uint), zeroesU.data(), 0); // Buffer used only by Minimization; creating it here because here we know the size
 
     {
       auto& program = _programs(ProgramType::eCopyOldStuff);
@@ -795,7 +790,6 @@ namespace dh::sne {
 
     std::swap(_buffers(BufferType::eLayout), _buffersFuse(BufferFuseType::eLayout));
     std::swap(_buffers(BufferType::eNeighbors), _buffersFuse(BufferFuseType::eNeighbors));
-    std::swap(_buffers(BufferType::eNeighborsSelected), _buffersFuse(BufferFuseType::eNeighborsSelected));
     std::swap(_buffers(BufferType::eSimilarities), _buffersFuse(BufferFuseType::eSimilarities));
     std::swap(_buffers(BufferType::eSimilaritiesOriginal), _buffersFuse(BufferFuseType::eSimilaritiesOriginal));
     std::swap(_buffers(BufferType::eDistancesL1), _buffersFuse(BufferFuseType::eDistancesL1));

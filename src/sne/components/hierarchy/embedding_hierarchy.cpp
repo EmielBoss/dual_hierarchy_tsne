@@ -222,7 +222,7 @@ namespace dh::sne {
 
       // Reset leaf queue head
       glClearNamedBufferData(_buffers(BufferType::eLeafQueueHead), 
-        GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, NULL);
 
       // Iterate through tree levels from top to bottom
       uint begin = 0;

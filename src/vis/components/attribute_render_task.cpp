@@ -37,28 +37,6 @@
 #include "dh/util/io.hpp" //
 
 namespace dh::vis {
-
-  std::array<const std::string, 10> promptsValuetype = {"Mean: %0.2f",
-                                                        "Variance: %0.2f",
-                                                        "Mean: %0.2f",
-                                                        "Variance: %0.2f",
-                                                        "Difference in mean: %0.2f",
-                                                        "Difference in variance: %0.2f",
-                                                        "Pairwise difference (all): %0.2f",
-                                                        "Pairwise difference (interclass): %0.2f",
-                                                        "Pairwise difference (intraclass): %0.2f",
-                                                        "Value: %0.2f"};
-
-  std::array<const std::string, 10> promptsDenomtype = {"%u primary selected datapoints",
-                                                        "%u primary selected datapoints",
-                                                        "%u secondary selected datapoints",
-                                                        "%u secondary selected datapoints",
-                                                        "",
-                                                        "",
-                                                        "%u selected ",
-                                                        "%u selected interclass ",
-                                                        "%u selected intraclass ",
-                                                        ""};
   
   AttributeRenderTask::AttributeRenderTask()
   : RenderTask(), _isInit(false) {
@@ -85,13 +63,12 @@ namespace dh::vis {
     _setChanged(false),
     _classButtonPressed(-1),
     _vizAllPairs(false),
-    _denominators(9, 0),
+    _denominators(_textures.size(), 0),
     _archetypeClassSelected(0) {
 
     // Initialize shader program
     {
-      _programs(ProgramType::ePairwiseAttrDiffsNeiComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_nei.comp"));
-      _programs(ProgramType::ePairwiseAttrDiffsAllComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs_all.comp"));
+      _programs(ProgramType::ePairwiseAttrDiffsComp).addShader(util::GLShaderType::eCompute, rsrc::get("sne/minimization/pairwise_attr_diffs.comp"));
       _programs(ProgramType::dGuessClasses).addShader(util::GLShaderType::eCompute, rsrc::get("sne/similarities/__guess_classes.comp"));
       for (auto& program : _programs) {
         program.link();
@@ -104,11 +81,12 @@ namespace dh::vis {
       const std::vector<float> ones(_params->nHighDims, 1.0f);
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::ePairwiseAttrDists), _params->n * _params->nHighDims * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::ePairsSelectedPerDatapoint), _params->n * sizeof(int), nullptr, 0);
       glCreateBuffers(_buffersTextureData.size(), _buffersTextureData.data());
       for(uint i = 0; i < _buffersTextureData.size() - 1; ++i) {
         glNamedBufferStorage(_buffersTextureData[i], _params->nTexels * _params->imgDepth * sizeof(float), nullptr, 0);
       }
-      glNamedBufferStorage(_buffersTextureData(TextureType::eOverlay), _params->nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glNamedBufferStorage(_buffersTextureData(TabType::eOverlay), _params->nTexels * 4 * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
       mirrorWeightsToOverlay();
     }
 
@@ -152,9 +130,9 @@ namespace dh::vis {
         GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
         glTextureStorage2D(_textures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
       }
-      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_textures(TextureType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTextureStorage2D(_textures(TextureType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
+      glTextureParameteri(_textures(TabType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_textures(TabType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureStorage2D(_textures(TabType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
 
       // Archetype textures and associates buffers and vectors
       _archetypeClasses = std::vector<uint>();
@@ -203,7 +181,7 @@ namespace dh::vis {
 
   // Sets a specified texel in the overlay texture to the specified color
   void AttributeRenderTask::setOverlayTexel(int texelIndex, std::vector<float> color) {
-    glNamedBufferSubData(_buffersTextureData(TextureType::eOverlay), texelIndex * 4 * sizeof(float), 4 * sizeof(float), color.data());
+    glNamedBufferSubData(_buffersTextureData(TabType::eOverlay), texelIndex * 4 * sizeof(float), 4 * sizeof(float), color.data());
   }
 
   void AttributeRenderTask::brushTexels(uint centerTexelIndex, int radius, float weight) {
@@ -434,29 +412,29 @@ namespace dh::vis {
       if (ImGui::BeginTabBar("Selection tabs")) {
 
         if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
-          tabUpper = 0;
+          tabUpper = TabUpperType::eSelectionPrimary;
           ImGui::EndTabItem();
         }
 
         if(_selectionCounts[1] > 0) {
           if (ImGui::BeginTabItem("Selection sec")) {
-            tabUpper = 1;
+            tabUpper = TabUpperType::eSelectionSecondary;
             ImGui::EndTabItem();
           }
 
           if (ImGui::BeginTabItem("Selection diff")) {
-            tabUpper = 2;
+            tabUpper = TabUpperType::eSelectionDifference;
             ImGui::EndTabItem();
           }
         }
 
         if (ImGui::BeginTabItem("Pairwise")) {
-          tabUpper = 3;
+          tabUpper = TabUpperType::ePairwise;
           ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("Suggestions")) {
-          tabUpper = 4;
+          tabUpper = TabUpperType::eSuggestions;
           ImGui::EndTabItem();
         }
 
@@ -466,26 +444,30 @@ namespace dh::vis {
       _draggedTexel = -1;
 
       if (ImGui::BeginTabBar("Selection attributes type tabs")) {
-        if(tabUpper == 0) {
-          drawImGuiTab(0, "Average");
-          drawImGuiTab(1, "Variance");
+        if(tabUpper == TabUpperType::eSelectionPrimary) {
+          drawImGuiTab(TabType::eAveragePrimary, "Average");
+          drawImGuiTab(TabType::eVariancePrimary, "Variance");
         } else
-        if(tabUpper == 1) {
-          drawImGuiTab(2, "Average");
-          drawImGuiTab(3, "Variance");
+        if(tabUpper == TabUpperType::eSelectionSecondary) {
+          drawImGuiTab(TabType::eAverageSecondary, "Average");
+          drawImGuiTab(TabType::eVarianceSecondary, "Variance");
         } else
-        if(tabUpper == 2) {
-          drawImGuiTab(4, "Average");
-          drawImGuiTab(5, "Variance");
+        if(tabUpper == TabUpperType::eSelectionDifference) {
+          drawImGuiTab(TabType::eAverageDifference, "Average");
+          drawImGuiTab(TabType::eVarianceDifference, "Variance");
         } else
-        if(tabUpper == 3) {
-          drawImGuiTab(6, "All");
+        if(tabUpper == TabUpperType::ePairwise) {
+          drawImGuiTab(TabType::ePairwiseDiffsAll, "All");
           if(_classesSet.size() == 2) {
-            drawImGuiTab(7, "Interclass");
-            drawImGuiTab(8, "Intraclass");
+            drawImGuiTab(TabType::ePairwiseDiffsInterclass, "Interclass");
+            drawImGuiTab(TabType::ePairwiseDiffsIntraclass, "Intraclass");
+          }
+          if(_selectionCounts[0] > 0 && _selectionCounts[1] > 0) {
+            drawImGuiTab(TabType::ePairwiseDiffsInterselection, "Interselection");
+            drawImGuiTab(TabType::ePairwiseDiffsIntraselection, "Intraselection");
           }
         } else
-        if(tabUpper == 4) {
+        if(tabUpper == TabUpperType::eSuggestions) {
           _tabIndex = -1;
           drawImGuiSuggestor();
         }
@@ -495,10 +477,10 @@ namespace dh::vis {
 
     // Force selection re-evaluation when switching to the pairwise attr diff tab
     if(_tabIndex != _tabIndexPrev || _setChanged) {
-      if(tabUpper == 3) {
-        update(_selectionCounts);
+      if(tabUpper == TabUpperType::ePairwise) {
+        updateVisualizations(_selectionCounts);
       } else
-      if(tabUpper == 4) {
+      if(tabUpper == TabUpperType::eSuggestions) {
         _suggestionLevel = 1;
         glDeleteBuffers(_buffersTextureDataArchetypeSuggestions.size(), _buffersTextureDataArchetypeSuggestions.data());
         glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
@@ -528,7 +510,7 @@ namespace dh::vis {
           addArchetype(_archetypeClassSelected, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
         }
         if(ImGui::IsItemHovered()) {
-          ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+          ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
         }
         if(j < nCols - 1) { ImGui::SameLine(); }
       }
@@ -546,7 +528,7 @@ namespace dh::vis {
         _archetypeClassSelected = ac;
       }
       if(ImGui::IsItemHovered()) {
-        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
         ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
@@ -581,15 +563,15 @@ namespace dh::vis {
       GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
       glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
     }
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TextureType::eOverlay));
-    glTextureSubImage2D(_textures(TextureType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TabType::eOverlay));
+    glTextureSubImage2D(_textures(TabType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
     glAssert();
 
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[_tabIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
     if(ImGui::IsItemHovered()) {
-      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+      ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
       uint teXel = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) / 300 * _params->imgWidth;
       uint teYel = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) / 300 * _params->imgHeight;
       uint hoveredTexel = teYel * _params->imgWidth + teXel;
@@ -598,12 +580,12 @@ namespace dh::vis {
       ImGui::Text("Attribute: #%d", hoveredTexel);
       ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
       float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
-      ImGui::Text(promptsValuetype[_tabIndex].c_str(), texelValue);
+      ImGui::Text(_promptsValuetype[_tabIndex].c_str(), texelValue);
       std::string pairtype = "";
-      if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
+      if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
         pairtype += _vizAllPairs ? "pairs" : "neighbours";
       }
-      ImGui::Text(("Averaged over: " + promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
+      ImGui::Text(("Averaged over: " + _promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
       ImGui::EndTooltip();
 
       if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -624,10 +606,13 @@ namespace dh::vis {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
     ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
     ImGui::SameLine(); ImGui::Separator();
-    bool vizAllPairsPrev = _vizAllPairs;
-    ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
-    if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
+
+    if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
+      bool vizAllPairsPrev = _vizAllPairs;
+      ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
+      if(_vizAllPairs != vizAllPairsPrev) { updateVisualizations(_selectionCounts); }
+    }
     
     if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
@@ -652,7 +637,7 @@ namespace dh::vis {
         addArchetype(ac);
       }
       if(ImGui::IsItemHovered()) {
-        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TextureType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+        ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
         ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
@@ -714,12 +699,12 @@ namespace dh::vis {
         ImGui::Text("Attribute: #%d", hoveredTexel);
         ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
         float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
-        ImGui::Text(promptsValuetype[_tabIndex].c_str(), texelValue);
+        ImGui::Text(_promptsValuetype[_tabIndex].c_str(), texelValue);
         std::string pairtype = "";
-        if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
+        if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
           pairtype += _vizAllPairs ? "pairs" : "neighbours";
         }
-        ImGui::Text(("Averaged over: " + promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
+        ImGui::Text(("Averaged over: " + _promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
         ImGui::EndTooltip();
 
         if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
@@ -738,10 +723,13 @@ namespace dh::vis {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
     ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
     ImGui::SameLine(); ImGui::Separator();
-    bool vizAllPairsPrev = _vizAllPairs;
-    ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
-    if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
-    if(_vizAllPairs != vizAllPairsPrev) { update(_selectionCounts); }
+
+    if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
+      bool vizAllPairsPrev = _vizAllPairs;
+      ImGui::SameLine(); ImGui::Checkbox("All pairs", &_vizAllPairs);
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Crash sensitive: Windows may terminate the program if this takes too long."); ImGui::EndTooltip(); }
+      if(_vizAllPairs != vizAllPairsPrev) { updateVisualizations(_selectionCounts); }
+    }
     
     if(                   ImGui::Button("Clear weights")) { clearAttributeWeights(); }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Clears current attribute weights."); ImGui::EndTooltip(); }
@@ -829,7 +817,7 @@ namespace dh::vis {
     _setChanged = true;
   }
 
-  void AttributeRenderTask::update(std::vector<uint> selectionCounts) {
+  void AttributeRenderTask::updateVisualizations(std::vector<uint> selectionCounts) {
     _selectionCounts = selectionCounts;
     for(uint i = 0; i < 2; ++i) { _denominators[i * 2] = _selectionCounts[i]; _denominators[i * 2 + 1] = _selectionCounts[i];  }
 
@@ -844,52 +832,58 @@ namespace dh::vis {
       dh::util::BufferTools::instance().operate(0, _buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
     }
 
-    // Compute pairwise attribute differences if relevant texture tabs are open
-    if(_tabIndex == TextureType::ePairwiseDiffsAll || _tabIndex == TextureType::ePairwiseDiffsInter || _tabIndex == TextureType::ePairwiseDiffsIntra) {
-      std::pair<int, int> classes;
-      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, nullptr);
-      glClearNamedBufferData(_similaritiesBuffers.neighborsSelected, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+    // Compute pairwise attribute differences if one of the relevant texture tabs is open
+    if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
+      glClearNamedBufferData(_buffers(BufferType::ePairwiseAttrDists), GL_R32F, GL_RED, GL_FLOAT, NULL);
+      glClearNamedBufferData(_buffers(BufferType::ePairsSelectedPerDatapoint), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
 
-      auto &program = _vizAllPairs ? _programs(ProgramType::ePairwiseAttrDiffsAllComp) : _programs(ProgramType::ePairwiseAttrDiffsNeiComp);
+      auto &program = _programs(ProgramType::ePairwiseAttrDiffsComp);
       program.bind();
 
+      uint selectionCount = _selectionCounts[0] + _selectionCounts[1];
+      std::cout << std::endl << (selectionCount * (selectionCount - 1)) / 2 << "\n" << std::endl << std::flush;
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
-      if(_classesSet.size() == 2 && _tabIndex != TextureType::ePairwiseDiffsAll) {
-        classes = std::pair<int, int>(*_classesSet.begin(), *std::next(_classesSet.begin()));
-        program.template uniform<bool>("classesSet", true);
-        program.template uniform<int>("classA", classes.first);
-        program.template uniform<int>("classB", classes.second);
-        program.template uniform<bool>("inter", _tabIndex == TextureType::ePairwiseDiffsInter);
+      program.template uniform<bool>("vizAllPairs", _vizAllPairs);
+      if(_tabIndex == TabType::ePairwiseDiffsInterclass || _tabIndex == TabType::ePairwiseDiffsIntraclass) {
+        std::pair<int, int>classes(*_classesSet.begin(), *std::next(_classesSet.begin()));
+        program.template uniform<bool>("discriminate", true);
+        program.template uniform<int>("maskValueA", classes.first);
+        program.template uniform<int>("maskValueB", classes.second);
+        program.template uniform<bool>("inter", _tabIndex == TabType::ePairwiseDiffsInterclass);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.labels);
+        std::cout << std::endl << "Interclass: " << _classCountsSelected[classes.first] * _classCountsSelected[classes.second] << "\n" << std::endl << std::flush;
+        std::cout << std::endl << "Intraclass: " << _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) / 2 + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1) / 2 << "\n" << std::endl << std::flush;
+      } else
+      if(_tabIndex == TabType::ePairwiseDiffsInterselection || _tabIndex == TabType::ePairwiseDiffsIntraselection) {
+        program.template uniform<bool>("discriminate", true);
+        program.template uniform<int>("maskValueA", 1);
+        program.template uniform<int>("maskValueB", 2);
+        program.template uniform<bool>("inter", _tabIndex == TabType::ePairwiseDiffsInterselection);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
+        std::cout << std::endl << "Interclass: " << _selectionCounts[0] * _selectionCounts[1] << "\n" << std::endl << std::flush;
+        std::cout << std::endl << "Intraclass: " << _selectionCounts[0] * (_selectionCounts[0] - 1) / 2 + _selectionCounts[1] * (_selectionCounts[1] - 1) / 2 << "\n" << std::endl << std::flush;
       } else {
-        program.template uniform<bool>("classesSet", false);
+        program.template uniform<bool>("discriminate", false);
       }
 
       // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _similaritiesBuffers.dataset);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labels);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.selection);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.dataset);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::ePairwiseAttrDists));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _similaritiesBuffers.neighborsSelected);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::ePairsSelectedPerDatapoint));
 
       // Dispatch shader in batches of batchSize attributes
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-      uint nSelectedPairs;
-      if(!_vizAllPairs) {
-        nSelectedPairs = dh::util::BufferTools::instance().reduce<int>(_similaritiesBuffers.neighborsSelected, 0, _params->n, _minimizationBuffers.selection, -1, true, _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
-      } else
-      if(_tabIndex == TextureType::ePairwiseDiffsAll) {
-        nSelectedPairs = (_selectionCounts[0] * (_selectionCounts[0] - 1)) / 2;
-      } else
-      if(_tabIndex == TextureType::ePairwiseDiffsInter) {
-        nSelectedPairs = _classCountsSelected[classes.first] * _classCountsSelected[classes.second];
-      } else
-      if(_tabIndex == TextureType::ePairwiseDiffsIntra) {
-        nSelectedPairs = _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) / 2 + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1) / 2;
+      if(_tabIndex == TabType::ePairwiseDiffsAll) {
+        dh::util::writeGLBuffer<int>(_buffers(BufferType::ePairsSelectedPerDatapoint), _params->n, 1, "selneighbs");
       }
+
+      uint nSelectedPairs = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::ePairsSelectedPerDatapoint), 0, _params->n, _minimizationBuffers.selection);
       dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[_tabIndex]);
       _denominators[_tabIndex] = nSelectedPairs;
       glAssert();
@@ -903,7 +897,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::clearSelection() {
     for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
-      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, nullptr);
+      glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, NULL);
     }
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _selectionCounts = std::vector<uint>(2, 0);
@@ -941,8 +935,8 @@ namespace dh::vis {
 
   //   // Set buffer bindings
   //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTextureData(TextureType::eSnapslotA));
-  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TextureType::eSnapslotB));
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTextureData(TabType::eSnapslotA));
+  //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTextureData(TabType::eSnapslotB));
   //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, watBuffer);
   //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.dataset);
   //   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.attributeWeights);

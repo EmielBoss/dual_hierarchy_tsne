@@ -72,7 +72,7 @@ namespace dh::vis {
     void refineAttributeWeights(uint textureType);
     void setClass(int i);
     void unsetClass(int i);
-    void update(std::vector<uint> selectionCounts);
+    void updateVisualizations(std::vector<uint> selectionCounts);
     void clearSelection();
     void addArchetype(uint archetypeClass, GLuint bufferArchetypeData = 0);
     void eraseArchetypes();
@@ -83,11 +83,20 @@ namespace dh::vis {
   private:
     enum class BufferType {
       ePairwiseAttrDists,
+      ePairsSelectedPerDatapoint,
 
       Length
     };
 
-    enum TextureType {
+    enum TabUpperType {
+      eSelectionPrimary,
+      eSelectionSecondary,
+      eSelectionDifference,
+      ePairwise,
+      eSuggestions,
+    };
+
+    enum TabType {
       eAveragePrimary,
       eVariancePrimary,
       eAverageSecondary,
@@ -96,8 +105,10 @@ namespace dh::vis {
       eVarianceDifference,
 
       ePairwiseDiffsAll,
-      ePairwiseDiffsInter,
-      ePairwiseDiffsIntra,
+      ePairwiseDiffsInterclass,
+      ePairwiseDiffsIntraclass,
+      ePairwiseDiffsInterselection,
+      ePairwiseDiffsIntraselection,
 
       eOverlay,
 
@@ -105,12 +116,39 @@ namespace dh::vis {
     };
 
     enum class ProgramType {
-      ePairwiseAttrDiffsNeiComp,
-      ePairwiseAttrDiffsAllComp,
+      ePairwiseAttrDiffsComp,
       dGuessClasses,
 
       Length
     };
+
+    const std::array<const std::string, TabType::Length> _promptsValuetype = {
+      "Mean: %0.2f",
+      "Variance: %0.2f",
+      "Mean: %0.2f",
+      "Variance: %0.2f",
+      "Difference in mean: %0.2f",
+      "Difference in variance: %0.2f",
+      "Pairwise difference (all): %0.2f",
+      "Pairwise difference (interclass): %0.2f",
+      "Pairwise difference (intraclass): %0.2f",
+      "Pairwise difference (interselection): %0.2f",
+      "Pairwise difference (intraselection): %0.2f",
+      "Value: %0.2f"};
+
+    const std::array<const std::string, TabType::Length> _promptsDenomtype = {
+      "%u primary selected datapoints",
+      "%u primary selected datapoints",
+      "%u secondary selected datapoints",
+      "%u secondary selected datapoints",
+      "",
+      "",
+      "%u selected ",
+      "%u selected interclass ",
+      "%u selected intraclass ",
+      "%u selected interselection ",
+      "%u selected intraselection ",
+      ""};
 
     // State
     bool _isInit;
@@ -147,10 +185,10 @@ namespace dh::vis {
     sne::MinimizationBuffers _minimizationBuffers;
     sne::SimilaritiesBuffers _similaritiesBuffers;
     util::EnumArray<BufferType, GLuint> _buffers;
-    util::EnumArray<TextureType, GLuint> _buffersTextureData;
+    util::EnumArray<TabType, GLuint> _buffersTextureData;
     std::vector<GLuint> _buffersTextureDataArchetypes;
     std::vector<GLuint> _buffersTextureDataArchetypeSuggestions;
-    util::EnumArray<TextureType, GLuint> _textures;
+    util::EnumArray<TabType, GLuint> _textures;
     std::vector<GLuint> _texturesArchetypes;
     std::vector<GLuint> _texturesArchetypeSuggestions;
     std::vector<GLuint> _classTextures;

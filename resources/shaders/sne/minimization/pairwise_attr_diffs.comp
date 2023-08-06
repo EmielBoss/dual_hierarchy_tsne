@@ -32,46 +32,50 @@ struct Layout {
 layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Sele { uint selectionBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Data { float datasetBuffer[]; };
-layout(binding = 2, std430) restrict readonly buffer Labl { int labelBuffer[]; };
+layout(binding = 0, std430) restrict readonly buffer Mask { int maskBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Sele { int selectionBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Data { float datasetBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
 layout(binding = 5, std430) restrict buffer PAtD { float pairwiseAttrDistsBuffer[]; };
-layout(binding = 6, std430) restrict buffer SNCt { uint neighborsSelectedBuffer[]; };
+layout(binding = 6, std430) restrict buffer SNCt { int neighborsSelectedBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nHighDims;
-layout(location = 2) uniform bool classesSet;
-layout(location = 3) uniform int classA;
-layout(location = 4) uniform int classB;
-layout(location = 5) uniform bool inter;
+layout(location = 2) uniform bool vizAllPairs;
+layout(location = 3) uniform bool discriminate;
+layout(location = 4) uniform int maskValueA;
+layout(location = 5) uniform int maskValueB;
+layout(location = 6) uniform bool inter;
 
 void main() {
   const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nHighDims;
   const uint d = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) % nHighDims;
 
   if (i >= nPoints ||
-      d >= nHighDims ||
-      selectionBuffer[i] != 1 ||
-      (classesSet && labelBuffer[i] != classA && labelBuffer[i] != classB)) {
+      selectionBuffer[i] == 0 ||
+      (discriminate && maskBuffer[i] != maskValueA && maskBuffer[i] != maskValueB)) {
     return;
   }
   
   Layout l = layoutBuffer[i];
 
-  for (uint ij = l.offset; ij < l.offset + l.size; ij++) {
-    uint j = neighborsBuffer[ij];
-    if(selectionBuffer[j] != 1 ||
-      (classesSet && labelBuffer[j] != classA && labelBuffer[j] != classB) ||
-      (classesSet && (( inter && labelBuffer[i] == labelBuffer[j]) ||
-                      (!inter && labelBuffer[i] != labelBuffer[j])))
-      ) {
-      continue;
-    }
+  uint offset = vizAllPairs ? 0 : l.offset;
+  uint size = vizAllPairs ? nPoints : l.offset + l.size;
+  for (uint ij = offset; ij < size; ij++) {
+    uint j = vizAllPairs ? ij : neighborsBuffer[ij];
 
-    neighborsSelectedBuffer[ij] = 1;
+    if(selectionBuffer[j] == 0 ||
+       i >= j ||
+      (discriminate && maskBuffer[j] != maskValueA && maskBuffer[j] != maskValueB) ||
+      (discriminate && (( inter && maskBuffer[i] == maskBuffer[j]) ||
+                        (!inter && maskBuffer[i] != maskBuffer[j])))
+      ) { continue; }
+
     pairwiseAttrDistsBuffer[i * nHighDims + d] += abs(datasetBuffer[i * nHighDims + d] - datasetBuffer[j * nHighDims + d]);
+    if(d == 0) {
+      neighborsSelectedBuffer[i]++;
+    }
   }
 }

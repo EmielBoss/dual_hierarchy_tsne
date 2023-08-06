@@ -100,9 +100,9 @@ namespace dh::util {
       glCreateBuffers(1, &_buffersReduce(BufferReduceType::eReducedPerDatapoint));
       glNamedBufferStorage(_buffersReduce(BufferReduceType::eReducedPerDatapoint), n * sizeof(T), nullptr, 0);
       if(std::is_same<T, float>::value) {
-        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32F, GL_RED, GL_FLOAT, NULL);
       } else {
-        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+        glClearNamedBufferData(_buffersReduce(BufferReduceType::eReducedPerDatapoint), GL_R32I, GL_RED_INTEGER, GL_UNSIGNED_INT, NULL);
       }
 
       reducePerDatapoint<T>(bufferToReduce, reductionType, n, _buffersReduce(BufferReduceType::eReducedPerDatapoint), layoutBuffer, neighborsBuffer, selectionBuffer);

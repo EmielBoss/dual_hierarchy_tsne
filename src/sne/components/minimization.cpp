@@ -158,7 +158,7 @@ namespace dh::sne {
     _isInit = true;
     glAssert();
 
-    _attributeRenderTask->update(_selectionCounts); // Avoids the visualization showing initial values
+    _attributeRenderTask->updateVisualizations(_selectionCounts); // Avoids the visualization showing initial values
   }
 
   // Generate randomized embedding data
@@ -225,7 +225,7 @@ namespace dh::sne {
     _iterationIntense = 1000;
     restartExaggeration(_params->nExaggerationIters);
     const std::vector<vec> unitvecs(_params->n, vec(1));
-    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+    glClearNamedBufferData(_buffers(BufferType::ePrevGradients), GL_R32F, GL_RED, GL_FLOAT, NULL);
     glClearNamedBufferData(_buffers(BufferType::eGain), GL_R32F, GL_RED, GL_FLOAT, unitvecs.data());
   }
 
@@ -240,7 +240,7 @@ namespace dh::sne {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _attributeRenderTask->clearSelection();
-    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
+    glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
   }
 
   template <uint D>
@@ -302,13 +302,13 @@ namespace dh::sne {
 
     if(_input.d) { deselect(); } // Deselect
     
-    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr); } // Clear translations if not translating
+    if(!_input.mouseRight) { glClearNamedBufferData(_buffers(BufferType::eTranslating), GL_R32I, GL_RED_INTEGER, GL_INT, NULL); } // Clear translations if not translating
     
     // Free/unfix fixed datapoints
     if(_input.f) {
       const std::vector<float> ones(_params->n, 1.0f);
       glClearNamedBufferData(_buffers(BufferType::eWeights), GL_R32F, GL_RED, GL_FLOAT, ones.data());
-      glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
     }
 
     if(_input.r) { restartMinimization(); } // Restart
@@ -335,7 +335,7 @@ namespace dh::sne {
       uint nEnabled = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eDisabled), 3, _params->n, 0, 0);
       float fracEnabled = (float) nEnabled / (float) _params->n;
       _similarities->weighSimilarities(fracEnabled);
-      glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, nullptr);
+      glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
       _embeddingRenderTask->setPointRadius(std::min(100.f / _params->n, 0.005f));
     }
 
@@ -774,7 +774,7 @@ namespace dh::sne {
       _selectionRenderTask->setSelectionCounts(_selectionCounts);
     }
 
-    _attributeRenderTask->update(_selectionCounts);
+    _attributeRenderTask->updateVisualizations(_selectionCounts);
   }
 
   template <uint D>
