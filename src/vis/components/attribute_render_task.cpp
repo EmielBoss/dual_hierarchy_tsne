@@ -113,7 +113,7 @@ namespace dh::vis {
         GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
         glTextureStorage2D(_classTextures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
         
-        dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.labels, i, _classCounts[i], classTextureBuffers[i]);
+        dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.labels, _classCounts[i], classTextureBuffers[i], i);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, classTextureBuffers[i]);
         GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
         glTextureSubImage2D(_classTextures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
@@ -819,14 +819,14 @@ namespace dh::vis {
 
   void AttributeRenderTask::updateVisualizations(std::vector<uint> selectionCounts) {
     _selectionCounts = selectionCounts;
-    for(uint i = 0; i < 2; ++i) { _denominators[i * 2] = _selectionCounts[i]; _denominators[i * 2 + 1] = _selectionCounts[i];  }
+    for(uint i = 0; i < 2; ++i) { _denominators[i * 2] = _selectionCounts[i]; _denominators[i * 2 + 1] = _selectionCounts[i]; }
 
     // Calculate selection average and/or variance per attribute
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2]);
+      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, _selectionCounts[i], _buffersTextureData[i * 2], i + 1);
     }
     for(uint i = 0; i < 2; ++i) {
-      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, i + 1, _selectionCounts[i], _buffersTextureData[i * 2 + 1], _buffersTextureData[i * 2], true); // Variance
+      dh::util::BufferTools::instance().averageTexturedata(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, _selectionCounts[i], _buffersTextureData[i * 2 + 1], i + 1, -1, _buffersTextureData[i * 2], true); // Variance
     }
     for(uint i = 0; i < 2; ++i) {
       dh::util::BufferTools::instance().operate(0, _buffersTextureData[i], _buffersTextureData[i+2], _params->nHighDims, _buffersTextureData[i+4]);
@@ -841,7 +841,6 @@ namespace dh::vis {
       program.bind();
 
       uint selectionCount = _selectionCounts[0] + _selectionCounts[1];
-      std::cout << std::endl << (selectionCount * (selectionCount - 1)) / 2 << "\n" << std::endl << std::flush;
       program.template uniform<uint>("nPoints", _params->n);
       program.template uniform<uint>("nHighDims", _params->nHighDims);
       program.template uniform<bool>("vizAllPairs", _vizAllPairs);
@@ -852,8 +851,6 @@ namespace dh::vis {
         program.template uniform<int>("maskValueB", classes.second);
         program.template uniform<bool>("inter", _tabIndex == TabType::ePairwiseDiffsInterclass);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.labels);
-        std::cout << std::endl << "Interclass: " << _classCountsSelected[classes.first] * _classCountsSelected[classes.second] << "\n" << std::endl << std::flush;
-        std::cout << std::endl << "Intraclass: " << _classCountsSelected[classes.first] * (_classCountsSelected[classes.first] - 1) / 2 + _classCountsSelected[classes.second] * (_classCountsSelected[classes.second] - 1) / 2 << "\n" << std::endl << std::flush;
       } else
       if(_tabIndex == TabType::ePairwiseDiffsInterselection || _tabIndex == TabType::ePairwiseDiffsIntraselection) {
         program.template uniform<bool>("discriminate", true);
@@ -861,8 +858,6 @@ namespace dh::vis {
         program.template uniform<int>("maskValueB", 2);
         program.template uniform<bool>("inter", _tabIndex == TabType::ePairwiseDiffsInterselection);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
-        std::cout << std::endl << "Interclass: " << _selectionCounts[0] * _selectionCounts[1] << "\n" << std::endl << std::flush;
-        std::cout << std::endl << "Intraclass: " << _selectionCounts[0] * (_selectionCounts[0] - 1) / 2 + _selectionCounts[1] * (_selectionCounts[1] - 1) / 2 << "\n" << std::endl << std::flush;
       } else {
         program.template uniform<bool>("discriminate", false);
       }
@@ -879,12 +874,8 @@ namespace dh::vis {
       glDispatchCompute(ceilDiv(_params->n * _params->nHighDims, 256u), 1, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-      if(_tabIndex == TabType::ePairwiseDiffsAll) {
-        dh::util::writeGLBuffer<int>(_buffers(BufferType::ePairsSelectedPerDatapoint), _params->n, 1, "selneighbs");
-      }
-
       uint nSelectedPairs = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::ePairsSelectedPerDatapoint), 0, _params->n, _minimizationBuffers.selection);
-      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, 1, nSelectedPairs, _buffersTextureData[_tabIndex]);
+      dh::util::BufferTools::instance().averageTexturedata(_buffers(BufferType::ePairwiseAttrDists), _params->n, _params->nHighDims, _params->imgDepth, _minimizationBuffers.selection, nSelectedPairs, _buffersTextureData[_tabIndex]);
       _denominators[_tabIndex] = nSelectedPairs;
       glAssert();
     }

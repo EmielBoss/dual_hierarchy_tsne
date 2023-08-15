@@ -104,7 +104,7 @@ namespace dh::util {
       template <typename T> void set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer);
       template <typename T> void flip(GLuint& bufferToFlip, uint n);
       void operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference = 0); // Difference: operationType == 0 | Division: operationType == 1
-      void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, int maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer = 0, bool calcVariance = false, int maskClass = -1, GLuint labelsBuffer = 0);
+      void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskCount, GLuint bufferAveraged, int maskValue = -1, int maskClass = -1, GLuint subtractorBuffer = 0, bool calcVariance = false, GLuint labelsBuffer = 0);
       void index(GLuint& buffer, uint n, uint value, GLuint indicesBuffer);
       void subsample(GLuint& buffer, uint n, uint every, uint outOf, GLuint subsampledBuffer);
 

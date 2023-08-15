@@ -37,9 +37,9 @@ layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform uint nPointsMasked;
 layout(location = 2) uniform uint nHighDims;
 layout(location = 3) uniform uint imgDepth;
-layout(location = 4) uniform int maskValue;
-layout(location = 5) uniform bool subtract;
-layout(location = 6) uniform bool calcVariance;
+layout(location = 4) uniform bool subtract;
+layout(location = 5) uniform bool calcVariance;
+layout(location = 6) uniform int maskValue;
 layout(location = 7) uniform int maskClass;
 layout(location = 8) uniform uint iter;
 
@@ -58,7 +58,7 @@ void main() {
     for (uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + lid;
               i < nPoints;
               i += gl_WorkGroupSize.x * gl_NumWorkGroups.x) {
-      if(mask[i] == maskValue && (maskClass < 0 || labels[i] == maskClass)) { 
+      if((maskValue < 0 || mask[i] == maskValue) && (maskClass < 0 || labels[i] == maskClass)) { 
         float value = data[i * nHighDims + dim];
         if(subtract) { value = abs(value - subtractor[texel * imgDepth + component]); }
         if(calcVariance) { value = pow(value, 2); }

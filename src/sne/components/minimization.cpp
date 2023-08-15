@@ -703,12 +703,14 @@ namespace dh::sne {
       _colorMappingPrev = _colorMapping;
     }
 
+    ++_iteration;
+
     // Log progress; spawn progressbar on the current (new on first iter) line
     // reporting current iteration and size of field texture
     if (!_loggedNewline) {
       _loggedNewline = true;
     }
-    if ((++_iteration % 100) == 0) {
+    if (_params->verbose && (_iteration % 100) == 0) {
       // Assemble string to print field's dimensions and memory usage
       std::stringstream fieldStr;
       {

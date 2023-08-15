@@ -82,6 +82,7 @@ namespace dh::sne {
     float maxAttributeWeight = 2.f;
     float maxSimilarityWeight = 3.f;
     uint nArchetypeClasses = 2;
+    bool verbose = false;
 
     // Image dataset params
     bool imageDataset = false;

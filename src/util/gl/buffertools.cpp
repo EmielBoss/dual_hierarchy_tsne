@@ -273,7 +273,7 @@ namespace dh::util {
     glAssert();
   }
 
-  void BufferTools::averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, int maskValue, uint maskCount, GLuint bufferAveraged, GLuint subtractorBuffer, bool calcVariance, int maskClass, GLuint labelsBuffer) {
+  void BufferTools::averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskCount, GLuint bufferAveraged, int maskValue, int maskClass, GLuint subtractorBuffer, bool calcVariance, GLuint labelsBuffer) {
     glCreateBuffers(1, _buffersReduce.data());
     glNamedBufferStorage(_buffersReduce(BufferReduceType::eReduce), 128 * d * sizeof(float), nullptr, 0);
     
@@ -285,9 +285,9 @@ namespace dh::util {
     program.template uniform<uint>("nPointsMasked", maskCount);
     program.template uniform<uint>("nHighDims", d);
     program.template uniform<uint>("imgDepth", imgDepth);
-    program.template uniform<int>("maskValue", maskValue);
     program.template uniform<bool>("subtract", subtractorBuffer > 0);
     program.template uniform<bool>("calcVariance", calcVariance);
+    program.template uniform<int>("maskValue", maskValue);
     program.template uniform<int>("maskClass", maskClass);
 
     // Set buffer bindings
