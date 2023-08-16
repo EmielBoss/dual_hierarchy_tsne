@@ -129,6 +129,8 @@ namespace dh::vis {
         glTextureParameteri(_textures[i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
         glTextureStorage2D(_textures[i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
+        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+        glClearTexImage(_textures[i], 0, format, GL_FLOAT, nullptr); // Avoids ugly texture initialization with random values
       }
       glTextureParameteri(_textures(TabType::eOverlay), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_textures(TabType::eOverlay), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -333,6 +335,27 @@ namespace dh::vis {
     return sumValues / sumWeights;
   }
 
+  void AttributeRenderTask::copyTextureDataToTextures() {
+    // Copy texture data to textures
+    for(uint i = 0; i < _textures.size() - 1; ++i) {
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
+      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+      glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+    }
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TabType::eOverlay));
+    glTextureSubImage2D(_textures(TabType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
+    glAssert();
+
+    // Copy texture data to textures for archetypes
+    if(_params->imageDataset) {
+      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
+        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
+        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+      }
+    }
+  }
+
   void AttributeRenderTask::addArchetype(uint archetypeClass, GLuint bufferArchetypeData) {
     GLuint archetypeDataHandle;
     glCreateBuffers(1, &archetypeDataHandle);
@@ -344,14 +367,7 @@ namespace dh::vis {
     _archetypeClasses.push_back(archetypeClass);
     glAssert();
 
-    // Copy texture data to textures for archetypes
-    if(_params->imageDataset) {
-      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
-        GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-      }
-    }
+    copyTextureDataToTextures();
   }
 
   void AttributeRenderTask::eraseArchetypes() {
@@ -557,16 +573,6 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::drawImGuiTexture() {
-    // Copy texture data to textures
-    for(uint i = 0; i < _textures.size() - 1; ++i) {
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
-      GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-      glTextureSubImage2D(_textures[i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
-    }
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData(TabType::eOverlay));
-    glTextureSubImage2D(_textures(TabType::eOverlay), 0, 0, 0, _params->imgWidth, _params->imgHeight, GL_RGBA, GL_FLOAT, 0);
-    glAssert();
-
     ImGui::Spacing();
     ImGui::ImageButton((void*)(intptr_t)_textures[_tabIndex], ImVec2(300, 300), ImVec2(0,0), ImVec2(1,1), 0);
 
@@ -884,12 +890,14 @@ namespace dh::vis {
       _classCountsSelected[c] = dh::util::BufferTools::instance().reduce<int>(_minimizationBuffers.labels, 3, _params->n, _minimizationBuffers.selection, c);
     }
 
+    copyTextureDataToTextures();
   }
 
   void AttributeRenderTask::clearSelection() {
     for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, NULL);
     }
+    copyTextureDataToTextures();
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _selectionCounts = std::vector<uint>(2, 0);
   }

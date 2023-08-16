@@ -157,8 +157,6 @@ namespace dh::sne {
 
     _isInit = true;
     glAssert();
-
-    _attributeRenderTask->updateVisualizations(_selectionCounts); // Avoids the visualization showing initial values
   }
 
   // Generate randomized embedding data
@@ -255,6 +253,25 @@ namespace dh::sne {
     dh::util::BufferTools::instance().flip<int>(_buffers(BufferType::eSelection), _params->n);
     if(_selectOnlyLabeled) { dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eSelection), _params->n, 0, 0, _buffers(BufferType::eLabeled)); }
     compIterationSelect(true);
+  }
+
+  template <uint D>
+  void Minimization<D>::stateImport() {
+    std::vector<GLuint> archetypeHandles;
+    std::vector<uint> archetypeClasses;
+    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeClasses);
+    syncBufferHandles();
+    _attributeRenderTask->mirrorWeightsToOverlay();
+    _attributeRenderTask->setArchetypeHandles(archetypeHandles);
+    _attributeRenderTask->setArchetypeClasses(archetypeClasses);
+    _attributeRenderTask->mirrorWeightsToOverlay();
+    _attributeRenderTask->copyTextureDataToTextures();
+    compIterationSelect(true);
+  }
+
+  template <uint D>
+  void Minimization<D>::stateExport() {
+    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
   }
 
   template <uint D>
@@ -419,19 +436,11 @@ namespace dh::sne {
       _selectedDatapointPrev = selectedDatapoint;
     }
 
-    if(_embeddingRenderTask->getButtonPressed() == 10) { // Import state
-      std::vector<GLuint> archetypeHandles;
-      std::vector<uint> archetypeClasses;
-      dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeClasses);
-      syncBufferHandles();
-      _attributeRenderTask->mirrorWeightsToOverlay();
-      _attributeRenderTask->setArchetypeHandles(archetypeHandles);
-      _attributeRenderTask->setArchetypeClasses(archetypeClasses);
-      _attributeRenderTask->mirrorWeightsToOverlay();
-      compIterationSelect(true);
+    if(_embeddingRenderTask->getButtonPressed() == 10) {
+      stateImport();
     } else
-    if(_embeddingRenderTask->getButtonPressed() == 11) { // Export state
-      dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
+    if(_embeddingRenderTask->getButtonPressed() == 11) {
+      stateExport();
     }
 
     // if(_input.ctrl && !__assessed) {

@@ -73,6 +73,8 @@ namespace dh::sne {
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void syncBufferHandles();
+    void stateImport();
+    void stateExport();
 
     // Computation
     void comp();                                                                // Compute full minimization (i.e. params.iterations)

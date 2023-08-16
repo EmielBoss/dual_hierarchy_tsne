@@ -61,6 +61,8 @@ namespace dh::util {
     dh::util::readGLBuffer<uint>(buffers[19], "lbd"); // eLabeled
     dh::util::readGLBuffer<float>(bufferAttributeWeights, "awt"); // eAttributeWeights
     weightedAttributeIndices = dh::util::readSet<uint>("wai"); // Weighted attribute indices
+
+    if(!std::ifstream("./buffer_dumps/ats.txt").good()) { return; } // No archetypes files found
     archetypeClasses = dh::util::readVector<uint>("atc");
     uint nArchetypes = archetypeClasses.size();
     GLuint tempBuffer;
@@ -80,17 +82,18 @@ namespace dh::util {
   void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 23> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses)
   {
     // dh::util::writeGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
-    dh::util::writeGLBuffer<uint>(buffers[16], n, 1, "fxd"); // eFixed
-    dh::util::writeGLBuffer<uint>(buffers[22], n, 1, "dsb"); // eDisabled
+    dh::util::writeGLBuffer<int>(buffers[16], n, 1, "fxd"); // eFixed
+    dh::util::writeGLBuffer<int>(buffers[22], n, 1, "dsb"); // eDisabled
     dh::util::writeGLBuffer<float>(buffers[18], n, 1, "wgt"); // eWeights
-    dh::util::writeGLBuffer<uint>(buffers[15], n, 1, "slc"); // eSelection
-    dh::util::writeGLBuffer<uint>(buffers[19], n, 1, "lbd"); // eLabeled
+    dh::util::writeGLBuffer<int>(buffers[15], n, 1, "slc"); // eSelection
+    dh::util::writeGLBuffer<int>(buffers[19], n, 1, "lbd"); // eLabeled
     dh::util::writeGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
     dh::util::writeSet<uint>(weightedAttributeIndices, "wai"); // Weighted attribute indices
     
+    uint nArchetypes = archetypeHandles.size();
+    if(nArchetypes == 0) { return; }
     GLuint tempBuffer;
     glCreateBuffers(1, &tempBuffer);
-    uint nArchetypes = archetypeHandles.size();
     glNamedBufferStorage(tempBuffer, nArchetypes * nHighDims * sizeof(float), nullptr, 0);
     for(uint i = 0; i < nArchetypes; ++i) {
       glCopyNamedBufferSubData(archetypeHandles[i], tempBuffer, 0, i * nHighDims * sizeof(float), nHighDims * sizeof(float));
