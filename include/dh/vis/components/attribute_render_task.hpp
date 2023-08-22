@@ -74,6 +74,7 @@ namespace dh::vis {
     void unsetClass(int i);
     void updateVisualizations(std::vector<uint> selectionCounts);
     void clearSelection();
+    void clearSuggestions();
     void copyTextureDataToTextures();
     void addArchetype(uint archetypeClass, GLuint bufferArchetypeData = 0);
     void eraseArchetypes();

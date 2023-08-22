@@ -26,6 +26,7 @@
 #include <cuda_runtime.h>
 #include <faiss/gpu/StandardGpuResources.h>
 #include <faiss/gpu/GpuIndexIVFFlat.h>
+#include <faiss/gpu/GpuIndexFlat.h>
 #include "dh/util/cu/knn.cuh"
 #include "dh/util/cu/error.cuh"
 #include "dh/util/io.hpp"
@@ -92,6 +93,14 @@ namespace dh::util {
   }
 
   void KNN::comp(const float* dataPtrQuery, uint nQuery) {
+    if(_n < 1000) {
+      compExact(dataPtrQuery, nQuery);
+    } else {
+      compAprox(dataPtrQuery, nQuery);
+    }
+  }
+
+  void KNN::compAprox(const float* dataPtrQuery, uint nQuery) {
     // Map interop buffers for access on CUDA side
     _interopBuffers(BufferType::eDistances).map();
     _interopBuffers(BufferType::eIndices).map();
@@ -106,7 +115,7 @@ namespace dh::util {
     // Nr. of inverted lists used by FAISS IVL.
     // x * O(sqrt(n)) | x := 4, is apparently reasonable?
     // src: https://github.com/facebookresearch/faiss/issues/112
-    const uint nLists = nListMult * static_cast<uint>(std::sqrt(_n)); 
+    const uint nLists = nListMult * static_cast<uint>(std::sqrt(_n));
 
     // Use a single GPU device. For now, just grab device 0 and pray
     faiss::gpu::StandardGpuResources faissResources;
@@ -139,7 +148,7 @@ namespace dh::util {
     void * tempIndicesHandle;
     cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::Index::idx_t));
 
-    // Perform search in batches
+    // Perform search
     if(dataPtrQuery) {
       faissIndex.search(
         nQuery,
@@ -166,6 +175,61 @@ namespace dh::util {
     // Tell FAISS to bugger off
     faissIndex.reset();
     faissIndex.reclaimMemory();
+
+    // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
+    uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;
+    kernDownCast<<<1024, 256>>>(nIndices, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
+    cudaDeviceSynchronize();
+    cudaFree(tempIndicesHandle);
+
+    // Unmap interop buffers
+    for (auto& buffer : _interopBuffers) {
+      buffer.unmap();
+    }
+  }
+
+  void KNN::compExact(const float* dataPtrQuery, uint nQuery) {
+    // Map interop buffers for access on CUDA side
+    _interopBuffers(BufferType::eDistances).map();
+    _interopBuffers(BufferType::eIndices).map();
+
+    const float* dataPtr;
+    if(_dataPtr) { dataPtr = _dataPtr; }
+    else {
+      _interopBuffers(BufferType::eDataset).map();
+      dataPtr = (float*) _interopBuffers(BufferType::eDataset).cuHandle();
+    }
+
+    // Use a single GPU device. For now, just grab device 0 and pray
+    faiss::gpu::StandardGpuResources faissResources;
+    faiss::gpu::GpuIndexFlatConfig faissConfig;
+    faissConfig.device = 0;
+
+    // Construct search index
+    faiss::gpu::GpuIndexFlatL2 faissIndex(
+      &faissResources,
+      _d,
+      faissConfig
+    );
+    faissIndex.train(_n, dataPtr);
+
+    faissIndex.add(_n, dataPtr); // Add data
+
+    // Create temporary space for storing 64 bit faiss indices
+    void * tempIndicesHandle;
+    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::Index::idx_t));
+
+    // Perform search
+    faissIndex.search(
+      dataPtrQuery ? nQuery : _n,
+      dataPtrQuery ? dataPtrQuery : dataPtr,
+      _k,
+      (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
+      (faiss::Index::idx_t *) tempIndicesHandle
+    );
+    
+    // Tell FAISS to bugger off
+    faissIndex.reset();
 
     // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
     uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;

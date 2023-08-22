@@ -497,10 +497,8 @@ namespace dh::vis {
         updateVisualizations(_selectionCounts);
       } else
       if(tabUpper == TabUpperType::eSuggestions) {
-        _suggestionLevel = 1;
-        glDeleteBuffers(_buffersTextureDataArchetypeSuggestions.size(), _buffersTextureDataArchetypeSuggestions.data());
-        glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
-        if(_selectionCounts[0] > 2) { updateSuggestions(); }
+        clearSuggestions();
+        if(_selectionCounts[0] > 1) { updateSuggestions(); }
       }
     }
     _tabIndexPrev = _tabIndex;
@@ -531,7 +529,7 @@ namespace dh::vis {
         if(j < nCols - 1) { ImGui::SameLine(); }
       }
     }
-    if(_selectionCounts[0] > std::pow(2, _suggestionLevel)) {
+    if(_selectionCounts[0] >= std::pow(2, _suggestionLevel)) {
       if(ImGui::Button("...", ImVec2(imageWidth, imageHeight))) { updateSuggestions(); }
     }
     ImGui::EndChild();
@@ -900,6 +898,16 @@ namespace dh::vis {
     copyTextureDataToTextures();
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _selectionCounts = std::vector<uint>(2, 0);
+
+    clearSuggestions();
+  }
+
+  void AttributeRenderTask::clearSuggestions() {
+    _suggestionLevel = 1;
+    glDeleteBuffers(_buffersTextureDataArchetypeSuggestions.size(), _buffersTextureDataArchetypeSuggestions.data());
+    glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
+    _buffersTextureDataArchetypeSuggestions.clear();
+    _texturesArchetypeSuggestions.clear();
   }
 
   // void AttributeRenderTask::assess(uint symmetricSize) {
