@@ -81,7 +81,7 @@ namespace dh::sne {
     int nPrincipalComponents = -1; // -1 indicates no PCA processing; uses original dimensions
     float maxAttributeWeight = 2.f;
     float maxSimilarityWeight = 3.f;
-    uint nArchetypeClasses = 2;
+    uint nArchetypeClasses = 4;
     bool verbose = false;
 
     // Image dataset params

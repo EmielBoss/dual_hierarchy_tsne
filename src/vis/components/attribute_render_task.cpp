@@ -214,6 +214,7 @@ namespace dh::vis {
         setTexelWeight(texelIndex, texelWeight);
       }
     }
+    copyTextureDataToTextures();
   }
 
   void AttributeRenderTask::eraseTexels(uint centerTexelIndex, int radius) {
@@ -227,6 +228,7 @@ namespace dh::vis {
         setTexelWeight(texelIndex, 1.f);
       }
     }
+    copyTextureDataToTextures();
   }
 
   void AttributeRenderTask::setTexelWeight(uint texelIndex, float weight) {
@@ -288,6 +290,7 @@ namespace dh::vis {
     glClearNamedBufferData(_similaritiesBuffers.attributeWeights, GL_R32F, GL_RED, GL_FLOAT, ones.data());
     mirrorWeightsToOverlay();
     _weightedAttributeIndices = std::set<uint>();
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   void AttributeRenderTask::invertAttributeWeights() {
@@ -298,6 +301,7 @@ namespace dh::vis {
       weight = std::clamp(weight, 0.f, _params->maxAttributeWeight);
       setTexelWeight(i, weight);
     }
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   void AttributeRenderTask::refineAttributeWeights(uint textureType) {
@@ -317,6 +321,7 @@ namespace dh::vis {
       if(weight < 0.025) { weight = 0.f; }
       setTexelWeight(i, weight);
     }
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   float AttributeRenderTask::sumWeightedAttributeValues(uint index) {
@@ -367,7 +372,7 @@ namespace dh::vis {
     _archetypeClasses.push_back(archetypeClass);
     glAssert();
 
-    copyTextureDataToTextures();
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   void AttributeRenderTask::eraseArchetypes() {
@@ -449,9 +454,11 @@ namespace dh::vis {
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Suggestions")) {
-          tabUpper = TabUpperType::eSuggestions;
-          ImGui::EndTabItem();
+        if(_params->imageDataset) {
+          if (ImGui::BeginTabItem("Suggestions")) {
+            tabUpper = TabUpperType::eSuggestions;
+            ImGui::EndTabItem();
+          }
         }
 
         ImGui::EndTabBar();
@@ -752,7 +759,7 @@ namespace dh::vis {
     if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
 
-    std::array<const char*, 9> buttons = {" A ", " B "};
+    std::array<const char*, 9> buttons = {" A ", " B ", " C ", " D ", " E ", " F ", " G ", " H ", " I "};
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
       if(ImGui::Button(buttons[ac])) {
@@ -888,18 +895,18 @@ namespace dh::vis {
       _classCountsSelected[c] = dh::util::BufferTools::instance().reduce<int>(_minimizationBuffers.labels, 3, _params->n, _minimizationBuffers.selection, c);
     }
 
-    copyTextureDataToTextures();
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   void AttributeRenderTask::clearSelection() {
     for(uint i = 0; i < _buffersTextureData.size() - 3; ++i) {
       glClearNamedBufferData(_buffersTextureData[i], GL_R32F, GL_RED, GL_FLOAT, NULL);
     }
-    copyTextureDataToTextures();
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _selectionCounts = std::vector<uint>(2, 0);
 
     clearSuggestions();
+    if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 
   void AttributeRenderTask::clearSuggestions() {
