@@ -265,7 +265,7 @@ namespace dh::sne {
     _attributeRenderTask->setArchetypeHandles(archetypeHandles);
     _attributeRenderTask->setArchetypeClasses(archetypeClasses);
     _attributeRenderTask->mirrorWeightsToOverlay();
-    _attributeRenderTask->copyTextureDataToTextures();
+    if(_params->imageDataset) { _attributeRenderTask->copyTextureDataToTextures(); }
     compIterationSelect(true);
   }
 

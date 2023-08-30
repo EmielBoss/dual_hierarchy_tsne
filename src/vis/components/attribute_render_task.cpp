@@ -341,6 +341,8 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::copyTextureDataToTextures() {
+    if(!_params->imageDataset) { return; }
+
     // Copy texture data to textures
     for(uint i = 0; i < _textures.size() - 1; ++i) {
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureData[i]);
