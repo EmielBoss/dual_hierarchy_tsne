@@ -217,19 +217,23 @@ namespace dh::vis {
     // Render component enable/disable flags
     auto& queue = vis::RenderQueue::instance();
     if (auto ptr = queue.find("EmbeddingRenderTask"); ptr) {
-      ImGui::Checkbox("Embedding", &(ptr->enable));
+      ImGui::Checkbox("Embedding", &(ptr->enabled));
       ImGui::SameLine();
     }
     if (auto ptr = queue.find("AxesRenderTask"); ptr) {
-      ImGui::Checkbox("Axes", &(ptr->enable));
+      ImGui::Checkbox("Axes", &(ptr->enabled));
+      ImGui::SameLine();
+    }
+    if (auto ptr = queue.find("LinkRenderTask"); ptr) {
+      ImGui::Checkbox("Links", &(ptr->enabled));
       ImGui::SameLine();
     }
     if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr) {
-      ImGui::Checkbox("Embedding hierarchy", &(ptr->enable));
+      ImGui::Checkbox("Embedding hierarchy", &(ptr->enabled));
       ImGui::SameLine();
     }
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr) {
-      ImGui::Checkbox("Field hierarchy", &(ptr->enable));
+      ImGui::Checkbox("Field hierarchy", &(ptr->enabled));
       ImGui::SameLine();
     }
     ImGui::NewLine();
@@ -254,19 +258,19 @@ namespace dh::vis {
       ImGui::End();
       return;
     }
-    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
-    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponentSecondary(); }
+    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponentSecondary(); }
+    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponentSecondary(); }
 
     ImGui::End();
   }
 
   void Renderer::drawImGuiComponents() {
     auto& queue = vis::RenderQueue::instance();
-    if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
-    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("EmbeddingRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("EmbeddingHierarchyRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
     // if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis

@@ -115,7 +115,7 @@ namespace dh::vis {
   }
 
   void SelectionRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
-    if (!enable) {
+    if (!enabled) {
       return;
     }
 

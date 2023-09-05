@@ -28,7 +28,7 @@
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/metric.hpp"
 #include "dh/util/gl/buffertools.hpp"
-#include "dh/util/cu/inclusive_scan.cuh"
+#include "dh/util/cu/scan.cuh"
 #include "dh/util/cu/knn.cuh"
 #include <algorithm>
 #include <cmath>
@@ -219,7 +219,7 @@ namespace dh::sne {
 
     // 4.
     // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
-    util::InclusiveScan(_buffersTemp(BufferTempType::eSizes), _buffersTemp(BufferTempType::eScan), _params->n).comp();
+    util::Scan(_buffersTemp(BufferTempType::eSizes), _buffersTemp(BufferTempType::eScan), _params->n).comp();
     glGetNamedBufferSubData(_buffersTemp(BufferTempType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
 
     // Update progress bar
@@ -591,6 +591,7 @@ namespace dh::sne {
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eIndicesSelection), selectionCount * sizeof(uint), nullptr, 0);
     glCopyNamedBufferSubData(_buffersFuse(BufferFuseType::eIndicesSelectionPrimary), _buffersFuse(BufferFuseType::eIndicesSelection), 0, 0, selectionCounts[0] * sizeof(uint));
     glCopyNamedBufferSubData(_buffersFuse(BufferFuseType::eIndicesSelectionSecondary), _buffersFuse(BufferFuseType::eIndicesSelection), 0, selectionCounts[0] * sizeof(uint), selectionCounts[1] * sizeof(uint));
+    glNamedBufferStorage(_buffersFuse(BufferFuseType::eSizes), _params->n * sizeof(uint), nullptr, 0);
     dh::util::BufferTools::instance().subsample(_buffers(BufferType::eLayout), _params->n, 2, 2, _buffersFuse(BufferFuseType::eSizes));
 
     // std::vector<float> zeroes(_params->n, 0.f);
@@ -627,7 +628,7 @@ namespace dh::sne {
     }
 
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eScan), _params->n * sizeof(uint), nullptr, 0);
-    util::InclusiveScan(_buffersFuse(BufferFuseType::eSizes), _buffersFuse(BufferFuseType::eScan), _params->n).comp(); // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
+    util::Scan(_buffersFuse(BufferFuseType::eSizes), _buffersFuse(BufferFuseType::eScan), _params->n).comp(); // Determine sizes of expanded neighborhoods in memory through prefix sum (https://en.wikipedia.org/wiki/Prefix_sum). Leverages CUDA CUB library underneath
     glGetNamedBufferSubData(_buffersFuse(BufferFuseType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_symmetricSize); // Copy the last element of the eScan buffer (which is the total size) to host
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eLayout), _params->n * 2 * sizeof(uint), nullptr, 0);
 

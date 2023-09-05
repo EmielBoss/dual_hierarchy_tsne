@@ -71,7 +71,7 @@ namespace dh::vis {
     _iteration(0),
     _klDivergence(-1.f) {
     // Enable/disable render task by default
-    enable = DH_VIS_EMBEDDING_INIT;
+    enabled = DH_VIS_EMBEDDING_INIT;
 
     // Initialize shader program
     {
@@ -144,9 +144,8 @@ namespace dh::vis {
     glVertexArrayVertexBuffer(_vaoHandle, 1, _minimizationBuffers.embeddingRel, 0, embeddingStride * sizeof(float));    // Embedding positions
     glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                            // Quad elements/indices
 
-    // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
-    glVertexArrayBindingDivisor(_vaoHandle, 0, 0);
-    glVertexArrayBindingDivisor(_vaoHandle, 1, 1);
+    glVertexArrayBindingDivisor(_vaoHandle, 0, 0); // Quad positions advance once per vertex
+    glVertexArrayBindingDivisor(_vaoHandle, 1, 1); // Embedding positions advance once for the full set of (6) vertices in ePositions/quadPositions drawn
     
     // Specify vertex array data organization
     constexpr uint embeddingSize = (D == 2) ? 2 : 3;
@@ -214,7 +213,7 @@ namespace dh::vis {
   template <uint D>
   void EmbeddingRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
 
-    if (!enable) {
+    if (!enabled) {
       return;
     }
 
@@ -236,15 +235,14 @@ namespace dh::vis {
     _program.template uniform<float>("divisor", divisor);
 
     // Set buffer bindings
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.bounds);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.labels);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.labeled);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.disabled);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.fixed);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.selection);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _minimizationBuffers.neighborhoodPreservation);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _bufferClassColors);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _bufferPointColors);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.labels);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.labeled);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _minimizationBuffers.disabled);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _minimizationBuffers.fixed);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _minimizationBuffers.selection);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _minimizationBuffers.neighborhoodPreservation);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _bufferClassColors);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _bufferPointColors);
 
     // Perform draw
     glBindVertexArray(_vaoHandle);

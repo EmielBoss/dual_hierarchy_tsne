@@ -26,7 +26,7 @@
 #include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/buffertools.hpp"
-#include "dh/util/cu/inclusive_scan.cuh"
+#include "dh/util/cu/scan.cuh"
 
 namespace dh::util {
 
@@ -178,7 +178,7 @@ namespace dh::util {
     glNamedBufferStorage(bufferCumSum, n * sizeof(uint), nullptr, 0);
 
     uint nNew;
-    util::InclusiveScan(selectionBuffer, bufferCumSum, n).comp();
+    util::Scan(selectionBuffer, bufferCumSum, n).comp();
     glGetNamedBufferSubData(bufferCumSum, (n - 1) * sizeof(uint), sizeof(uint), &nNew);
 
     if(nNew == 0) {
@@ -252,7 +252,7 @@ namespace dh::util {
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     glAssert();
   }
-
+  
   void BufferTools::operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference) {
     auto& program = _programs(ProgramType::eOperateFloatComp);
     program.bind();
@@ -336,7 +336,7 @@ namespace dh::util {
 
     uint count;
     {
-      util::InclusiveScan(_buffersIndex(BufferIndexType::eIndicated), _buffersIndex(BufferIndexType::eScanned), n).comp();
+      util::Scan(_buffersIndex(BufferIndexType::eIndicated), _buffersIndex(BufferIndexType::eScanned), n).comp();
       glGetNamedBufferSubData(_buffersIndex(BufferIndexType::eScanned), (n - 1) * sizeof(uint), sizeof(uint), &count); // Copy the last element of the eScanned buffer (which is the total size) to host
     }
 
@@ -363,26 +363,22 @@ namespace dh::util {
   }
 
   void BufferTools::subsample(GLuint& bufferToSubsample, uint n, uint every, uint outOf, GLuint bufferSubsampled) {
-    glNamedBufferStorage(bufferSubsampled, n * sizeof(uint), nullptr, 0);
+    auto& program = _programs(ProgramType::eSubsample_Uint);
+    program.bind();
 
-    {
-      auto& program = _programs(ProgramType::eSubsample_Uint);
-      program.bind();
+    // Set uniforms
+    program.template uniform<uint>("n", n);
+    program.template uniform<uint>("everyIndex", every - 1);
+    program.template uniform<uint>("outOf", outOf);
 
-      // Set uniforms
-      program.template uniform<uint>("n", n);
-      program.template uniform<uint>("everyIndex", every - 1);
-      program.template uniform<uint>("outOf", outOf);
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToSubsample);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferSubsampled);
+    glAssert();
 
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToSubsample);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferSubsampled);
-      glAssert();
-
-      glDispatchCompute(ceilDiv(n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
-    }
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
   }
 
   // Template instantiations for float, and uint

@@ -150,6 +150,7 @@ namespace dh::sne {
       _embeddingRenderTask = queue.emplace(vis::EmbeddingRenderTask<D>(_params, 0, buffers(), colorPtr));
       _selectionRenderTask = queue.emplace(vis::SelectionRenderTask(_params, 5));
       _attributeRenderTask = queue.emplace(vis::AttributeRenderTask(_params, 10, buffers(), _similaritiesBuffers, _embeddingRenderTask->getClassColorBuffer(), labelPtr));
+      _linkRenderTask = queue.emplace(vis::LinkRenderTask<D>(_params, 20, buffers(), _similaritiesBuffers));
     }
 #endif // DH_ENABLE_VIS_EMBEDDING
 
@@ -238,6 +239,7 @@ namespace dh::sne {
     std::fill(_selectionCounts.begin(), _selectionCounts.end(), 0);
     _selectionRenderTask->setSelectionCounts(_selectionCounts);
     _attributeRenderTask->clearSelection();
+    _linkRenderTask->clearLinks();
     glClearNamedBufferData(_buffers(BufferType::eSelection), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
   }
 
@@ -280,6 +282,8 @@ namespace dh::sne {
     _embeddingRenderTask->setMinimizationBuffers(buffers()); 
     _attributeRenderTask->setMinimizationBuffers(buffers());
     _attributeRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
+    _linkRenderTask->setMinimizationBuffers(buffers());
+    _linkRenderTask->setSimilaritiesBuffers(_similaritiesBuffers);
   }
 
   template <uint D>
@@ -296,6 +300,7 @@ namespace dh::sne {
 
     _selectionRenderTask->setInput(_input);
     _attributeRenderTask->setInput(_input);
+    _linkRenderTask->setInput(_input);
 
     // Send selection radius to selection render task
     _selectionRadiusRel = _input.mouseScroll / 100.f;
@@ -786,6 +791,7 @@ namespace dh::sne {
     }
 
     _attributeRenderTask->updateVisualizations(_selectionCounts);
+    _linkRenderTask->updateLinks();
   }
 
   template <uint D>

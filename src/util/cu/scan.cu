@@ -26,17 +26,17 @@
 #define THRUST_IGNORE_CUB_VERSION_CHECK
 #include <cub/cub.cuh>
 #include "dh/util/cu/error.cuh"
-#include "dh/util/cu/inclusive_scan.cuh"
+#include "dh/util/cu/scan.cuh"
 
 // https://en.wikipedia.org/wiki/Prefix_sum
 // https://nvlabs.github.io/cub/structcub_1_1_device_scan.html
 namespace dh::util {
-  InclusiveScan::InclusiveScan()
+  Scan::Scan()
   : _isInit(false), _n(0), _tempHandle(nullptr), _tempSize(0) {
     // ...
   }
 
-  InclusiveScan::InclusiveScan(GLuint inputBuffer, GLuint outputBuffer, uint n)
+  Scan::Scan(GLuint inputBuffer, GLuint outputBuffer, uint n)
   : _isInit(false), _n(n), _tempHandle(nullptr), _tempSize(0) {      
     // Set up temp memory
     cub::DeviceScan::InclusiveSum<uint *, uint *>(nullptr, _tempSize, nullptr, nullptr, _n); // Determine temp device storage requirements for inclusive prefix sum; because parameter d_temp_storage is given a nullptr, only the required allocation size is written to _tempSize
@@ -49,22 +49,22 @@ namespace dh::util {
     _isInit = true;
   }
 
-  InclusiveScan::~InclusiveScan() {
+  Scan::~Scan() {
     if (_isInit) {
       cudaFree(_tempHandle);
     }
   }
   
-  InclusiveScan::InclusiveScan(InclusiveScan&& other) noexcept {
+  Scan::Scan(Scan&& other) noexcept {
     swap(*this, other);
   }
 
-  InclusiveScan& InclusiveScan::operator=(InclusiveScan&& other) noexcept {
+  Scan& Scan::operator=(Scan&& other) noexcept {
     swap(*this, other);
     return *this;
   }
   
-  void swap(InclusiveScan& a, InclusiveScan& b) noexcept {
+  void swap(Scan& a, Scan& b) noexcept {
     using std::swap;
     swap(a._isInit, b._isInit);
     swap(a._n, b._n);
@@ -73,20 +73,30 @@ namespace dh::util {
     swap(a._interopBuffers, b._interopBuffers);
   }
   
-  void InclusiveScan::comp() {
+  void Scan::comp(bool inclusive) {
     // Map interop buffers for access on CUDA side
     for (auto& buffer : _interopBuffers) {
       buffer.map();
     }
     
     // Perform inclusive scan
-    cub::DeviceScan::InclusiveSum<uint *, uint *>(
-      (void *) _tempHandle,
-      _tempSize,
-      (uint *) _interopBuffers(BufferType::eInputBuffer).cuHandle(),
-      (uint *) _interopBuffers(BufferType::eOutputBuffer).cuHandle(),
-      _n
-    );
+    if(inclusive) {
+      cub::DeviceScan::InclusiveSum<uint *, uint *>(
+        (void *) _tempHandle,
+        _tempSize,
+        (uint *) _interopBuffers(BufferType::eInputBuffer).cuHandle(),
+        (uint *) _interopBuffers(BufferType::eOutputBuffer).cuHandle(),
+        _n
+      );
+    } else {
+      cub::DeviceScan::ExclusiveSum<uint *, uint *>(
+        (void *) _tempHandle,
+        _tempSize,
+        (uint *) _interopBuffers(BufferType::eInputBuffer).cuHandle(),
+        (uint *) _interopBuffers(BufferType::eOutputBuffer).cuHandle(),
+        _n
+      );
+    }
 
     // Unmap interop buffers
     for (auto& buffer : _interopBuffers) {

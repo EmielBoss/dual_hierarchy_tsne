@@ -31,25 +31,25 @@
 // https://en.wikipedia.org/wiki/Prefix_sum
 // https://nvlabs.github.io/cub/structcub_1_1_device_scan.html
 namespace dh::util {
-  class InclusiveScan {
+  class Scan {
   public:
-    InclusiveScan();
-    InclusiveScan(GLuint inputBuffer, GLuint outputBuffer, uint n);
-    ~InclusiveScan();
+    Scan();
+    Scan(GLuint inputBuffer, GLuint outputBuffer, uint n);
+    ~Scan();
 
     // Copy constr/assignment is explicitly deleted (no copying handles)
-    InclusiveScan(const InclusiveScan&) = delete;
-    InclusiveScan& operator=(const InclusiveScan&) = delete;
+    Scan(const Scan&) = delete;
+    Scan& operator=(const Scan&) = delete;
 
     // Move constr/operator moves handles
-    InclusiveScan(InclusiveScan&&) noexcept;
-    InclusiveScan& operator=(InclusiveScan&&) noexcept;
+    Scan(Scan&&) noexcept;
+    Scan& operator=(Scan&&) noexcept;
 
     // Swap internals with another object
-    friend void swap(InclusiveScan& a, InclusiveScan& b) noexcept;
+    friend void swap(Scan& a, Scan& b) noexcept;
 
     // Perform inclusive scan over input buffer, store in output buffer
-    void comp();
+    void comp(bool inclusive = true);
 
     bool isInit() const { return _isInit; }
 

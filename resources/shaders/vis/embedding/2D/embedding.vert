@@ -24,13 +24,6 @@
 
 #version 460 core
 
-struct Bounds {
-  vec2 min;
-  vec2 max;
-  vec2 range;
-  vec2 invRange;
-};
-
 vec3 grey = vec3(150.f, 150.f, 150.f);
 
 // Input attributes
@@ -44,15 +37,14 @@ layout(location = 2) out vec4 colorOut;
 layout(location = 3) out float multiplier;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
-layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
-layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
-layout(binding = 3, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
-layout(binding = 4, std430) restrict readonly buffer FixedBuffer { uint fixxed[]; };
-layout(binding = 5, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
-layout(binding = 6, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
-layout(binding = 7, std430) restrict readonly buffer ClassColorBuffer { vec3 classColors[]; };
-layout(binding = 8, std430) restrict readonly buffer PointColorBuffer { vec3 pointColors[]; };
+layout(binding = 0, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
+layout(binding = 1, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
+layout(binding = 2, std430) restrict readonly buffer DisabledBuffer { uint disabled[]; };
+layout(binding = 3, std430) restrict readonly buffer FixedBuffer { uint fixxed[]; };
+layout(binding = 4, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
+layout(binding = 5, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 6, std430) restrict readonly buffer ClassColorBuffer { vec3 classColors[]; };
+layout(binding = 7, std430) restrict readonly buffer PointColorBuffer { vec3 pointColors[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;

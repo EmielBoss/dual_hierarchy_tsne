@@ -46,7 +46,7 @@ namespace dh::vis {
     virtual void drawImGuiComponentSecondary() { return; } // Optional component in the secondary (right) window
 
     // Publ, enable/disable rendering through imgui
-    bool enable;
+    bool enabled;
 
   private:
     int _priority;
@@ -63,7 +63,7 @@ namespace dh::vis {
     // std::swap impl
     friend void swap(RenderTask& a, RenderTask& b) noexcept {
       using std::swap;
-      swap(a.enable, b.enable);
+      swap(a.enabled, b.enabled);
       swap(a._priority, b._priority);
       swap(a._name, b._name);
     }

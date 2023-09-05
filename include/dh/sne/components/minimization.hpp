@@ -43,6 +43,7 @@
 #include "dh/vis/components/embedding_render_task.hpp"
 #include "dh/vis/components/axes_render_task.hpp"
 #include "dh/vis/components/attribute_render_task.hpp"
+#include "dh/vis/components/link_render_task.hpp"
 
 namespace dh::sne {
   template <uint D>
@@ -180,6 +181,7 @@ namespace dh::sne {
     std::shared_ptr<vis::EmbeddingRenderTask<D>> _embeddingRenderTask;
     std::shared_ptr<vis::AxesRenderTask<D>> _axesRenderTask;
     std::shared_ptr<vis::AttributeRenderTask> _attributeRenderTask;
+    std::shared_ptr<vis::LinkRenderTask<D>> _linkRenderTask;
     KLDivergence _klDivergence;
 
   public:
@@ -222,6 +224,7 @@ namespace dh::sne {
       swap(a._embeddingRenderTask, b._embeddingRenderTask);
       swap(a._axesRenderTask, b._axesRenderTask);
       swap(a._attributeRenderTask, b._attributeRenderTask);
+      swap(a._linkRenderTask, b._linkRenderTask);
       swap(a._klDivergence, b._klDivergence);
       swap(a.__assessed, b.__assessed);
     }

@@ -422,7 +422,7 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
-    if (!enable) {
+    if (!enabled) {
       return;
     }
     glAssert();

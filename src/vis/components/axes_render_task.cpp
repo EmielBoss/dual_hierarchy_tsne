@@ -70,7 +70,7 @@ namespace dh::vis {
     _minimization(minimization),
     _params(params) {
     // Enable/disable render task by default
-    enable = DH_VIS_EMBEDDING_INIT;
+    enabled = DH_VIS_EMBEDDING_INIT;
 
     // Initialize shader program
     {
@@ -152,7 +152,7 @@ namespace dh::vis {
 
   template <uint D>
   void AxesRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
-    if (!enable) {
+    if (!enabled) {
       return;
     }
 

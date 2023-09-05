@@ -24,13 +24,6 @@
 
 #version 460 core
 
-struct Bounds {
-  vec3 min;
-  vec3 max;
-  vec3 range;
-  vec3 invRange;
-};
-
 // 11 distinguishable label colors (incl. white)
 const vec3 colors[11] = vec3[11](
   vec3(16, 78, 139),
@@ -57,11 +50,10 @@ layout(location = 2) out vec4 colorOut;
 layout(location = 3) out float multiplier;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer BoundsBuffer { Bounds bounds; };
-layout(binding = 1, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
-layout(binding = 2, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
-layout(binding = 3, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
-layout(binding = 4, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
+layout(binding = 0, std430) restrict readonly buffer LabelsBuffer { int labels[]; };
+layout(binding = 1, std430) restrict readonly buffer LabeledBuffer { uint labeled[]; };
+layout(binding = 2, std430) restrict readonly buffer SelectionBuffer { uint selection[]; };
+layout(binding = 3, std430) restrict readonly buffer NeighborhoodPreservationBuffer { float neighborhoodPreservation[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;

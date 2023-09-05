@@ -22,36 +22,17 @@
  * SOFTWARE.
  */
 
-#include "dh/vis/render_queue.hpp"
+#version 460 core
 
-namespace dh::vis {
-  RenderTask::RenderTask()
-  : enabled(false), _priority(-1), _name("") { }
+// Input attributes
 
-  RenderTask::RenderTask(int priority, const std::string& name)
-  : enabled(true), _priority(priority), _name(name) { }
+// Output attributes
+layout(location = 0) out vec4 colorOut;
 
-  void RenderQueue::init() {
-    if (_isInit) {
-      return;
-    }
-    _queue = Queue(cmpRenderTask);
-    _isInit = true;
-  }
+// Uniforms
+layout(location = 0) uniform mat4 model_view;
+layout(location = 1) uniform mat4 proj;
 
-  void RenderQueue::dstr() {
-    if (_isInit) {
-      return;
-    }
-    _queue.clear();
-    _isInit = false;
-  }
-
-  RenderQueue::RenderQueue() : _isInit(false) { }
-
-  RenderQueue::~RenderQueue() {
-    if (_isInit) {
-      dstr();
-    }
-  }
-} // dh::vis
+void main() {
+  colorOut = vec4(0.f, 0.f, 0.f, 1.f);
+}
