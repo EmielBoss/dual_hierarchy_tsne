@@ -38,8 +38,12 @@ layout(binding = 0, std430) restrict readonly buffer Posi { int selectionBuffer[
 layout(binding = 1, std430) restrict readonly buffer Dsbl { int disabledBuffer[]; };
 layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutsBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 4, std430) restrict readonly buffer Scn { uint scanBuffer[]; };
-layout(binding = 5, std430) restrict writeonly buffer Idx { uint elementsBuffer[]; };
+layout(binding = 4, std430) restrict readonly buffer Sims { float similaritiesBuffer[]; };
+layout(binding = 5, std430) restrict readonly buffer Scn { uint scanBuffer[]; };
+layout(binding = 6, std430) restrict readonly buffer Min { float simMinBuffer[]; };
+layout(binding = 7, std430) restrict readonly buffer Max { float simMaxBuffer[]; };
+layout(binding = 8, std430) restrict writeonly buffer Idx { uint elementsBuffer[]; };
+layout(binding = 9, std430) restrict writeonly buffer Rel { float simRelBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
@@ -54,11 +58,13 @@ void main() {
   if (i >= nPoints || selectionBuffer[i] == 0) { return; }
   
   Layout l = layoutsBuffer[i];
+  float simRange = simMaxBuffer[i] - simMinBuffer[i];
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
     
-    uint index = scanBuffer[i] * 2 + (ij - l.offset) * 2;
-    elementsBuffer[index] = i;
-    elementsBuffer[index + 1] = disabledBuffer[j] == 1 ? i : j;
+    uint index = scanBuffer[i] + (ij - l.offset);
+    elementsBuffer[index * 2] = i;
+    elementsBuffer[index * 2 + 1] = disabledBuffer[j] == 1 ? i : j;
+    simRelBuffer[index] = (similaritiesBuffer[ij] - simMinBuffer[i]) / simRange;
   }
 }

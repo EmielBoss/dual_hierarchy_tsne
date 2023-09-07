@@ -25,6 +25,7 @@
 #version 460 core
 
 // Input attributes
+layout(location = 0) in vec4 colorIn;
 
 // Output attributes
 layout(location = 0) out vec4 colorOut;
@@ -34,5 +35,5 @@ layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
 
 void main() {
-  colorOut = vec4(0.f, 0.f, 0.f, 1.f);
+  colorOut = colorIn;
 }

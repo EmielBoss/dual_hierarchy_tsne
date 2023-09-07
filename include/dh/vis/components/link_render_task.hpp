@@ -66,7 +66,15 @@ namespace dh::vis {
     enum class BufferType {
       eSizes,
       eScan,
+      eSimilarityMin,
+      eSimilarityMax,
+
+      Length
+    };
+
+    enum class BufferCyclicalType {
       eElements,
+      eSimilaritiesRel,
 
       Length
     };
@@ -78,6 +86,13 @@ namespace dh::vis {
       Length
     };
 
+    enum ColorMapping {
+      none,
+      colors,
+      opacity,
+      both
+    };
+
     // State
     bool _isInit;
     sne::Params* _params;
@@ -85,8 +100,14 @@ namespace dh::vis {
     uint _nLinks;
     bool _enabledPrev;
 
+    // ImGui state
+    float _linkOpacity;
+    bool _vizSimilarities;
+    uint _colorMapping;
+
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<BufferCyclicalType, GLuint> _buffersCyclical;
     sne::MinimizationBuffers _minimizationBuffers;
     sne::SimilaritiesBuffers _similaritiesBuffers;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
@@ -105,7 +126,12 @@ namespace dh::vis {
       swap(a._params, b._params);
       swap(a._input, b._input);
       swap(a._nLinks, b._nLinks);
+      swap(a._enabledPrev, b._enabledPrev);
+      swap(a._linkOpacity, b._linkOpacity);
+      swap(a._vizSimilarities, b._vizSimilarities);
+      swap(a._colorMapping, b._colorMapping);
       swap(a._buffers, b._buffers);
+      swap(a._buffersCyclical, b._buffersCyclical);
       swap(a._minimizationBuffers, b._minimizationBuffers);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
       swap(a._programs, b._programs);

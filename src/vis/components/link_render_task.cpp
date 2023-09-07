@@ -29,6 +29,7 @@
 #include <string>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
+#include <imgui.h>
 #include "dh/util/gl/buffertools.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/cu/scan.cuh"
@@ -51,6 +52,9 @@ namespace dh::vis {
     _minimizationBuffers(minimizationBuffers),
     _similaritiesBuffers(similaritiesBuffers),
     _params(params),
+    _linkOpacity(1.f),
+    _vizSimilarities(true),
+    _colorMapping(1),
     _nLinks(6) {
 
     // Initialize shader program
@@ -74,6 +78,8 @@ namespace dh::vis {
       glCreateBuffers(_buffers.size(), _buffers.data());
       glNamedBufferStorage(_buffers(BufferType::eSizes), _params->n * sizeof(uint), nullptr, 0);
       glNamedBufferStorage(_buffers(BufferType::eScan), _params->n * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSimilarityMin), _params->n * sizeof(float), nullptr, 0);
+      glNamedBufferStorage(_buffers(BufferType::eSimilarityMax), _params->n * sizeof(float), nullptr, 0);
       glAssert();
     }
 
@@ -108,13 +114,10 @@ namespace dh::vis {
     glCreateVertexArrays(1, &_vaoHandle);
 
     // Specify vertex buffers and element buffer
-    constexpr uint embeddingStride = (D == 2) ? 2 : 4;
-    glVertexArrayVertexBuffer(_vaoHandle, 0, _minimizationBuffers.embeddingRel, 0, embeddingStride * sizeof(float));    // Embedding positions
-    glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));                                             // Elements/indices
+    // glVertexArrayVertexBuffer(_vaoHandle, 0, _buffersCyclical(BufferCyclicalType::eElements), 0, sizeof(float));
     
     // Specify vertex array data organization
-    constexpr uint embeddingSize = (D == 2) ? 2 : 3;
-    glVertexArrayAttribFormat(_vaoHandle, 0, D, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(_vaoHandle, 0, 1, GL_FLOAT, GL_FALSE, 0);
 
     // Other VAO properties
     glEnableVertexArrayAttrib(_vaoHandle, 0);
@@ -133,9 +136,14 @@ namespace dh::vis {
     glGetNamedBufferSubData(_buffers(BufferType::eScan), (_params->n - 1) * sizeof(uint), sizeof(uint), &_nLinks);
     if(_nLinks == 0) { return; }
 
-    glDeleteBuffers(1, &_buffers(BufferType::eElements));
-    glCreateBuffers(1, &_buffers(BufferType::eElements));
-    glNamedBufferStorage(_buffers(BufferType::eElements), _nLinks * 2 * sizeof(uint), nullptr, 0);
+    dh::util::BufferTools::instance().reducePerDatapoint<float>(_similaritiesBuffers.similarities, 1, _params->n, _buffers(BufferType::eSimilarityMin), _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+    dh::util::BufferTools::instance().reducePerDatapoint<float>(_similaritiesBuffers.similarities, 2, _params->n, _buffers(BufferType::eSimilarityMax), _similaritiesBuffers.layout, _similaritiesBuffers.neighbors);
+
+    glDeleteBuffers(_buffersCyclical.size(), _buffersCyclical.data());
+    glCreateBuffers(_buffersCyclical.size(), _buffersCyclical.data());
+    glNamedBufferStorage(_buffersCyclical(BufferCyclicalType::eElements), _nLinks * 2 * sizeof(uint), nullptr, 0);
+    glNamedBufferStorage(_buffersCyclical(BufferCyclicalType::eSimilaritiesRel), _nLinks * sizeof(float), nullptr, 0);
+
     { 
       auto& program = _programs(ProgramType::eCollectElements);
       program.bind();
@@ -148,8 +156,12 @@ namespace dh::vis {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _minimizationBuffers.disabled);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _similaritiesBuffers.layout);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.neighbors);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eScan));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eElements));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.similarities);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eScan));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eSimilarityMin));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eSimilarityMax));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, _buffersCyclical(BufferCyclicalType::eElements));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, _buffersCyclical(BufferCyclicalType::eSimilaritiesRel));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint
@@ -157,8 +169,8 @@ namespace dh::vis {
       glAssert();
     }
 
-    glVertexArrayElementBuffer(_vaoHandle, _buffers(BufferType::eElements));
-    
+    glVertexArrayVertexBuffer(_vaoHandle, 0, _buffersCyclical(BufferCyclicalType::eElements), 0, sizeof(float));
+
     glAssert();
   }
 
@@ -167,6 +179,9 @@ namespace dh::vis {
     _nLinks = 0;
   }
 
+  // Rendering links is done in a very hacky way: rather than the datapoint positions,
+  // elements are bound as a vertex object array, and then these elements are used to
+  // index into the vec2 positions and float link opacities
   template <uint D>
   void LinkRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
     if (enabled && !_enabledPrev) { updateLinks(); }
@@ -178,17 +193,37 @@ namespace dh::vis {
     // Set uniforms
     _programs(ProgramType::eRender).template uniform<float, 4, 4>("model_view", model_view);
     _programs(ProgramType::eRender).template uniform<float, 4, 4>("proj", proj);
+    _programs(ProgramType::eRender).template uniform<float>("linkOpacity", _linkOpacity);
+    _programs(ProgramType::eRender).template uniform<uint>("colorMapping", _colorMapping);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.embeddingRel);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersCyclical(BufferCyclicalType::eSimilaritiesRel));
 
     // Perform draw
     glBindVertexArray(_vaoHandle);
-    glDrawElements(GL_LINES, _nLinks * 2, GL_UNSIGNED_INT, nullptr);
+    glDrawArrays(GL_LINES, 0, _nLinks * 2);
 
     glAssert();
   }
 
   template <uint D>
   void LinkRenderTask<D>::drawImGuiComponent() {
-    
+    ImGui::SliderFloat("Line opacity", &_linkOpacity, 0.0f, 2.0f);
+    ImGui::Checkbox("Visualize similarity", &_vizSimilarities);
+    if(_vizSimilarities) {
+      ImGui::SameLine();
+      ImGui::Text("as");
+      ImGui::SameLine();
+      if (ImGui::RadioButton("red/blue", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("opacity", _colorMapping==ColorMapping::opacity)) { _colorMapping = ColorMapping::opacity; }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("both", _colorMapping==ColorMapping::both)) { _colorMapping = ColorMapping::both; }
+    }
+    else {
+      _colorMapping = ColorMapping::none;
+    }
   }
 
 

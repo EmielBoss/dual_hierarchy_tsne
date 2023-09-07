@@ -34,17 +34,42 @@ struct Bounds {
 vec3 grey = vec3(150.f, 150.f, 150.f);
 
 // Input attributes
-layout(location = 0) in vec2 embeddingRelIn;
+layout(location = 0) in uint elementIn;
 
 // Output attributes
+layout(location = 0) out vec4 colorOut;
+
+// Buffer bindings
+layout(binding = 0, std430) restrict readonly buffer EmbRel { vec2 embRelBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer SimRel { float simRelBuffer[]; };
 
 // Uniform locations
 layout(location = 0) uniform mat4 model_view;
 layout(location = 1) uniform mat4 proj;
+layout(location = 2) uniform float linkOpacity;
+layout(location = 3) uniform uint colorMapping;
 
 void main() {
   // Calculate vertex position
-  vec2 embeddingRelOut = embeddingRelIn;
-  embeddingRelOut.y = 1.f - embeddingRelOut.y;
-  gl_Position = proj * model_view * vec4(embeddingRelOut, 0, 1);
+  vec2 positionRel = embRelBuffer[elementIn];
+  positionRel.y = 1.f - positionRel.y;
+  gl_Position = proj * model_view * vec4(positionRel, 0, 1);
+
+  // Calculate vertex/link color
+  float simRel = simRelBuffer[gl_VertexID / 2];
+  if(colorMapping == 0) {
+    colorOut = vec4(0.f, 0.f, 0.f, 1.f);
+  } else
+  if(colorMapping == 1) {
+      colorOut = vec4(simRel, 0.f, 1 - simRel, 1.f);
+  } else
+  if(colorMapping == 2) {
+      colorOut = vec4(0.f, 0.f, 0.f, simRel);
+  } else
+  if(colorMapping == 3) {
+    colorOut = vec4(simRel, 0.f, 1 - simRel, simRel);
+  }
+
+  colorOut.a *= linkOpacity;
+    
 }

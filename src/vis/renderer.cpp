@@ -271,6 +271,7 @@ namespace dh::vis {
     if (auto ptr = queue.find("FieldHierarchyRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("SelectionRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
     if (auto ptr = queue.find("AttributeRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
+    if (auto ptr = queue.find("LinkRenderTask"); ptr && ptr->enabled) { ptr->drawImGuiComponent(); }
     // if (auto ptr = queue.find("AxesRenderTask"); ptr && ptr->enable) { ptr->drawImGuiComponent(); }
   }
 } // dh::vis
