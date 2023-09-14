@@ -1,7 +1,7 @@
 {
   "name": "dual-hierarchy-tsne",
   "version-string": "0.1.0",
-  "builtin-baseline":"c64c0fdac572ca43ea5ae018fc408ddced50d5b1",
+  "builtin-baseline":"9edb1b8e590cc086563301d735cae4b6e732d2d2",
   "dependencies": [
     "date",
     {
@@ -12,8 +12,7 @@
     "glm",
     {
       "name": "faiss",
-      "features": [ "gpu" ],
-	  "version>=": "1.7.2"
+      "features": [ "gpu" ]
     },
     "indicators"
   ],
@@ -25,10 +24,7 @@
           "name": "imgui",
           "features": [ "opengl3-binding", "glfw-binding", "docking-experimental" ]
         },
-		{
-          "name": "implot",
-          "version>=": "0.14"
-        }
+		"implot"
       ]
     },
     "demo": {

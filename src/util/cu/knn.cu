@@ -33,7 +33,7 @@
 
 namespace dh::util {
   // Tuning parameters for FAISS
-  constexpr uint nProbe = 12;
+  constexpr uint nProbes = 12;
   constexpr uint nListMult = 2;
   constexpr size_t addBatchSize = 32768;
   constexpr size_t searchBatchSize = 16384;
@@ -134,7 +134,7 @@ namespace dh::util {
       faiss::METRIC_L2,
       faissConfig
     );
-    faissIndex.setNumProbes(nProbe);
+    faissIndex.nprobe = nProbes;
     faissIndex.train(_n, dataPtr);
 
     // Add data in batches
@@ -146,7 +146,7 @@ namespace dh::util {
 
     // Create temporary space for storing 64 bit faiss indices
     void * tempIndicesHandle;
-    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::Index::idx_t));
+    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::idx_t));
 
     // Perform search
     if(dataPtrQuery) {
@@ -155,7 +155,7 @@ namespace dh::util {
         dataPtrQuery,
         _k,
         (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
-        (faiss::Index::idx_t *) tempIndicesHandle
+        (faiss::idx_t *) tempIndicesHandle
       );
       cuAssert(cudaDeviceSynchronize());
     } else {
@@ -167,7 +167,7 @@ namespace dh::util {
           dataPtr + (_d * offset),
           _k,
           ((float *) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
-          ((faiss::Index::idx_t *) tempIndicesHandle) + (_k * offset)
+          ((faiss::idx_t *) tempIndicesHandle) + (_k * offset)
         );
       }
     }
@@ -217,7 +217,7 @@ namespace dh::util {
 
     // Create temporary space for storing 64 bit faiss indices
     void * tempIndicesHandle;
-    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::Index::idx_t));
+    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::idx_t));
 
     // Perform search
     faissIndex.search(
@@ -225,7 +225,7 @@ namespace dh::util {
       dataPtrQuery ? dataPtrQuery : dataPtr,
       _k,
       (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
-      (faiss::Index::idx_t *) tempIndicesHandle
+      (faiss::idx_t *) tempIndicesHandle
     );
     
     // Tell FAISS to bugger off

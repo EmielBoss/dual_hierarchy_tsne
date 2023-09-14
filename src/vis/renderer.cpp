@@ -52,17 +52,6 @@ namespace dh::vis {
     _params(params),
     _windowHandle(&window),
     _fboSize(0) {
-    
-    // Setup ImGui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImPlot::CreateContext();
-    ImGui::StyleColorsDark();
-
-    // ImGui platform components
-    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
-    const char *version = "#version 460";
-    ImGui_ImplOpenGL3_Init(version);
 
     // Init static render queue/input queue so tasks can be added by the sne lib
     InputQueue::instance().init(window);
@@ -86,6 +75,17 @@ namespace dh::vis {
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboColorTextureHandle);
     glCreateTextures(GL_TEXTURE_2D, 1, &_fboDepthTextureHandle);
     glAssert();
+
+    // Setup ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImPlot::CreateContext();
+    ImGui::StyleColorsDark();
+
+    // ImGui platform components
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *) window.handle(), true);
+    const char *version = "#version 460";
+    ImGui_ImplOpenGL3_Init(version);
     
     _isInit = true;
   }
