@@ -93,25 +93,41 @@ namespace dh::util {
   }
 
   void KNN::comp(const float* dataPtrQuery, uint nQuery) {
-    if(_n < 1000) {
-      compExact(dataPtrQuery, nQuery);
-    } else {
-      compAprox(dataPtrQuery, nQuery);
-    }
-  }
-
-  void KNN::compAprox(const float* dataPtrQuery, uint nQuery) {
     // Map interop buffers for access on CUDA side
     _interopBuffers(BufferType::eDistances).map();
     _interopBuffers(BufferType::eIndices).map();
 
-    const float* dataPtr;
-    if(_dataPtr) { dataPtr = _dataPtr; }
-    else {
+    const float* dataPtr = nullptr;
+    if(_dataPtr) {
+      dataPtr = _dataPtr;
+    } else {
       _interopBuffers(BufferType::eDataset).map();
       dataPtr = (float*) _interopBuffers(BufferType::eDataset).cuHandle();
     }
 
+    // Create temporary space for storing 64 bit faiss indices
+    void * tempIndicesHandle;
+    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::idx_t));
+
+    if(_n < 1000) {
+      compExact(tempIndicesHandle, dataPtr, dataPtrQuery, nQuery);
+    } else {
+      compAprox(tempIndicesHandle, dataPtr, dataPtrQuery, nQuery);
+    }
+
+    // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
+    uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;
+    kernDownCast<<<1024, 256>>>(nIndices, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
+    cudaDeviceSynchronize();
+    cudaFree(tempIndicesHandle);
+
+    // Unmap interop buffers
+    for (auto& buffer : _interopBuffers) {
+      buffer.unmap();
+    }
+  }
+
+  void KNN::compAprox(void* tempIndicesHandle, const float* dataPtr, const float* dataPtrQuery, uint nQuery) {
     // Nr. of inverted lists used by FAISS IVL.
     // x * O(sqrt(n)) | x := 4, is apparently reasonable?
     // src: https://github.com/facebookresearch/faiss/issues/112
@@ -141,12 +157,8 @@ namespace dh::util {
     for (size_t i = 0; i < ceilDiv((size_t) _n, addBatchSize); ++i) {
       const size_t offset = i * addBatchSize;
       const size_t size = std::min(addBatchSize, _n - offset);
-      faissIndex.add(size, dataPtr + (_d * offset));
+      faissIndex.add(size, dataPtr + offset * _d);
     }
-
-    // Create temporary space for storing 64 bit faiss indices
-    void * tempIndicesHandle;
-    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::idx_t));
 
     // Perform search
     if(dataPtrQuery) {
@@ -154,8 +166,8 @@ namespace dh::util {
         nQuery,
         dataPtrQuery,
         _k,
-        (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
-        (faiss::idx_t *) tempIndicesHandle
+        (float*) _interopBuffers(BufferType::eDistances).cuHandle(),
+        (faiss::idx_t*) tempIndicesHandle
       );
       cuAssert(cudaDeviceSynchronize());
     } else {
@@ -166,8 +178,8 @@ namespace dh::util {
           size,
           dataPtr + (_d * offset),
           _k,
-          ((float *) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
-          ((faiss::idx_t *) tempIndicesHandle) + (_k * offset)
+          ((float*) _interopBuffers(BufferType::eDistances).cuHandle()) + (_k * offset),
+          ((faiss::idx_t*) tempIndicesHandle) + (_k * offset)
         );
       }
     }
@@ -175,31 +187,9 @@ namespace dh::util {
     // Tell FAISS to bugger off
     faissIndex.reset();
     faissIndex.reclaimMemory();
-
-    // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
-    uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;
-    kernDownCast<<<1024, 256>>>(nIndices, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
-    cudaDeviceSynchronize();
-    cudaFree(tempIndicesHandle);
-
-    // Unmap interop buffers
-    for (auto& buffer : _interopBuffers) {
-      buffer.unmap();
-    }
   }
 
-  void KNN::compExact(const float* dataPtrQuery, uint nQuery) {
-    // Map interop buffers for access on CUDA side
-    _interopBuffers(BufferType::eDistances).map();
-    _interopBuffers(BufferType::eIndices).map();
-
-    const float* dataPtr;
-    if(_dataPtr) { dataPtr = _dataPtr; }
-    else {
-      _interopBuffers(BufferType::eDataset).map();
-      dataPtr = (float*) _interopBuffers(BufferType::eDataset).cuHandle();
-    }
-
+  void KNN::compExact(void* tempIndicesHandle, const float* dataPtr, const float* dataPtrQuery, uint nQuery) {
     // Use a single GPU device. For now, just grab device 0 and pray
     faiss::gpu::StandardGpuResources faissResources;
     faiss::gpu::GpuIndexFlatConfig faissConfig;
@@ -215,31 +205,16 @@ namespace dh::util {
 
     faissIndex.add(_n, dataPtr); // Add data
 
-    // Create temporary space for storing 64 bit faiss indices
-    void * tempIndicesHandle;
-    cudaMalloc(&tempIndicesHandle, _n * _k * sizeof(faiss::idx_t));
-
     // Perform search
     faissIndex.search(
       dataPtrQuery ? nQuery : _n,
       dataPtrQuery ? dataPtrQuery : dataPtr,
       _k,
-      (float *) _interopBuffers(BufferType::eDistances).cuHandle(),
-      (faiss::idx_t *) tempIndicesHandle
+      (float*) _interopBuffers(BufferType::eDistances).cuHandle(),
+      (faiss::idx_t*) tempIndicesHandle
     );
     
     // Tell FAISS to bugger off
     faissIndex.reset();
-
-    // Free 64-bit temporary indices, after downcasting to 32 bit in the interop buffer
-    uint nIndices = dataPtrQuery ? nQuery * _k : _n * _k;
-    kernDownCast<<<1024, 256>>>(nIndices, (int64_t *) tempIndicesHandle, (int32_t *) _interopBuffers(BufferType::eIndices).cuHandle());
-    cudaDeviceSynchronize();
-    cudaFree(tempIndicesHandle);
-
-    // Unmap interop buffers
-    for (auto& buffer : _interopBuffers) {
-      buffer.unmap();
-    }
   }
 } // dh::util

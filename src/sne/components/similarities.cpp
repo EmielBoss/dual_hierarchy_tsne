@@ -584,8 +584,8 @@ namespace dh::sne {
     if(selectionCounts[0] == 0 || selectionCounts[1] == 0) { return; }
 
     glCreateBuffers(_buffersFuse.size(), _buffersFuse.data());
-    dh::util::BufferTools::instance().index(selectionBufferHandle, _params->n, 1, _buffersFuse(BufferFuseType::eIndicesSelectionPrimary));
-    dh::util::BufferTools::instance().index(selectionBufferHandle, _params->n, 2, _buffersFuse(BufferFuseType::eIndicesSelectionSecondary));
+    dh::util::BufferTools::instance().getIndices(selectionBufferHandle, _params->n, 1, _buffersFuse(BufferFuseType::eIndicesSelectionPrimary));
+    dh::util::BufferTools::instance().getIndices(selectionBufferHandle, _params->n, 2, _buffersFuse(BufferFuseType::eIndicesSelectionSecondary));
 
     uint selectionCount = selectionCounts[0] + selectionCounts[1];
     glNamedBufferStorage(_buffersFuse(BufferFuseType::eIndicesSelection), selectionCount * sizeof(uint), nullptr, 0);

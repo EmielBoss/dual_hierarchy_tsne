@@ -46,8 +46,8 @@ namespace dh::util {
 
     // Perform KNN computation, storing results in provided buffers. If given no arguments, will search the dataset for nearest neighbors of itself
     void comp(const float* dataPtrQuery = nullptr, uint nQuery = 0);
-    void compAprox(const float* dataPtrQuery = nullptr, uint nQuery = 0);
-    void compExact(const float* dataPtrQuery = nullptr, uint nQuery = 0);
+    void compAprox(void* tempIndicesHandle, const float* dataPtr, const float* dataPtrQuery = nullptr, uint nQuery = 0);
+    void compExact(void* tempIndicesHandle, const float* dataPtr, const float* dataPtrQuery = nullptr, uint nQuery = 0);
 
     bool isInit() const { return _isInit; }
 

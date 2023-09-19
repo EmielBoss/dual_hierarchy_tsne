@@ -52,9 +52,7 @@
  */
 // Uncomment to enable debug callbacks: more detailed error messages but no error location
 // Comment to enable assertions: reports error location, but barebones error messages (or rather, codes)
-// #define DH_ENABLE_DEBUG
-#define DH_ENABLE_DEBUG_WARNINGS
-
+#define DH_ENABLE_DEBUG
 
 /**
  * Settings for anything handled by dh::util::Logger

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <iostream>
+// #include <iostream>
 #include <cuda_runtime.h>
 #include <faiss/Clustering.h>
 #include <faiss/gpu/StandardGpuResources.h>
@@ -30,36 +30,31 @@
 #include <glad/glad.h>
 #include "dh/util/cu/kclustering.cuh"
 #include "dh/util/cu/knn.cuh"
-#include "dh/util/cu/error.cuh"
-#include "dh/util/gl/error.hpp"
-#include "dh/util/io.hpp"
+// #include "dh/util/cu/error.cuh"
+// #include "dh/util/gl/error.hpp"
+// #include "dh/util/io.hpp"
 
 namespace dh::util {
 
   KClustering::KClustering() 
-  : _isInit(false), _n(0), _d(0), _dataPtr(nullptr) {
+  : _isInit(false), _n(0), _d(0) {
     // ...
   }
 
-  KClustering::KClustering(const float* dataPtr, uint n, uint d)
-  : _isInit(false), _n(n), _d(d), _dataPtr(dataPtr) {
+  KClustering::KClustering(uint n, uint d, GLuint dataBufferHandle, GLuint indicesBufferHandle)
+  : _isInit(false), _n(n), _d(d) {
 
+    _buffers(BufferType::eDatasetIn) = dataBufferHandle;
+    _buffers(BufferType::eIndicesIn) = indicesBufferHandle;
+    glCreateBuffers(1, &_buffers(BufferType::eDatasetOut));
+    glCreateBuffers(1, &_buffers(BufferType::eIndicesOut));
     _isInit = true;
   }
 
-  // KClustering::KClustering(GLuint datasetBuffer, uint n, uint d, uint levels)
-  // : _isInit(false), _n(n), _d(d), _levels(levels), _dataPtr(nullptr) {
-    
-  //   // Set up OpenGL-CUDA interoperability
-  //   _interopBuffers(BufferType::eDataset) = CUGLInteropBuffer(datasetBuffer, CUGLInteropType::eNone);
-  //   // _interopBuffers(BufferType::eCentroids) = CUGLInteropBuffer(centroidsBuffer, CUGLInteropType::eNone);
-
-  //   _isInit = true;
-  // }
-
   KClustering::~KClustering() {
     if (_isInit) {
-      glDeleteBuffers(1, &_bufferResults);
+      glDeleteBuffers(_buffers.size(), _buffers.data());
+      glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     }
   }
 
@@ -73,15 +68,10 @@ namespace dh::util {
   }
 
   void KClustering::comp(uint nCentroids, bool medoids) {
-    // Map interop buffers for access on CUDA side
-    // _interopBuffers(BufferType::eCentroids).map();
 
-    const float* dataPtr;
-    if(_dataPtr) { dataPtr = _dataPtr; }
-    else {
-      _interopBuffers(BufferType::eDataset).map();
-      dataPtr = (float*) _interopBuffers(BufferType::eDataset).cuHandle();
-    }
+    // Annoyingly, Faiss' clustering doesn't support GPU buffers, so we have to copy data over
+    std::vector<float> dataIn(_n * _d);
+    glGetNamedBufferSubData(_buffers(BufferType::eDatasetIn), 0, _n * _d * sizeof(float), dataIn.data());
 
     // Use a single GPU device. For now, just grab device 0 and pray
     faiss::gpu::StandardGpuResources faissResources;
@@ -96,30 +86,25 @@ namespace dh::util {
     faissClusteringParams.seed = 0;
     faiss::Clustering kMeans(_d, nCentroids, faissClusteringParams);
 
-    kMeans.train(_n, dataPtr, faissIndex);
+    kMeans.train(_n, dataIn.data(), faissIndex);
 
-    glCreateBuffers(1, &_bufferResults);
     if(medoids) {
-      glCreateBuffers(_buffersMedoids.size(), _buffersMedoids.data());
-      glNamedBufferStorage(_buffersMedoids(BufferMedoidsType::eDataset), _n * _d * sizeof(float), dataPtr, 0);
-      glNamedBufferStorage(_buffersMedoids(BufferMedoidsType::eDistances), nCentroids * _d * sizeof(float), nullptr, 0);
-      glNamedBufferStorage(_buffersMedoids(BufferMedoidsType::eIndices), nCentroids * sizeof(uint), nullptr, 0);
-      util::KNN knn(dataPtr, _buffersMedoids(BufferMedoidsType::eDistances), _buffersMedoids(BufferMedoidsType::eIndices), _n, 1, _d);
+      glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+      glNamedBufferStorage(_buffers(BufferType::eIndicesOut), nCentroids * sizeof(uint), nullptr, 0);
+      glNamedBufferStorage(_buffersTemp(BufferTempType::eDistances), nCentroids * _d * sizeof(float), nullptr, 0);
+      util::KNN knn(_buffers(BufferType::eDatasetIn), _buffersTemp(BufferTempType::eDistances), _buffers(BufferType::eIndicesOut), _n, 1, _d);
       knn.comp(kMeans.centroids.data(), nCentroids);
+      
       std::vector<uint> indices(nCentroids);
-      glGetNamedBufferSubData(_buffersMedoids(BufferMedoidsType::eIndices), 0, nCentroids * sizeof(uint), indices.data());
-      glNamedBufferStorage(_bufferResults, nCentroids * _d * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
+      glGetNamedBufferSubData(_buffers(BufferType::eIndicesOut), 0, nCentroids * sizeof(uint), indices.data());
+      glNamedBufferStorage(_buffers(BufferType::eDatasetOut), nCentroids * _d * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
       for (uint i = 0; i < nCentroids; ++i) {
-        glCopyNamedBufferSubData(_buffersMedoids(BufferMedoidsType::eDataset), _bufferResults, indices[i] * _d * sizeof(float), i * _d * sizeof(float), _d * sizeof(float));
+        glCopyNamedBufferSubData(_buffers(BufferType::eDatasetIn), _buffers(BufferType::eDatasetOut), indices[i] * _d * sizeof(float), i * _d * sizeof(float), _d * sizeof(float));
       }
-      glDeleteBuffers(_buffersMedoids.size(), _buffersMedoids.data());
+
+      glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     } else {
-      glNamedBufferStorage(_bufferResults, nCentroids * _d * sizeof(float), kMeans.centroids.data(), 0);
-    }
-    
-    // Unmap interop buffers
-    for (auto& buffer : _interopBuffers) {
-      buffer.unmap();
+      glNamedBufferStorage(_buffers(BufferType::eDatasetOut), nCentroids * _d * sizeof(float), kMeans.centroids.data(), 0);
     }
 
   }

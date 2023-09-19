@@ -392,13 +392,15 @@ namespace dh::vis {
     uint nSuggestionsNew = std::pow(2, _suggestionLevel);
     uint nSuggestionsPrev = nSuggestionsNew - 2;
 
-    GLuint datasetSelectedBuffer;
-    glCreateBuffers(1, &datasetSelectedBuffer);
-    uint nSelected = dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, datasetSelectedBuffer);
-    std::vector<float> buffer(nSelected * _params->nHighDims);
-    glGetNamedBufferSubData(datasetSelectedBuffer, 0, nSelected * _params->nHighDims * sizeof(float), buffer.data());
+    glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
+    dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, _buffersTemp(BufferTempType::eDatasetSelection));
 
-    util::KClustering kClustering(buffer.data(), nSelected, _params->nHighDims);
+    std::vector<int> indices(_params->n);
+    std::iota(indices.begin(), indices.end(), 0);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eIndicesSelection), _params->n * sizeof(int), indices.data(), 0);
+    dh::util::BufferTools::instance().remove<int>(_buffersTemp(BufferTempType::eIndicesSelection), _params->n, 1, _minimizationBuffers.selection);
+
+    util::KClustering kClustering(_selectionCounts[0], _params->nHighDims, _buffersTemp(BufferTempType::eDatasetSelection));
     kClustering.comp(nSuggestionsNew, true);
 
     _buffersTextureDataArchetypeSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
@@ -407,7 +409,7 @@ namespace dh::vis {
     glCreateTextures(GL_TEXTURE_2D, nSuggestionsNew, &_texturesArchetypeSuggestions[nSuggestionsPrev]);
     for(uint i = 0; i < nSuggestionsNew; ++i) {
       glNamedBufferStorage(_buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i], _params->nHighDims * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glCopyNamedBufferSubData(kClustering.getResultsBuffer(), _buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i], i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
+      glCopyNamedBufferSubData(kClustering.getDataBufferHandle(), _buffersTextureDataArchetypeSuggestions[nSuggestionsPrev + i], i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
       glTextureParameteri(_texturesArchetypeSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_texturesArchetypeSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
@@ -417,8 +419,19 @@ namespace dh::vis {
       glTextureSubImage2D(_texturesArchetypeSuggestions[nSuggestionsPrev + i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
     }
 
-    _suggestionLevel++;
+    // Map indicesOut to IndicesIn, because Faiss' KNN GPU implementation for some reason breaks with custom indices
+    // See https://github.com/facebookresearch/faiss/issues/3053
+    // I'd rather do this in KCLustering.comp() but I can't get that to work
+    GLuint indicesOutHandle = kClustering.getIndicesBufferHandle();
+    dh::util::BufferTools::instance().index(indicesOutHandle, _buffersTemp(BufferTempType::eIndicesSelection), nSuggestionsNew);
+    std::vector<uint> indicesOut(nSuggestionsNew);
+    glGetNamedBufferSubData(indicesOutHandle, 0, nSuggestionsNew * sizeof(uint), indicesOut.data());
+    std::cout << std::endl;
+    _indicesArchetypeSuggestions.insert(_indicesArchetypeSuggestions.end(), indicesOut.begin(), indicesOut.end());
+
+    glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
+    _suggestionLevel++;
   }
 
   void AttributeRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {
@@ -534,6 +547,7 @@ namespace dh::vis {
         }
         if(ImGui::IsItemHovered()) {
           ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
+          ImGui::BeginTooltip(); ImGui::Text("Datapoint %i", _indicesArchetypeSuggestions[i * nCols + j]); ImGui::EndTooltip();
         }
         if(j < nCols - 1) { ImGui::SameLine(); }
       }
@@ -917,6 +931,7 @@ namespace dh::vis {
     glDeleteTextures(_texturesArchetypeSuggestions.size(), _texturesArchetypeSuggestions.data());
     _buffersTextureDataArchetypeSuggestions.clear();
     _texturesArchetypeSuggestions.clear();
+    _indicesArchetypeSuggestions.clear();
   }
 
   // void AttributeRenderTask::assess(uint symmetricSize) {

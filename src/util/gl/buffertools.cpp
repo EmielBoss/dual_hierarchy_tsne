@@ -60,10 +60,12 @@ namespace dh::util {
 
       _programs(ProgramType::eOperateFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/operate_float.comp"));
 
-      _programs(ProgramType::eIndicateIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/indicate_int.comp"));
-      _programs(ProgramType::eIndexIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/index_int.comp"));
+      _programs(ProgramType::eIndexUintComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/index_uint.comp"));
 
-      _programs(ProgramType::eSubsample_Uint).addShader(util::GLShaderType::eCompute, rsrc::get("util/subsample_uint.comp"));
+      _programs(ProgramType::eIndicateIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/indicate_int.comp"));
+      _programs(ProgramType::eGetIndicesIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/get_indices_int.comp"));
+
+      _programs(ProgramType::eSubsampleUint).addShader(util::GLShaderType::eCompute, rsrc::get("util/subsample_uint.comp"));
 
       for (auto& program : _programs) {
         program.link();
@@ -310,7 +312,24 @@ namespace dh::util {
     glAssert();
   }
 
-  void BufferTools::index(GLuint& buffer, uint n, uint value, GLuint indicesBuffer) {
+  void BufferTools::index(GLuint& bufferIndices, GLuint& bufferToIndex, uint n) {
+    auto& program = _programs(ProgramType::eIndexUintComp);
+    program.bind();
+
+    // Set uniforms
+    program.template uniform<uint>("n", n);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToIndex);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferIndices);
+    glAssert();
+
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
+  void BufferTools::getIndices(GLuint& buffer, uint n, uint value, GLuint indicesBuffer) {
     glCreateBuffers(_buffersIndex.size(), _buffersIndex.data());
     std::vector<uint> zeroes(n, 0);
     glNamedBufferStorage(_buffersIndex(BufferIndexType::eIndicated), n * sizeof(uint), zeroes.data(), 0);
@@ -343,7 +362,7 @@ namespace dh::util {
     {
       glNamedBufferStorage(indicesBuffer, count * sizeof(uint), nullptr, 0);
 
-      auto& program = _programs(ProgramType::eIndexIntComp);
+      auto& program = _programs(ProgramType::eGetIndicesIntComp);
       program.bind();
 
       // Set uniforms
@@ -363,7 +382,7 @@ namespace dh::util {
   }
 
   void BufferTools::subsample(GLuint& bufferToSubsample, uint n, uint every, uint outOf, GLuint bufferSubsampled) {
-    auto& program = _programs(ProgramType::eSubsample_Uint);
+    auto& program = _programs(ProgramType::eSubsampleUint);
     program.bind();
 
     // Set uniforms

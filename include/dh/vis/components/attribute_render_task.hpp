@@ -90,6 +90,13 @@ namespace dh::vis {
       Length
     };
 
+    enum class BufferTempType {
+      eDatasetSelection,
+      eIndicesSelection,
+
+      Length
+    };
+
     enum TabUpperType {
       eSelectionPrimary,
       eSelectionSecondary,
@@ -182,11 +189,13 @@ namespace dh::vis {
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
     int _archetypeClassSelected;
+    std::vector<uint> _indicesArchetypeSuggestions;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
     sne::SimilaritiesBuffers _similaritiesBuffers;
     util::EnumArray<BufferType, GLuint> _buffers;
+    util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<TabType, GLuint> _buffersTextureData;
     std::vector<GLuint> _buffersTextureDataArchetypes;
     std::vector<GLuint> _buffersTextureDataArchetypeSuggestions;
@@ -242,7 +251,9 @@ namespace dh::vis {
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._archetypeClasses, b._archetypeClasses);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
+      swap(a._indicesArchetypeSuggestions, b._indicesArchetypeSuggestions);
       swap(a._buffers, b._buffers);
+      swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);
       swap(a._textures, b._textures);

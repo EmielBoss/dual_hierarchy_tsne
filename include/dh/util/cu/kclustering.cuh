@@ -26,14 +26,12 @@
 
 #include "dh/types.hpp"
 #include "dh/util/enum.hpp"
-#include "dh/util/cu/interop.cuh"
 
 namespace dh::util {
   class KClustering {
   public:
     KClustering();
-    KClustering(const float* dataPtr, uint n, uint d);
-    // KMeans(GLuint datasetBuffer, uint n, uint d);  // Faiss' kMeans doesn't take GPU buffers :(
+    KClustering(uint n, uint d, GLuint dataBufferHandle, GLuint indicesBufferHandle = 0);
     ~KClustering();
 
     // Copy constr/assignment is explicitly deleted (no copying handles)
@@ -44,35 +42,35 @@ namespace dh::util {
     KClustering(KClustering&&) noexcept;
     KClustering& operator=(KClustering&&) noexcept;
 
+    // Get buffer handles
+    GLuint getDataBufferHandle() const { return _buffers(BufferType::eDatasetOut); }
+    GLuint getIndicesBufferHandle() const { return _buffers(BufferType::eIndicesOut); }
+
     // Perform k-means/k-medoids computation, storing results in provided buffers
     void comp(uint nCentroids, bool medoids = false);
 
     bool isInit() const { return _isInit; }
-    GLuint getResultsBuffer() const { return _bufferResults; }
 
   private:
     enum class BufferType {
-      eDataset,
+      eDatasetIn,
+      eIndicesIn,
+      eDatasetOut,
+      eIndicesOut,
 
       Length
     };
 
-    enum class BufferMedoidsType {
-      eDataset,
+    enum class BufferTempType {
       eDistances,
-      eIndices,
-      eIndicated,
-      eThisNeedsToBeHereToAvoidACompileErrorForSomeReason,
 
       Length
     };
 
     bool _isInit;
     uint _n, _d;
-    const float* _dataPtr;
-    GLuint _bufferResults;
-    EnumArray<BufferMedoidsType, GLuint> _buffersMedoids;
-    EnumArray<BufferType, CUGLInteropBuffer> _interopBuffers;
+    EnumArray<BufferType, GLuint> _buffers;
+    EnumArray<BufferTempType, GLuint> _buffersTemp;
 
   public:
     // std::swap impl
@@ -81,9 +79,8 @@ namespace dh::util {
       swap(a._isInit, b._isInit);
       swap(a._n, b._n);
       swap(a._d, b._d);
-      swap(a._dataPtr, b._dataPtr);
-      swap(a._bufferResults, b._bufferResults);
-      swap(a._interopBuffers, b._interopBuffers);
+      swap(a._buffers, b._buffers);
+      swap(a._buffersTemp, b._buffersTemp);
     }
   };
 } // dh::util
