@@ -390,7 +390,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::updateSuggestions() {
     uint nSuggestionsNew = std::pow(2, _suggestionLevel);
-    uint nSuggestionsPrev = nSuggestionsNew - 2;
+    uint nSuggestionsPrev = _indicesArchetypeSuggestions.size();
 
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, _buffersTemp(BufferTempType::eDatasetSelection));
@@ -426,8 +426,23 @@ namespace dh::vis {
     dh::util::BufferTools::instance().index(indicesOutHandle, _buffersTemp(BufferTempType::eIndicesSelection), nSuggestionsNew);
     std::vector<uint> indicesOut(nSuggestionsNew);
     glGetNamedBufferSubData(indicesOutHandle, 0, nSuggestionsNew * sizeof(uint), indicesOut.data());
-    std::cout << std::endl;
     _indicesArchetypeSuggestions.insert(_indicesArchetypeSuggestions.end(), indicesOut.begin(), indicesOut.end());
+
+    // Remove duplicate suggestions
+    for(uint i = nSuggestionsPrev; i < nSuggestionsPrev + nSuggestionsNew; ++i) {
+      for(uint j = 0; j < nSuggestionsPrev; ++j) {
+        if(_indicesArchetypeSuggestions[i] == _indicesArchetypeSuggestions[j]) {
+          glDeleteBuffers(1, &_buffersTextureDataArchetypeSuggestions[i]);
+          glDeleteTextures(1, &_texturesArchetypeSuggestions[i]);
+          _indicesArchetypeSuggestions.erase(_indicesArchetypeSuggestions.begin() + i);
+          _buffersTextureDataArchetypeSuggestions.erase(_buffersTextureDataArchetypeSuggestions.begin() + i);
+          _texturesArchetypeSuggestions.erase(_texturesArchetypeSuggestions.begin() + i);
+          --i;
+          --nSuggestionsNew;
+          break;
+        }
+      }
+    }
 
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
