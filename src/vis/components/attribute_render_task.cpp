@@ -62,6 +62,7 @@ namespace dh::vis {
     _classesSet(),
     _setChanged(false),
     _classButtonPressed(-1),
+    _selectedDatapoint(-1),
     _vizAllPairs(false),
     _denominators(_textures.size(), 0),
     _archetypeClassSelected(0) {
@@ -557,10 +558,14 @@ namespace dh::vis {
     for (uint i = 0; i < nRows; i++) {
       for(uint j = 0; j < nCols; j++) {
         if(i * nCols + j >= nSuggestions || nSuggestions == 0) { break; }
-        if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypeSuggestions[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), 0)) {
-          addArchetype(_archetypeClassSelected, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
-        }
+        ImGui::ImageButton((void*)(intptr_t)_texturesArchetypeSuggestions[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), 0);
         if(ImGui::IsItemHovered()) {
+          if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            addArchetype(_archetypeClassSelected, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
+          } else
+          if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+            _selectedDatapoint = _indicesArchetypeSuggestions[i * nCols + j];
+          }
           ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
           ImGui::BeginTooltip(); ImGui::Text("Datapoint %i", _indicesArchetypeSuggestions[i * nCols + j]); ImGui::EndTooltip();
         }
@@ -630,7 +635,7 @@ namespace dh::vis {
       ImGui::Text(("Averaged over: " + _promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
       ImGui::EndTooltip();
 
-      if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
+      if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) { _draggedTexel = hoveredTexel; }
       else { _draggedTexel = -1; }
 
       if(_input.z) {
@@ -749,7 +754,7 @@ namespace dh::vis {
         ImGui::Text(("Averaged over: " + _promptsDenomtype[_tabIndex] + pairtype).c_str(), _denominators[_tabIndex]);
         ImGui::EndTooltip();
 
-        if(ImGui::IsAnyMouseDown()) { _draggedTexel = hoveredTexel; }
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Left)) { _draggedTexel = hoveredTexel; }
         else { _draggedTexel = -1; }
       } else {
         _draggedTexel = -1;
@@ -936,7 +941,6 @@ namespace dh::vis {
     _classCountsSelected = std::vector<uint>(_params->nClasses, 0);
     _selectionCounts = std::vector<uint>(2, 0);
 
-    clearSuggestions();
     if(_params->imageDataset) { copyTextureDataToTextures(); }
   }
 

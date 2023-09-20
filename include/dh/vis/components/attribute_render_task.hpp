@@ -190,6 +190,7 @@ namespace dh::vis {
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
     int _archetypeClassSelected;
     std::vector<uint> _indicesArchetypeSuggestions;
+    uint _selectedDatapoint;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
@@ -218,6 +219,7 @@ namespace dh::vis {
     std::vector<uint> getArchetypeClasses() { return _archetypeClasses; }
     void setArchetypeClasses(std::vector<uint> archetypeClasses) { _archetypeClasses = archetypeClasses; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
+    uint getSelectedDatapoint() { return _selectedDatapoint; }
     void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
@@ -252,6 +254,7 @@ namespace dh::vis {
       swap(a._archetypeClasses, b._archetypeClasses);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
       swap(a._indicesArchetypeSuggestions, b._indicesArchetypeSuggestions);
+      swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);

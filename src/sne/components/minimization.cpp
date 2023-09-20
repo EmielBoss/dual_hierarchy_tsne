@@ -58,8 +58,8 @@ namespace dh::sne {
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, const float* colorPtr, Params* params)
   : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
-    _selectionCounts(2, 0), _params(params),
-    _selectedDatapointPrev(0), _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
+    _selectionCounts(2, 0), _selectedDatapointPrevSRT(0), _selectedDatapointPrevART(-1), _params(params),
+    _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
     Logger::newt() << prefix << "Initializing...";
 
     // Initialize shader programs
@@ -258,6 +258,13 @@ namespace dh::sne {
   }
 
   template <uint D>
+  void Minimization<D>::selectIndividualDatapoint(uint i) {
+    uint sn = _input.s + 1; // Selection number
+    glNamedBufferSubData(_buffers(BufferType::eSelection), i * sizeof(int), sizeof(int), &sn);
+    compIterationSelect(true);
+  }
+
+  template <uint D>
   void Minimization<D>::stateImport() {
     std::vector<GLuint> archetypeHandles;
     std::vector<uint> archetypeClasses;
@@ -432,14 +439,15 @@ namespace dh::sne {
       compIterationSelect(true);
     }
 
-    // Select individual datapoints if int field input changed
+    // Select individual datapoints if SelectionRenderTask's int field input changed
     uint selectedDatapoint = (uint) _selectionRenderTask->getSelectedDatapoint();
-    if(selectedDatapoint != _selectedDatapointPrev && selectedDatapoint < _params->n) {
-      uint sn = _input.s + 1; // Selection number
-      glNamedBufferSubData(_buffers(BufferType::eSelection), selectedDatapoint * sizeof(int), sizeof(int), &sn);
-      compIterationSelect(true);
-      _selectedDatapointPrev = selectedDatapoint;
-    }
+    if(selectedDatapoint != _selectedDatapointPrevSRT && selectedDatapoint < _params->n) { selectIndividualDatapoint(selectedDatapoint); }
+    _selectedDatapointPrevSRT = selectedDatapoint;
+
+    // Select individual datapoints if AttributeRenderTask's archetype suggestions are clicked
+    selectedDatapoint = _attributeRenderTask->getSelectedDatapoint();
+    if(selectedDatapoint != _selectedDatapointPrevART && selectedDatapoint < _params->n) { selectIndividualDatapoint(selectedDatapoint); }
+    _selectedDatapointPrevART = selectedDatapoint;
 
     if(_embeddingRenderTask->getButtonPressed() == 10) {
       stateImport();

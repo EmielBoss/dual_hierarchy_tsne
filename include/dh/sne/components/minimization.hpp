@@ -71,6 +71,7 @@ namespace dh::sne {
     void deselect();
     void selectAll();
     void selectInverse();
+    void selectIndividualDatapoint(uint i);
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void syncBufferHandles();
@@ -157,7 +158,8 @@ namespace dh::sne {
     bool _selectOnlyLabeled;
     std::vector<uint> _selectionCounts;
     float _selectionRadiusRel;
-    uint _selectedDatapointPrev;
+    uint _selectedDatapointPrevSRT;
+    uint _selectedDatapointPrevART;
     bool _mouseRightPrev;
     glm::vec2 _mousePosClipPrev;
     glm::mat4 _model_view_2D;
@@ -209,7 +211,8 @@ namespace dh::sne {
       swap(a._params, b._params);
       swap(a._similarities, b._similarities);
       swap(a._similaritiesBuffers, b._similaritiesBuffers);
-      swap(a._selectedDatapointPrev, b._selectedDatapointPrev);
+      swap(a._selectedDatapointPrevSRT, b._selectedDatapointPrevSRT);
+      swap(a._selectedDatapointPrevART, b._selectedDatapointPrevART);
       swap(a._selectionCounts, b._selectionCounts);
       swap(a._iteration, b._iteration);
       swap(a._iterationIntense, b._iterationIntense);
