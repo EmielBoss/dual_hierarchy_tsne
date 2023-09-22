@@ -54,7 +54,6 @@ namespace dh::util {
   KClustering::~KClustering() {
     if (_isInit) {
       glDeleteBuffers(_buffers.size(), _buffers.data());
-      glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     }
   }
 
