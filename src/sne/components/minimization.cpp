@@ -415,6 +415,7 @@ namespace dh::sne {
       if(button == 11) { // Add similarities
         _similarities->addSimilarities(_buffers(BufferType::eSelection), _selectionCounts, _selectionRenderTask->getSimilarityWeight());
         syncBufferHandles();
+        compIterationSelect(true);
       }
       if(button == 20) { // Select all
         selectAll();
