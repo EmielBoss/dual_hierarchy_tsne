@@ -63,6 +63,7 @@ namespace dh::vis {
     _setChanged(false),
     _classButtonPressed(-1),
     _selectedDatapoint(-1),
+    _separationMode(false),
     _vizAllPairs(false),
     _denominators(_textures.size(), 0),
     _archetypeClassSelected(0) {
@@ -139,6 +140,7 @@ namespace dh::vis {
 
       // Archetype textures and associates buffers and vectors
       _archetypeClasses = std::vector<uint>();
+      _archetypeIndices = std::vector<uint>();
       _buffersTextureDataArchetypes = std::vector<GLuint>();
       _buffersTextureDataArchetypeSuggestions = std::vector<GLuint>();
       _texturesArchetypes = std::vector<GLuint>(_params->nArchetypeClasses);
@@ -364,7 +366,7 @@ namespace dh::vis {
     }
   }
 
-  void AttributeRenderTask::addArchetype(uint archetypeClass, GLuint bufferArchetypeData) {
+  void AttributeRenderTask::addArchetype(uint archetypeClass, uint archetypeIndex, GLuint bufferArchetypeData) {
     GLuint archetypeDataHandle;
     glCreateBuffers(1, &archetypeDataHandle);
     glNamedBufferStorage(archetypeDataHandle, _params->nHighDims * sizeof(float), nullptr, 0);
@@ -373,6 +375,7 @@ namespace dh::vis {
 
     _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
     _archetypeClasses.push_back(archetypeClass);
+    _archetypeIndices.push_back(archetypeIndex);
     glAssert();
 
     if(_params->imageDataset) { copyTextureDataToTextures(); }
@@ -382,6 +385,7 @@ namespace dh::vis {
     glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
     _buffersTextureDataArchetypes.clear();
     _archetypeClasses.clear();
+    _archetypeIndices.clear();
 
     for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
       GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
@@ -559,15 +563,16 @@ namespace dh::vis {
       for(uint j = 0; j < nCols; j++) {
         if(i * nCols + j >= nSuggestions || nSuggestions == 0) { break; }
         ImGui::ImageButton((void*)(intptr_t)_texturesArchetypeSuggestions[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), 0);
+        uint datapointIndex = _indicesArchetypeSuggestions[i * nCols + j];
         if(ImGui::IsItemHovered()) {
-          if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            addArchetype(_archetypeClassSelected, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
+          if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            addArchetype(_archetypeClassSelected, datapointIndex, _buffersTextureDataArchetypeSuggestions[i * nCols + j]);
           } else
           if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-            _selectedDatapoint = _indicesArchetypeSuggestions[i * nCols + j];
+            _selectedDatapoint = datapointIndex;
           }
           ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-          ImGui::BeginTooltip(); ImGui::Text("Datapoint %i", _indicesArchetypeSuggestions[i * nCols + j]); ImGui::EndTooltip();
+          ImGui::BeginTooltip(); ImGui::Text("Datapoint %i\nClass %i", datapointIndex, getBufferValue<int>(_minimizationBuffers.labels, datapointIndex)); ImGui::EndTooltip();
         }
         if(j < nCols - 1) { ImGui::SameLine(); }
       }
@@ -607,9 +612,10 @@ namespace dh::vis {
   }
 
   // Gets a specified location in a specified buffer
-  float AttributeRenderTask::getBufferValue(GLuint buffer, int index) {
-    float value;
-    glGetNamedBufferSubData(buffer, index * sizeof(float), sizeof(float), &value);
+  template <typename T>
+  T AttributeRenderTask::getBufferValue(GLuint buffer, int index) {
+    T value;
+    glGetNamedBufferSubData(buffer, index * sizeof(T), sizeof(T), &value);
     return value;
   }
 
@@ -625,8 +631,8 @@ namespace dh::vis {
 
       ImGui::BeginTooltip();
       ImGui::Text("Attribute: #%d", hoveredTexel);
-      ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-      float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
+      ImGui::Text("Weight: %0.2f", getBufferValue<float>(_similaritiesBuffers.attributeWeights, hoveredTexel));
+      float texelValue = getBufferValue<float>(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
       ImGui::Text(_promptsValuetype[_tabIndex].c_str(), texelValue);
       std::string pairtype = "";
       if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
@@ -677,11 +683,16 @@ namespace dh::vis {
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Recalculates similarities of the selected datapoints by comparing."); ImGui::EndTooltip(); }
     if(ImGui::SameLine(); ImGui::Button("Reset")) { _buttonPressed = 3; }
     if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Reinstates the original similarities calculated from the dataset."); ImGui::EndTooltip(); }
+    if(!_separationMode) {
+      if(ImGui::SameLine(); ImGui::Button("Start")) { _buttonPressed = 1000; _separationMode = true; }
+    } else {
+      if(ImGui::SameLine(); ImGui::Button("Stop")) { _buttonPressed = 1001; _separationMode = false; }
+    }
 
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
       if(ImGui::ImageButton((void*)(intptr_t)_texturesArchetypes[ac], ImVec2(28, 28), ImVec2(0,0), ImVec2(1,1), 0)) {
-        addArchetype(ac);
+        addArchetype(ac, -1);
       }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
@@ -744,8 +755,8 @@ namespace dh::vis {
 
         ImGui::BeginTooltip();
         ImGui::Text("Attribute: #%d", hoveredTexel);
-        ImGui::Text("Weight: %0.2f", getBufferValue(_similaritiesBuffers.attributeWeights, hoveredTexel));
-        float texelValue = getBufferValue(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
+        ImGui::Text("Weight: %0.2f", getBufferValue<float>(_similaritiesBuffers.attributeWeights, hoveredTexel));
+        float texelValue = getBufferValue<float>(_buffersTextureData[_tabIndex], hoveredTexel * _params->imgDepth);
         ImGui::Text(_promptsValuetype[_tabIndex].c_str(), texelValue);
         std::string pairtype = "";
         if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
@@ -799,7 +810,7 @@ namespace dh::vis {
     ImGui::Dummy(ImVec2(193.0f, 13.0f)); ImGui::SameLine();
     for(int ac = 0; ac < _params->nArchetypeClasses; ++ac) { // Archetype classes, or buttons, since each archetype class has one button
       if(ImGui::Button(buttons[ac])) {
-        addArchetype(ac);
+        addArchetype(ac, -1);
       }
       if(ImGui::IsItemHovered()) {
         ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();

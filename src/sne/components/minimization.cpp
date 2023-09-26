@@ -57,7 +57,7 @@ namespace dh::sne {
 
   template <uint D>
   Minimization<D>::Minimization(Similarities* similarities, const float* dataPtr, const int* labelPtr, const float* colorPtr, Params* params)
-  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()),
+  : _isInit(false), _loggedNewline(false), _similarities(similarities), _similaritiesBuffers(similarities->getBuffers()), _separationMode(false),
     _selectionCounts(2, 0), _selectedDatapointPrevSRT(0), _selectedDatapointPrevART(-1), _params(params),
     _iteration(0), _iterationIntense(1000), _removeExaggerationIter(_params->nExaggerationIters), __assessed(false) {
     Logger::newt() << prefix << "Initializing...";
@@ -125,6 +125,7 @@ namespace dh::sne {
       glNamedBufferStorage(_buffers(BufferType::eFixed), _params->n * sizeof(int), falses.data(), 0); // Indicates whether datapoints are fixed
       glNamedBufferStorage(_buffers(BufferType::eTranslating), _params->n * sizeof(int), falses.data(), 0); // Indicates whether datapoints are being translated
       glNamedBufferStorage(_buffers(BufferType::eWeights), _params->n * sizeof(float), ones.data(), 0); // The attractive force multiplier per datapoint
+      glNamedBufferStorage(_buffers(BufferType::eArchetypes), _params->n * sizeof(int), falses.data(), GL_DYNAMIC_STORAGE_BIT); // Indicates archetype and archetype class per datapoint (0 = no archetype)
       glAssert();
     }
 
@@ -294,6 +295,35 @@ namespace dh::sne {
   }
 
   template <uint D>
+  void Minimization<D>::separationModeStart() {
+    std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
+    std::vector<uint> archetypeClasses = _attributeRenderTask->getArchetypeClasses();
+    
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 0, _buffers(BufferType::eSelection));
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
+    deselect();
+    for(uint i = 0; i < archetypeIndices.size(); ++i) {
+      uint archetypeIndex = archetypeIndices[i];
+       int archetypeClass = archetypeClasses[i] + 1;
+      selectIndividualDatapoint(archetypeIndex);
+      glNamedBufferSubData(_buffers(BufferType::eArchetypes), archetypeIndex * sizeof(int), sizeof(int), &archetypeClass);
+    }
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 0, 1, _buffers(BufferType::eSelection));
+    _separationMode = true;
+  }
+
+  template <uint D>
+  void Minimization<D>::separationModeStop() {
+    glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+    glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+    glClearNamedBufferData(_buffers(BufferType::eArchetypes), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+    float forceWeight = std::max(_embeddingRenderTask->getForceWeight() / _selectionCounts[0], 1.f);
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 1, _buffers(BufferType::eSelection));
+    dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight * 2, 1, _buffers(BufferType::eSelection));
+    _separationMode = false;
+  }
+
+  template <uint D>
   void Minimization<D>::comp() {
     while (_iteration < _params->iterations) {
       compIteration();
@@ -409,6 +439,12 @@ namespace dh::sne {
       }
       if(button == 3) { // Reset similarities
         _similarities->reset();
+      }
+      if(button == 1000) { // Seperation mode start
+        separationModeStart();
+      }
+      if(button == 1001) { // Seperation mode stop
+        separationModeStop();
       }
     }
     _buttonAttributePrev = button;
@@ -565,10 +601,11 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffers(BufferType::eDisabled));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffers(BufferType::eWeights));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.similarities); // Corresponding similarities
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eAttractive));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::eArchetypes));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _similaritiesBuffers.layout);  // n structs of two uints; the first is the offset into _similaritiesBuffers.neighbors where its kNN set starts, the second is the size of its kNN set
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _similaritiesBuffers.neighbors); // Each i's expanded neighbor set starts at eLayout[i].offset and contains eLayout[i].size neighbors, no longer including itself
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _similaritiesBuffers.similarities); // Corresponding similarities
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eAttractive));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params->n, 256u / 32u), 1, 1); // One warp/subgroup per datapoint

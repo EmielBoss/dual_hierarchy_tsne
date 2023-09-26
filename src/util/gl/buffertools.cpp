@@ -53,6 +53,7 @@ namespace dh::util {
       _programs(ProgramType::eRemoveIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/remove_int.comp"));
 
       _programs(ProgramType::eSetIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/set_int.comp"));
+      _programs(ProgramType::eSetFloatComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/set_float.comp"));
 
       _programs(ProgramType::eFlipIntComp).addShader(util::GLShaderType::eCompute, rsrc::get("util/flip_int.comp"));
 
@@ -219,13 +220,13 @@ namespace dh::util {
   }
 
   template <typename T>
-  void BufferTools::set(GLuint& bufferToSet, uint n, T setVal, T maskVal, GLuint maskBuffer) {
-    auto& program = _programs(ProgramType::eSetIntComp);
+  void BufferTools::set(GLuint& bufferToSet, uint n, T setVal, int maskVal, GLuint maskBuffer) {
+    dh::util::GLProgram& program = std::is_same<T, float>::value ? _programs(ProgramType::eSetFloatComp) : _programs(ProgramType::eSetIntComp);
     program.bind();
 
     // Set uniform
     program.template uniform<uint>("nPoints", n);
-    program.template uniform<T>("maskVal", maskVal);
+    program.template uniform<int>("maskVal", maskVal);
     program.template uniform<T>("setVal", setVal);
 
     // Set buffer bindings
@@ -412,6 +413,7 @@ namespace dh::util {
   template uint BufferTools::remove<int>(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage);
 
   template void BufferTools::set<int>(GLuint& bufferToSet, uint n, int setVal, int maskVal, GLuint maskBuffer);
+  template void BufferTools::set<float>(GLuint& bufferToSet, uint n, float setVal, int maskVal, GLuint maskBuffer);
 
   template void BufferTools::flip<int>(GLuint& bufferToFlip, uint n);
 }

@@ -58,7 +58,7 @@ namespace dh::vis {
     void drawImGuiTexture();
     void drawImPlotBarPlot();
 
-    float getBufferValue(GLuint buffer, int index);
+    template <typename T> T getBufferValue(GLuint buffer, int index);
     void setOverlayTexel(int texelIndex, std::vector<float> color = {1.f, 1.f, 1.f, 1.f});
     void mirrorWeightsToOverlay();
     void brushTexels(uint centerTexelIndex, int radius, float weight);
@@ -76,7 +76,7 @@ namespace dh::vis {
     void clearSelection();
     void clearSuggestions();
     void copyTextureDataToTextures();
-    void addArchetype(uint archetypeClass, GLuint bufferArchetypeData = 0);
+    void addArchetype(uint archetypeClass, uint archetypeIndex, GLuint bufferArchetypeData = 0);
     void eraseArchetypes();
     void updateSuggestions();
     void assess(uint symmetricSize);
@@ -188,9 +188,11 @@ namespace dh::vis {
     uint _suggestionLevel;
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
+    std::vector<uint> _archetypeIndices; // Same order as _buffersTextureDataArchetypes
     int _archetypeClassSelected;
     std::vector<uint> _indicesArchetypeSuggestions;
     uint _selectedDatapoint;
+    bool _separationMode;
 
     // Objects
     sne::MinimizationBuffers _minimizationBuffers;
@@ -217,6 +219,7 @@ namespace dh::vis {
     void setInput(dh::vis::Input input) { _input = input; }
     int getClassButtonPressed() { return _classButtonPressed; }
     std::vector<uint> getArchetypeClasses() { return _archetypeClasses; }
+    std::vector<uint> getArchetypeIndices() { return _archetypeIndices; }
     void setArchetypeClasses(std::vector<uint> archetypeClasses) { _archetypeClasses = archetypeClasses; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
     uint getSelectedDatapoint() { return _selectedDatapoint; }
@@ -252,9 +255,11 @@ namespace dh::vis {
       swap(a._suggestionLevel, b._suggestionLevel);
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._archetypeClasses, b._archetypeClasses);
+      swap(a._archetypeIndices, b._archetypeIndices);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
       swap(a._indicesArchetypeSuggestions, b._indicesArchetypeSuggestions);
       swap(a._selectedDatapoint, b._selectedDatapoint);
+      swap(a._separationMode, b._separationMode);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);

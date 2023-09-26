@@ -75,6 +75,8 @@ namespace dh::sne {
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void syncBufferHandles();
+    void separationModeStart();
+    void separationModeStop();
     void stateImport();
     void stateExport();
 
@@ -110,6 +112,7 @@ namespace dh::sne {
       eEmbeddingRelative,
       eEmbeddingRelativeBeforeTranslation,
       eDisabled,
+      eArchetypes,
 
       Length
     };
@@ -168,6 +171,7 @@ namespace dh::sne {
     glm::mat4 _proj_3D;
     uint _buttonSelectionPrev;
     uint _buttonAttributePrev;
+    bool _separationMode;
     bool __assessed;
 
     // Objects
@@ -217,6 +221,7 @@ namespace dh::sne {
       swap(a._iteration, b._iteration);
       swap(a._iterationIntense, b._iterationIntense);
       swap(a._removeExaggerationIter, b._removeExaggerationIter);
+      swap(a._separationMode, b._separationMode);
       swap(a._buffers, b._buffers);
       swap(a._programs, b._programs);
       swap(a._timers, b._timers);

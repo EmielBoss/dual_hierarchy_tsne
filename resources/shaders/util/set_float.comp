@@ -22,16 +22,20 @@
  * SOFTWARE.
  */
 
-#pragma once
+#version 460 core
 
-#include <string>
-#include <vector>
-#include "dh/types.hpp"
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-namespace dh::util {
+layout(binding = 0, std430) restrict readonly buffer Mask { int mask[]; };
+layout(binding = 1, std430) restrict writeonly buffer BufferToSet { float bufferToSet[]; };
 
-  void indicateLabeled(const int* labelPtr, uint n, uint nClasses, uint nLabeledPerClass, GLuint bufferLabeled);
-  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeClasses);
-  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses);
+layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform int maskVal;
+layout(location = 2) uniform float setVal;
 
-} // dh::util
+void main() {
+  uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+  if (i >= nPoints) { return; }
+
+  if(mask[i] == maskVal) { bufferToSet[i] = setVal; }
+}
