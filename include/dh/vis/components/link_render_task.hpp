@@ -56,6 +56,7 @@ namespace dh::vis {
     void createVAO();
     void updateLinks();
     void clearLinks();
+    void setSecondarySelectionCount(uint count) { _secondarySelectionCount = count; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
       _minimizationBuffers = minimizationBuffers;
@@ -99,9 +100,12 @@ namespace dh::vis {
     dh::vis::Input _input;
     uint _nLinks;
     bool _enabledPrev;
+    uint _secondarySelectionCount;
 
     // ImGui state
     float _linkOpacity;
+    bool _interOnly;
+    bool _interOnlyPrev;
     bool _vizSimilarities;
     uint _colorMapping;
 
@@ -127,7 +131,10 @@ namespace dh::vis {
       swap(a._input, b._input);
       swap(a._nLinks, b._nLinks);
       swap(a._enabledPrev, b._enabledPrev);
+      swap(a._secondarySelectionCount, b._secondarySelectionCount);
       swap(a._linkOpacity, b._linkOpacity);
+      swap(a._interOnly, b._interOnly);
+      swap(a._interOnlyPrev, b._interOnlyPrev);
       swap(a._vizSimilarities, b._vizSimilarities);
       swap(a._colorMapping, b._colorMapping);
       swap(a._buffers, b._buffers);

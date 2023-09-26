@@ -53,6 +53,7 @@ namespace dh::vis {
     _similaritiesBuffers(similaritiesBuffers),
     _params(params),
     _linkOpacity(1.f),
+    _interOnly(true),
     _vizSimilarities(true),
     _colorMapping(1),
     _nLinks(6) {
@@ -150,6 +151,7 @@ namespace dh::vis {
       
       // Set uniforms
       program.template uniform<uint>("nPoints", _params->n);
+      program.template uniform<bool>("inter", _interOnly && _secondarySelectionCount > 0);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
@@ -184,8 +186,9 @@ namespace dh::vis {
   // index into the vec2 positions and float link opacities
   template <uint D>
   void LinkRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
-    if (enabled && !_enabledPrev) { updateLinks(); }
+    if (enabled && !_enabledPrev || _interOnly != _interOnlyPrev) { updateLinks(); }
     _enabledPrev = enabled;
+    _interOnlyPrev = _interOnly;
     if (!enabled) { return; }
     
     _programs(ProgramType::eRender).bind();
@@ -210,6 +213,7 @@ namespace dh::vis {
   template <uint D>
   void LinkRenderTask<D>::drawImGuiComponent() {
     ImGui::SliderFloat("Line opacity", &_linkOpacity, 0.0f, 2.0f);
+    ImGui::Checkbox("Interlinks only", &_interOnly);
     ImGui::Checkbox("Visualize similarity", &_vizSimilarities);
     if(_vizSimilarities) {
       ImGui::SameLine();

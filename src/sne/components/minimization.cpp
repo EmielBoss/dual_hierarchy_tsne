@@ -836,6 +836,7 @@ namespace dh::sne {
     }
 
     _attributeRenderTask->updateVisualizations(_selectionCounts);
+    _linkRenderTask->setSecondarySelectionCount(_selectionCounts[1]);
     _linkRenderTask->updateLinks();
   }
 
