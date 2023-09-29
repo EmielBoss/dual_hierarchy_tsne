@@ -39,5 +39,5 @@ void main() {
 
   if (i >= n) { return; }
 
-  indicated[i] = int(bufferToIndicate[i] == value);
+  indicated[i] = int(value >= 0 ? bufferToIndicate[i] == value : bufferToIndicate[i] > 0);
 }

@@ -405,7 +405,7 @@ namespace dh::vis {
     glNamedBufferStorage(_buffersTemp(BufferTempType::eIndicesSelection), _params->n * sizeof(int), indices.data(), 0);
     dh::util::BufferTools::instance().remove<int>(_buffersTemp(BufferTempType::eIndicesSelection), _params->n, 1, _minimizationBuffers.selection);
 
-    util::KClustering kClustering(_selectionCounts[0], _params->nHighDims, _buffersTemp(BufferTempType::eDatasetSelection));
+    util::KClustering kClustering(_selectionCounts[0] + _selectionCounts[1], _params->nHighDims, _buffersTemp(BufferTempType::eDatasetSelection));
     kClustering.comp(nSuggestionsNew, true);
 
     _buffersTextureDataArchetypeSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
@@ -555,7 +555,7 @@ namespace dh::vis {
     uint childHeightMax = 400;
     uint imageWidth = (childWidth - 20) / nCols;
     uint imageHeight = imageWidth * (_params->imgHeight / _params->imgWidth);
-    uint childHeight = std::min(imageHeight * nRows, childHeightMax);
+    uint childHeight = std::min(imageHeight * nRows + 10, childHeightMax);
 
     ImVec2 defaultSpacing = ImGui::GetStyle().ItemSpacing;
     ImGui::GetStyle().ItemSpacing = ImVec2(0, 0);

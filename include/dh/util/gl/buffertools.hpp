@@ -39,7 +39,7 @@ namespace dh::util {
     Length
   };
 
-  enum class BufferIndexType {
+  enum class BufferCountNScanType {
     eIndicated,
     eScanned,
 
@@ -109,6 +109,7 @@ namespace dh::util {
       void operate(uint operationType, GLuint& buffer1, GLuint& buffer2, uint n, GLuint bufferDifference = 0); // Difference: operationType == 0 | Division: operationType == 1
       void averageTexturedata(GLuint bufferToAverage, uint n, uint d, uint imgDepth, GLuint maskBuffer, uint maskCount, GLuint bufferAveraged, int maskValue = -1, int maskClass = -1, GLuint subtractorBuffer = 0, bool calcVariance = false, GLuint labelsBuffer = 0);
       void index(GLuint& bufferIndices, GLuint& bufferToIndex, uint n);
+      void indicate(GLuint& bufferToIndicate, GLuint bufferIndicated, uint n, uint value = -1);
       void getIndices(GLuint& buffer, uint n, uint value, GLuint indicesBuffer);
       void subsample(GLuint& buffer, uint n, uint every, uint outOf, GLuint subsampledBuffer);
 
@@ -125,6 +126,6 @@ namespace dh::util {
       // Objects
       util::EnumArray<ProgramType, util::GLProgram> _programs;
       util::EnumArray<BufferReduceType, GLuint> _buffersReduce;
-      util::EnumArray<BufferIndexType, GLuint> _buffersIndex;
+      util::EnumArray<BufferCountNScanType, GLuint> _buffersCountNScan;
   };
 } // dh::util

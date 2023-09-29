@@ -176,16 +176,20 @@ namespace dh::util {
 
   template <typename T>
   uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage) {
-    GLuint bufferCumSum;
-    glCreateBuffers(1, &bufferCumSum);
-    glNamedBufferStorage(bufferCumSum, n * sizeof(uint), nullptr, 0);
+    glCreateBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
+    glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eIndicated), n * sizeof(uint), nullptr, 0);
+    glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eScanned), n * sizeof(uint), nullptr, 0);
+
+    indicate(selectionBuffer, _buffersCountNScan(BufferCountNScanType::eIndicated), n);
 
     uint nNew;
-    util::Scan(selectionBuffer, bufferCumSum, n).comp();
-    glGetNamedBufferSubData(bufferCumSum, (n - 1) * sizeof(uint), sizeof(uint), &nNew);
+    {
+      util::Scan(_buffersCountNScan(BufferCountNScanType::eIndicated), _buffersCountNScan(BufferCountNScanType::eScanned), n).comp();
+      glGetNamedBufferSubData(_buffersCountNScan(BufferCountNScanType::eScanned), (n - 1) * sizeof(uint), sizeof(uint), &nNew); // Copy the last element of the eScanned buffer (which is the total size) to host
+    }
 
     if(nNew == 0) {
-      glDeleteBuffers(1, &bufferCumSum);
+      glDeleteBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
       return n;
     }
 
@@ -202,7 +206,7 @@ namespace dh::util {
     // Set buffer bindings
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToRemove);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, selectionBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bufferCumSum);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersCountNScan(BufferCountNScanType::eScanned));
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufferRemoved);
 
     // Dispatch shader
@@ -214,7 +218,7 @@ namespace dh::util {
       glDeleteBuffers(1, &bufferRemoved);
     }
 
-    glDeleteBuffers(1, &bufferCumSum);
+    glDeleteBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
     glAssert();
     return nNew;
   }
@@ -330,34 +334,35 @@ namespace dh::util {
     glAssert();
   }
 
+  void BufferTools::indicate(GLuint& bufferToIndicate, GLuint bufferIndicated, uint n, uint value) {
+    auto& program = _programs(ProgramType::eIndicateIntComp);
+    program.bind();
+
+    // Set uniforms
+    program.template uniform<uint>("n", n);
+    program.template uniform<int>("value", value);
+
+    // Set buffer bindings
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bufferToIndicate);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bufferIndicated);
+    glAssert();
+
+    glDispatchCompute(ceilDiv(n, 256u), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    glAssert();
+  }
+
   void BufferTools::getIndices(GLuint& buffer, uint n, uint value, GLuint indicesBuffer) {
-    glCreateBuffers(_buffersIndex.size(), _buffersIndex.data());
-    std::vector<uint> zeroes(n, 0);
-    glNamedBufferStorage(_buffersIndex(BufferIndexType::eIndicated), n * sizeof(uint), zeroes.data(), 0);
-    glNamedBufferStorage(_buffersIndex(BufferIndexType::eScanned), n * sizeof(uint), nullptr, 0);
+    glCreateBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
+    glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eIndicated), n * sizeof(uint), nullptr, 0);
+    glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eScanned), n * sizeof(uint), nullptr, 0);
 
-    {
-      auto& program = _programs(ProgramType::eIndicateIntComp);
-      program.bind();
-
-      // Set uniforms
-      program.template uniform<uint>("n", n);
-      program.template uniform<int>("value", value);
-
-      // Set buffer bindings
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersIndex(BufferIndexType::eIndicated));
-      glAssert();
-
-      glDispatchCompute(ceilDiv(n, 256u), 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-      glAssert();
-    }
+    indicate(buffer, _buffersCountNScan(BufferCountNScanType::eIndicated), n, value);
 
     uint count;
     {
-      util::Scan(_buffersIndex(BufferIndexType::eIndicated), _buffersIndex(BufferIndexType::eScanned), n).comp();
-      glGetNamedBufferSubData(_buffersIndex(BufferIndexType::eScanned), (n - 1) * sizeof(uint), sizeof(uint), &count); // Copy the last element of the eScanned buffer (which is the total size) to host
+      util::Scan(_buffersCountNScan(BufferCountNScanType::eIndicated), _buffersCountNScan(BufferCountNScanType::eScanned), n).comp();
+      glGetNamedBufferSubData(_buffersCountNScan(BufferCountNScanType::eScanned), (n - 1) * sizeof(uint), sizeof(uint), &count); // Copy the last element of the eScanned buffer (which is the total size) to host
     }
 
     {
@@ -372,7 +377,7 @@ namespace dh::util {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersIndex(BufferIndexType::eScanned));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersCountNScan(BufferCountNScanType::eScanned));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, indicesBuffer);
       glAssert();
 
