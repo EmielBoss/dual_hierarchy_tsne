@@ -212,21 +212,23 @@ namespace dh::vis {
 
   template <uint D>
   void LinkRenderTask<D>::drawImGuiComponent() {
-    ImGui::SliderFloat("Line opacity", &_linkOpacity, 0.0f, 2.0f);
-    ImGui::Checkbox("Interlinks only", &_interOnly);
-    ImGui::Checkbox("Visualize similarity", &_vizSimilarities);
-    if(_vizSimilarities) {
-      ImGui::SameLine();
-      ImGui::Text("as");
-      ImGui::SameLine();
-      if (ImGui::RadioButton("red/blue", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("opacity", _colorMapping==ColorMapping::opacity)) { _colorMapping = ColorMapping::opacity; }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("both", _colorMapping==ColorMapping::both)) { _colorMapping = ColorMapping::both; }
-    }
-    else {
-      _colorMapping = ColorMapping::none;
+    if (ImGui::CollapsingHeader("Link render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::SliderFloat("Line opacity", &_linkOpacity, 0.0f, 2.0f);
+      ImGui::Checkbox("Interlinks only", &_interOnly);
+      ImGui::Checkbox("Visualize similarity", &_vizSimilarities);
+      if(_vizSimilarities) {
+        ImGui::SameLine();
+        ImGui::Text("as");
+        ImGui::SameLine();
+        if (ImGui::RadioButton("red/blue", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("opacity", _colorMapping==ColorMapping::opacity)) { _colorMapping = ColorMapping::opacity; }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("both", _colorMapping==ColorMapping::both)) { _colorMapping = ColorMapping::both; }
+      }
+      else {
+        _colorMapping = ColorMapping::none;
+      }
     }
   }
 

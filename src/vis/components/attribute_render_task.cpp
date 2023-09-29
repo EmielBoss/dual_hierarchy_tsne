@@ -465,9 +465,9 @@ namespace dh::vis {
     _buttonPressed = 0;
     int tabUpper = -1;
     if (ImGui::CollapsingHeader("Attribute render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-      if (ImGui::BeginTabBar("Selection tabs")) {
+      if (ImGui::BeginTabBar("Upper tabs")) {
 
-        if (ImGui::BeginTabItem(_selectionCounts[1] > 0 ? "Selection pri" : "Selection")) {
+        if (ImGui::BeginTabItem("Selection pri")) {
           tabUpper = TabUpperType::eSelectionPrimary;
           ImGui::EndTabItem();
         }
@@ -501,7 +501,7 @@ namespace dh::vis {
 
       _draggedTexel = -1;
 
-      if (ImGui::BeginTabBar("Selection attributes type tabs")) {
+      if (tabUpper < TabUpperType::eSuggestions && ImGui::BeginTabBar("Lower tabs")) {
         if(tabUpper == TabUpperType::eSelectionPrimary) {
           drawImGuiTab(TabType::eAveragePrimary, "Average");
           drawImGuiTab(TabType::eVariancePrimary, "Variance");
@@ -524,12 +524,13 @@ namespace dh::vis {
             drawImGuiTab(TabType::ePairwiseDiffsInterselection, "Interselection");
             drawImGuiTab(TabType::ePairwiseDiffsIntraselection, "Intraselection");
           }
-        } else
-        if(tabUpper == TabUpperType::eSuggestions) {
-          _tabIndex = -1;
-          drawImGuiSuggestor();
         }
         ImGui::EndTabBar();
+      }
+
+      if(tabUpper == TabUpperType::eSuggestions) {
+        _tabIndex = -1;
+        drawImGuiSuggestor();
       }
     }
 
@@ -551,9 +552,10 @@ namespace dh::vis {
     uint nCols = 6;
     uint nRows = nSuggestions / nCols + 1;
     uint childWidth = 400;
-    uint childHeight = 400;
+    uint childHeightMax = 400;
     uint imageWidth = (childWidth - 20) / nCols;
     uint imageHeight = imageWidth * (_params->imgHeight / _params->imgWidth);
+    uint childHeight = std::min(imageHeight * nRows, childHeightMax);
 
     ImVec2 defaultSpacing = ImGui::GetStyle().ItemSpacing;
     ImGui::GetStyle().ItemSpacing = ImVec2(0, 0);
