@@ -176,7 +176,8 @@ namespace dh::util {
 
   template <typename T>
   uint BufferTools::remove(GLuint& bufferToRemove, uint n, uint d, GLuint selectionBuffer, GLuint bufferRemoved, bool dynamicStorage) {
-    glCreateBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
+    glCreateBuffers(1, &_buffersCountNScan(BufferCountNScanType::eIndicated));
+    glCreateBuffers(1, &_buffersCountNScan(BufferCountNScanType::eScanned));
     glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eIndicated), n * sizeof(uint), nullptr, 0);
     glNamedBufferStorage(_buffersCountNScan(BufferCountNScanType::eScanned), n * sizeof(uint), nullptr, 0);
 
@@ -189,7 +190,8 @@ namespace dh::util {
     }
 
     if(nNew == 0) {
-      glDeleteBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
+      glDeleteBuffers(1, &_buffersCountNScan(BufferCountNScanType::eIndicated));
+      glDeleteBuffers(1, &_buffersCountNScan(BufferCountNScanType::eScanned));
       return n;
     }
 
@@ -218,7 +220,8 @@ namespace dh::util {
       glDeleteBuffers(1, &bufferRemoved);
     }
 
-    glDeleteBuffers(_buffersCountNScan.size(), _buffersCountNScan.data());
+    glDeleteBuffers(1, &_buffersCountNScan(BufferCountNScanType::eIndicated));
+    glDeleteBuffers(1, &_buffersCountNScan(BufferCountNScanType::eScanned));
     glAssert();
     return nNew;
   }
