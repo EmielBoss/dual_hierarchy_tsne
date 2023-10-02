@@ -139,7 +139,7 @@ namespace dh::vis {
       glTextureStorage2D(_textures(TabType::eOverlay), 1, GL_RGBA8, _params->imgWidth, _params->imgHeight);
 
       // Archetype textures and associates buffers and vectors
-      _archetypeClasses = std::vector<uint>();
+      _archetypeLabels = std::vector<uint>();
       _archetypeIndices = std::vector<uint>();
       _buffersTextureDataArchetypes = std::vector<GLuint>();
       _buffersTextureDataArchetypeSuggestions = std::vector<GLuint>();
@@ -358,10 +358,10 @@ namespace dh::vis {
 
     // Copy texture data to textures for archetypes
     if(_params->imageDataset) {
-      for(uint i = 0; i < _archetypeClasses.size(); ++i) {
+      for(uint i = 0; i < _archetypeLabels.size(); ++i) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataArchetypes[i]);
         GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-        glTextureSubImage2D(_texturesArchetypes[_archetypeClasses[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+        glTextureSubImage2D(_texturesArchetypes[_archetypeLabels[i]], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
       }
     }
   }
@@ -374,7 +374,7 @@ namespace dh::vis {
     glCopyNamedBufferSubData(buffer, archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
 
     _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
-    _archetypeClasses.push_back(archetypeClass);
+    _archetypeLabels.push_back(archetypeClass);
     _archetypeIndices.push_back(archetypeIndex);
     glAssert();
 
@@ -384,7 +384,7 @@ namespace dh::vis {
   void AttributeRenderTask::eraseArchetypes() {
     glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
     _buffersTextureDataArchetypes.clear();
-    _archetypeClasses.clear();
+    _archetypeLabels.clear();
     _archetypeIndices.clear();
 
     for(uint i = 0; i < _params->nArchetypeClasses; ++i) {
@@ -593,7 +593,7 @@ namespace dh::vis {
       }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeLabels.begin(), _archetypeLabels.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
     }
@@ -698,7 +698,7 @@ namespace dh::vis {
       }
       if(ImGui::IsItemHovered()) {
         ImGui::GetWindowDrawList()->AddImage((void*)(intptr_t)_textures(TabType::eOverlay), ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0,0), ImVec2(1,1));
-        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeLabels.begin(), _archetypeLabels.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
     }
@@ -815,7 +815,7 @@ namespace dh::vis {
         addArchetype(ac, -1);
       }
       if(ImGui::IsItemHovered()) {
-        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeClasses.begin(), _archetypeClasses.end(), ac)); ImGui::EndTooltip();
+        ImGui::BeginTooltip(); ImGui::Text("%i archetypes", std::count(_archetypeLabels.begin(), _archetypeLabels.end(), ac)); ImGui::EndTooltip();
       }
       ImGui::SameLine();
     }

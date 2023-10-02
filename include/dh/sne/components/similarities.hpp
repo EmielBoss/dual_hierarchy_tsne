@@ -62,8 +62,9 @@ namespace dh::sne {
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
-    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeClasses);
-    void addSimilarities(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, float similarityWeight);
+    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels);
+    void addSimilaritiesInter(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
+    void addSimilaritiesIntra(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
     void reset();
     void assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
 
@@ -92,7 +93,7 @@ namespace dh::sne {
       eWeightedAttributeIndices,
       eSubDistancesL1,
       eArchetypes,
-      eArchetypeClasses,
+      eArchetypeLabels,
 
       Length
     };
@@ -129,9 +130,11 @@ namespace dh::sne {
       eWeighSimilaritiesPerAttributeRangeComp,
       eWeighSimilaritiesPerAttributeResembleComp,
       eSubDistancesL1Comp,
-      eUpdateSizes,
+      eUpdateSizesInter,
+      eUpdateSizesIntra,
       eCopyOldStuff,
-      eFillNewNeighbors,
+      eFillNewNeighborsInter,
+      eFillNewNeighborsIntra,
       eFillNewDistances,
       eFillNewSimilarities,
       eSymmetrize,

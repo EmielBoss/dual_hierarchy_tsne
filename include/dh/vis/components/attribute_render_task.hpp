@@ -187,7 +187,7 @@ namespace dh::vis {
     bool _vizAllPairs;
     uint _suggestionLevel;
     std::vector<uint> _denominators;
-    std::vector<uint> _archetypeClasses; // Same order as _buffersTextureDataArchetypes
+    std::vector<uint> _archetypeLabels; // Same order as _buffersTextureDataArchetypes
     std::vector<uint> _archetypeIndices; // Same order as _buffersTextureDataArchetypes
     int _archetypeClassSelected;
     std::vector<uint> _indicesArchetypeSuggestions;
@@ -218,9 +218,9 @@ namespace dh::vis {
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
     int getClassButtonPressed() { return _classButtonPressed; }
-    std::vector<uint> getArchetypeClasses() { return _archetypeClasses; }
+    std::vector<uint> getArchetypeLabels() { return _archetypeLabels; }
     std::vector<uint> getArchetypeIndices() { return _archetypeIndices; }
-    void setArchetypeClasses(std::vector<uint> archetypeClasses) { _archetypeClasses = archetypeClasses; }
+    void setArchetypeLabels(std::vector<uint> archetypeLabels) { _archetypeLabels = archetypeLabels; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
     uint getSelectedDatapoint() { return _selectedDatapoint; }
     void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }
@@ -254,7 +254,7 @@ namespace dh::vis {
       swap(a._setChanged, b._setChanged);
       swap(a._suggestionLevel, b._suggestionLevel);
       swap(a._classButtonPressed, b._classButtonPressed);
-      swap(a._archetypeClasses, b._archetypeClasses);
+      swap(a._archetypeLabels, b._archetypeLabels);
       swap(a._archetypeIndices, b._archetypeIndices);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
       swap(a._indicesArchetypeSuggestions, b._indicesArchetypeSuggestions);

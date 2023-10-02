@@ -268,12 +268,12 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::stateImport() {
     std::vector<GLuint> archetypeHandles;
-    std::vector<uint> archetypeClasses;
-    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeClasses);
+    std::vector<uint> archetypeLabels;
+    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels);
     syncBufferHandles();
     _attributeRenderTask->mirrorWeightsToOverlay();
     _attributeRenderTask->setArchetypeHandles(archetypeHandles);
-    _attributeRenderTask->setArchetypeClasses(archetypeClasses);
+    _attributeRenderTask->setArchetypeLabels(archetypeLabels);
     _attributeRenderTask->mirrorWeightsToOverlay();
     if(_params->imageDataset) { _attributeRenderTask->copyTextureDataToTextures(); }
     compIterationSelect(true);
@@ -281,7 +281,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::stateExport() {
-    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
+    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels());
   }
 
   template <uint D>
@@ -297,18 +297,32 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::separationModeStart() {
     std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
-    std::vector<uint> archetypeClasses = _attributeRenderTask->getArchetypeClasses();
+    std::vector<uint> archetypeLabels = _attributeRenderTask->getArchetypeLabels();
+    std::set<uint> archetypeClasses(archetypeLabels.begin(), archetypeLabels.end());
     
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 0, _buffers(BufferType::eSelection));
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 1, 1, _buffers(BufferType::eSelection));
     deselect();
     for(uint i = 0; i < archetypeIndices.size(); ++i) {
       uint archetypeIndex = archetypeIndices[i];
-       int archetypeClass = archetypeClasses[i] + 1;
+       int archetypeLabel = archetypeLabels[i] + 1;
       selectIndividualDatapoint(archetypeIndex);
-      glNamedBufferSubData(_buffers(BufferType::eArchetypes), archetypeIndex * sizeof(int), sizeof(int), &archetypeClass);
+      glNamedBufferSubData(_buffers(BufferType::eArchetypes), archetypeIndex * sizeof(int), sizeof(int), &archetypeLabel);
     }
+    
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 0, 1, _buffers(BufferType::eSelection));
+    for(uint c : archetypeClasses) {
+      deselect();
+      for(uint i = 0; i < archetypeIndices.size(); ++i) {
+        if(archetypeLabels[i] == c) {
+          selectIndividualDatapoint(archetypeIndices[i]);
+        }
+      }
+      _similarities->addSimilaritiesIntra(_buffers(BufferType::eSelection), _selectionCounts);
+      syncBufferHandles();
+      compIterationSelect(true);
+    }
+
     _separationMode = true;
   }
 
@@ -317,6 +331,13 @@ namespace dh::sne {
     glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
     glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
     glClearNamedBufferData(_buffers(BufferType::eArchetypes), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+
+    deselect();
+    std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
+    for(uint i = 0; i < archetypeIndices.size(); ++i) {
+      selectIndividualDatapoint(archetypeIndices[i]);
+    }
+
     float forceWeight = std::max(_embeddingRenderTask->getForceWeight() / _selectionCounts[0], 1.f);
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 1, _buffers(BufferType::eSelection));
     dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight * 2, 1, _buffers(BufferType::eSelection));
@@ -413,7 +434,7 @@ namespace dh::sne {
         _similarities->renormalizeSimilarities();
       }
       if(button == 11) { // Add similarities
-        _similarities->addSimilarities(_buffers(BufferType::eSelection), _selectionCounts, _selectionRenderTask->getSimilarityWeight());
+        _similarities->addSimilaritiesInter(_buffers(BufferType::eSelection), _selectionCounts);
         syncBufferHandles();
         compIterationSelect(true);
       }
@@ -436,7 +457,7 @@ namespace dh::sne {
         _similarities->weighSimilaritiesPerAttributeRange(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
       }
       if(button == 26) { // Recalc similarities (resemble)
-        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeClasses());
+        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels());
       }
       if(button == 3) { // Reset similarities
         _similarities->reset();
