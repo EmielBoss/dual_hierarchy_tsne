@@ -221,6 +221,7 @@ namespace dh::vis {
     std::vector<uint> getArchetypeLabels() { return _archetypeLabels; }
     std::vector<uint> getArchetypeIndices() { return _archetypeIndices; }
     void setArchetypeLabels(std::vector<uint> archetypeLabels) { _archetypeLabels = archetypeLabels; }
+    void setArchetypeIndices(std::vector<uint> archetypeIndices) { _archetypeIndices = archetypeIndices; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
     uint getSelectedDatapoint() { return _selectedDatapoint; }
     void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }

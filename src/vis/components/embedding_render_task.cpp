@@ -63,6 +63,8 @@ namespace dh::vis {
     _colorMapping(ColorMapping::labels),
     _forceWeight(params->k * 1.5f),
     _forceWeightFalloff(0.1f),
+    _selectLabeledOnly(false),
+    _separationMode(false),
     _pointRadius(std::min(100.f / _params->n, 0.005f)),
     _pointOpacity(1.0f),
     _buttonPressed(0),
@@ -232,6 +234,7 @@ namespace dh::vis {
     _program.template uniform<uint>("colorMapping", _colorMapping);
     _program.template uniform<bool>("canDrawLabels", _minimizationBuffers.labels > 0);
     _program.template uniform<bool>("selectLabeledOnly", _selectLabeledOnly);
+    _program.template uniform<bool>("separationMode", _separationMode);
     _program.template uniform<float>("divisor", divisor);
 
     // Set buffer bindings

@@ -54,12 +54,15 @@ layout(location = 3) uniform float pointRadius;
 layout(location = 4) uniform uint colorMapping;
 layout(location = 5) uniform bool canDrawLabels;
 layout(location = 6) uniform bool selectLabeledOnly;
-layout(location = 7) uniform float divisor;
+layout(location = 7) uniform bool separationMode;
+layout(location = 8) uniform float divisor;
 
 void main() {
 
   multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 5.f : 1.f;
-  multiplier += multiplier * 0.5f * fixxed[gl_InstanceID];
+  if(bool(fixxed[gl_InstanceID]) ^^ separationMode) {  
+    multiplier += multiplier * 0.5f;
+  }
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 5.f : 1.f;
 
   // Calculate embedding position, fragment position
@@ -122,6 +125,10 @@ void main() {
       if(selection[gl_InstanceID] == 1) { colorOut = vec4(color / 400.f, pointOpacity); } else
       if(selection[gl_InstanceID] == 2) { colorOut = vec4(color / divisor, pointOpacity); }
     }
+  }
+
+  if(separationMode && bool(fixxed[gl_InstanceID])) {
+    colorOut.a = 0.5f;
   }
 
 }

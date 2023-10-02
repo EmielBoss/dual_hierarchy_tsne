@@ -269,11 +269,13 @@ namespace dh::sne {
   void Minimization<D>::stateImport() {
     std::vector<GLuint> archetypeHandles;
     std::vector<uint> archetypeLabels;
-    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels);
+    std::vector<uint> archetypeIndices;
+    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels, archetypeIndices);
     syncBufferHandles();
     _attributeRenderTask->mirrorWeightsToOverlay();
     _attributeRenderTask->setArchetypeHandles(archetypeHandles);
     _attributeRenderTask->setArchetypeLabels(archetypeLabels);
+    _attributeRenderTask->setArchetypeIndices(archetypeIndices);
     _attributeRenderTask->mirrorWeightsToOverlay();
     if(_params->imageDataset) { _attributeRenderTask->copyTextureDataToTextures(); }
     compIterationSelect(true);
@@ -281,7 +283,7 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::stateExport() {
-    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels());
+    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels(), _attributeRenderTask->getArchetypeIndices());
   }
 
   template <uint D>
@@ -324,6 +326,7 @@ namespace dh::sne {
     }
 
     _separationMode = true;
+    _embeddingRenderTask->setSeparationMode(true);
   }
 
   template <uint D>
@@ -342,6 +345,7 @@ namespace dh::sne {
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 1, _buffers(BufferType::eSelection));
     dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight * 2, 1, _buffers(BufferType::eSelection));
     _separationMode = false;
+    _embeddingRenderTask->setSeparationMode(false);
   }
 
   template <uint D>

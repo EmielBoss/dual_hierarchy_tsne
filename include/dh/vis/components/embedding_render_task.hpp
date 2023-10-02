@@ -68,6 +68,7 @@ namespace dh::vis {
     uint getButtonPressed() { return _buttonPressed; }
     uint getK() { return (uint) _k; }
     void setSelectionMode(bool selectLabeledOnly) { _selectLabeledOnly = selectLabeledOnly; }
+    void setSeparationMode(bool separationMode) { _separationMode = separationMode; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
       _minimizationBuffers = minimizationBuffers;
       createVAO(); // Recreate VAO with updated embedding buffer
@@ -89,6 +90,7 @@ namespace dh::vis {
     float _forceWeight;
     float _forceWeightFalloff;
     bool _selectLabeledOnly;
+    bool _separationMode;
     uint _colorMapping;
     float _pointRadius;
     float _pointOpacity;
@@ -127,6 +129,8 @@ namespace dh::vis {
       swap(a._klDivergence, b._klDivergence);
       swap(a._forceWeight, b._forceWeight);
       swap(a._forceWeightFalloff, b._forceWeightFalloff);
+      swap(a._selectLabeledOnly, b._selectLabeledOnly);
+      swap(a._separationMode, b._separationMode);
       swap(a._colorMapping, b._colorMapping);
       swap(a._pointRadius, b._pointRadius);
       swap(a._pointOpacity, b._pointOpacity);
