@@ -60,8 +60,8 @@ layout(location = 8) uniform float divisor;
 void main() {
 
   multiplier = selectLabeledOnly && labeled[gl_InstanceID] == 1 ? 5.f : 1.f;
-  if(bool(fixxed[gl_InstanceID]) ^^ separationMode) {  
-    multiplier += multiplier * 0.5f;
+  if(bool(fixxed[gl_InstanceID]) ^^ separationMode) {
+    multiplier *= 2.f;
   }
   float divider = selectLabeledOnly && labeled[gl_InstanceID] == 0 ? 5.f : 1.f;
 

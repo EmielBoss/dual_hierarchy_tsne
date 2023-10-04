@@ -327,23 +327,15 @@ namespace dh::sne {
 
     _separationMode = true;
     _embeddingRenderTask->setSeparationMode(true);
+    deselect();
   }
 
   template <uint D>
   void Minimization<D>::separationModeStop() {
-    glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 0, 0, _buffers(BufferType::eArchetypes));
     glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
     glClearNamedBufferData(_buffers(BufferType::eArchetypes), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
 
-    deselect();
-    std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
-    for(uint i = 0; i < archetypeIndices.size(); ++i) {
-      selectIndividualDatapoint(archetypeIndices[i]);
-    }
-
-    float forceWeight = std::max(_embeddingRenderTask->getForceWeight() / _selectionCounts[0], 1.f);
-    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, 1, _buffers(BufferType::eSelection));
-    dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight * 2, 1, _buffers(BufferType::eSelection));
     _separationMode = false;
     _embeddingRenderTask->setSeparationMode(false);
   }
@@ -531,7 +523,7 @@ namespace dh::sne {
 
     // 1.
     // Compute embedding bounds
-    {
+    if(!_separationMode) {
       auto& timer = _timers(TimerType::eBoundsComp);
       timer.tick();
 
@@ -558,11 +550,11 @@ namespace dh::sne {
 
       timer.tock();
       glAssert();
+
+      // Copy bounds back to host (hey look: an expensive thing I shouldn't be doing)
+      _boundsPrev = _bounds;
+      glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &_bounds);
     }
-    
-    // Copy bounds back to host (hey look: an expensive thing I shouldn't be doing)
-    _boundsPrev = _bounds;
-    glGetNamedBufferSubData(_buffers(BufferType::eBounds), 0, sizeof(Bounds),  &_bounds);
 
     // 2.
     // Perform field approximation in subcomponent
