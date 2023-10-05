@@ -71,7 +71,7 @@ namespace dh::sne {
     void deselect();
     void selectAll();
     void selectInverse();
-    void selectIndividualDatapoint(uint i);
+    void selectIndividualDatapoint(uint i, int selectionNumber = -1);
     void restartMinimization();
     void restartExaggeration(uint nExaggerationIters);
     void syncBufferHandles();

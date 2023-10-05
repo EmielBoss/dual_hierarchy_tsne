@@ -259,8 +259,8 @@ namespace dh::sne {
   }
 
   template <uint D>
-  void Minimization<D>::selectIndividualDatapoint(uint i) {
-    uint sn = _input.s + 1; // Selection number
+  void Minimization<D>::selectIndividualDatapoint(uint i, int selectionNumber) {
+    int sn = selectionNumber >= 0 ? selectionNumber : _input.s + 1; // Selection number
     glNamedBufferSubData(_buffers(BufferType::eSelection), i * sizeof(int), sizeof(int), &sn);
     compIterationSelect(true);
   }
@@ -313,17 +313,29 @@ namespace dh::sne {
     }
     
     dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eDisabled), _params->n, 0, 1, _buffers(BufferType::eSelection));
+
+    // Add links between all datapoints of the same archetype class
     for(uint c : archetypeClasses) {
       deselect();
       for(uint i = 0; i < archetypeIndices.size(); ++i) {
         if(archetypeLabels[i] == c) {
-          selectIndividualDatapoint(archetypeIndices[i]);
+          selectIndividualDatapoint(archetypeIndices[i], 1);
         }
       }
       _similarities->addSimilaritiesIntra(_buffers(BufferType::eSelection), _selectionCounts);
       syncBufferHandles();
-      compIterationSelect(true);
     }
+
+    // Remove links between datapoints of different archetype classes
+    deselect();
+    for(uint c = 1; c < 3; ++c) {
+      for(uint i = 0; i < archetypeIndices.size(); ++i) {
+        if(archetypeLabels[i] == c) {
+          selectIndividualDatapoint(archetypeIndices[i], c);
+        }
+      }
+    }
+    _similarities->weighSimilarities(0.f, _buffers(BufferType::eSelection), true);
 
     _separationMode = true;
     _embeddingRenderTask->setSeparationMode(true);

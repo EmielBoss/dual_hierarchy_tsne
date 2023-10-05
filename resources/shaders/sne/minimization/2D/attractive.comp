@@ -84,9 +84,12 @@ void main() {
 
     if(separationMode) {
       if(archetypesBuffer[i] > 0 && archetypesBuffer[j] > 0 && archetypesBuffer[i] == archetypesBuffer[j]) {
-        attrForce *= 5.f;
+        attrForce *= 2.f;
       } else
       if(archetypesBuffer[i] > 0 && archetypesBuffer[j] > 0 && archetypesBuffer[i] != archetypesBuffer[j]) {
+        attrForce *= 0.f;
+      } else
+      if(archetypesBuffer[i] > 0 && archetypesBuffer[j] == 0) {
         attrForce *= 0.f;
       }
     }
