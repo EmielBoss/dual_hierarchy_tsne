@@ -64,6 +64,7 @@ namespace dh::vis {
     GLuint getClassColorBuffer() { return _bufferClassColors; }
     float getForceWeight() { return _forceWeight; }
     float getForceWeightFalloff() { return _forceWeightFalloff; }
+    float getFixedRigidness() { return _fixedRigidness; }
     float getPerplexity() { return _perplexity; }
     uint getButtonPressed() { return _buttonPressed; }
     uint getK() { return (uint) _k; }
@@ -89,6 +90,7 @@ namespace dh::vis {
     // ImGui state
     float _forceWeight;
     float _forceWeightFalloff;
+    float _fixedRigidness;
     bool _selectLabeledOnly;
     bool _separationMode;
     uint _colorMapping;
@@ -129,6 +131,7 @@ namespace dh::vis {
       swap(a._klDivergence, b._klDivergence);
       swap(a._forceWeight, b._forceWeight);
       swap(a._forceWeightFalloff, b._forceWeightFalloff);
+      swap(a._fixedRigidness, b._fixedRigidness);
       swap(a._selectLabeledOnly, b._selectLabeledOnly);
       swap(a._separationMode, b._separationMode);
       swap(a._colorMapping, b._colorMapping);

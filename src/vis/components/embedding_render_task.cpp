@@ -63,6 +63,7 @@ namespace dh::vis {
     _colorMapping(ColorMapping::labels),
     _forceWeight(params->k * 1.5f),
     _forceWeightFalloff(0.1f),
+    _fixedRigidness(1.f),
     _selectLabeledOnly(false),
     _separationMode(false),
     _pointRadius(std::min(100.f / _params->n, 0.005f)),
@@ -279,6 +280,7 @@ namespace dh::vis {
       ImGui::Spacing();
       ImGui::SliderFloat("Force weight", &_forceWeight, 1.0f, _params->k * 5.0f);
       ImGui::SliderFloat("Force weight falloff", &_forceWeightFalloff, 0.f, 1.f, "%.4f");
+      ImGui::SliderFloat("Fixed point rigidness", &_fixedRigidness, 0.f, 1.f, "%.4f");
       // ImGui::Text("or set the number of clusters you see:");
       // ImGui::SliderInt("Number of apparent clusters", &_numClusters, 1, 50);
       ImGui::Spacing();

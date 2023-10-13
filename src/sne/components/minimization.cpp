@@ -703,6 +703,7 @@ namespace dh::sne {
       program.template uniform<float>("minGain", _params->minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
+      program.template uniform<float>("fixedRigidness", _embeddingRenderTask->getFixedRigidness());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));
@@ -711,7 +712,8 @@ namespace dh::sne {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffers(BufferType::ePrevGradients));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eGain));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _buffers(BufferType::eFixed));
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eBounds));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, _buffers(BufferType::eTranslating));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, _buffers(BufferType::eBounds));
 
       // Dispatch shader
       glDispatchCompute(ceilDiv(_params->n, 256u), 1, 1);

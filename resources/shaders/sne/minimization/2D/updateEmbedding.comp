@@ -32,7 +32,8 @@ layout(binding = 2, std430) restrict readonly buffer Grad { vec2 Gradients[]; };
 layout(binding = 3, std430) restrict buffer PrevGrad { vec2 PrevGradients[]; };
 layout(binding = 4, std430) restrict buffer Gains { vec2 Gain[]; };
 layout(binding = 5, std430) restrict readonly buffer Fix { int Fixed[]; };
-layout(binding = 6, std430) restrict readonly buffer Bounds { 
+layout(binding = 6, std430) restrict readonly buffer Mov { int Moving[]; };
+layout(binding = 7, std430) restrict readonly buffer Bounds { 
   vec2 minBounds;
   vec2 maxBounds;
   vec2 range;
@@ -44,15 +45,12 @@ layout(location = 1) uniform float eta;
 layout(location = 2) uniform float minGain;
 layout(location = 3) uniform float mult;
 layout(location = 4) uniform float iterMult;
+layout(location = 5) uniform float fixedRigidness;
 
 void main() {
   // Invocation location
   uint i = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationIndex.x;
   if (i >= nPoints) { return; }
-  if(Fixed[i] == 1) {
-    Positions[i] = PositionsRelative[i] * range + minBounds;
-    return;
-  }
 
   // Load values
   vec2 grad = Gradients[i];
@@ -84,6 +82,13 @@ void main() {
   // Store values again
   Gain[i] = gain;
   PrevGradients[i] = pgrad;
-  Positions[i] += pgrad * mult;
+  if(Moving[i] == 1) {
+    Positions[i] = PositionsRelative[i] * range + minBounds;
+  } else
+  if(Fixed[i] == 1) {
+    Positions[i] = fixedRigidness * (PositionsRelative[i] * range + minBounds) + (1.f - fixedRigidness) * (Positions[i] + pgrad * mult);
+  } else {
+    Positions[i] += pgrad * mult;
+  }
   PositionsRelative[i] = (Positions[i] - minBounds) * invRange;
 }
