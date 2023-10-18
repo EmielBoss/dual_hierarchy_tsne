@@ -210,6 +210,35 @@ namespace dh::util {
     }
   }
 
+  template<typename T, typename U>
+  std::unordered_map<T, U> readMap(const std::string filename) {
+    std::unordered_map<T, U> map;
+    std::ifstream file("./buffer_dumps/" + filename + ".txt");
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return map;
+    }
+    std::string str;
+    while (std::getline(file, str)) {
+      std::istringstream iss(str);
+      std::string key_str;
+      std::string val_str;
+      std::getline(iss, key_str, '|');
+      std::getline(iss, val_str, '|');
+      map[(T) std::stoi(key_str)] = std::stoi(val_str);
+    }
+    
+    return map;
+  }
+
+  template<typename T, typename U>
+  void writeMap(const std::unordered_map<T, U> map, const std::string filename) {
+    std::ofstream file("./buffer_dumps/" + filename + ".txt");
+    for (const auto& [key, val] : map) {
+      file << key << "|" << val << "\n";
+    }
+  }
+
   void normalizeData(std::vector<float>& data, uint n, uint d, float lower, float upper) {
     // Determine min and max attribute value
     auto [minIt, maxIt] = std::minmax_element(data.begin(), data.end());
@@ -253,4 +282,7 @@ namespace dh::util {
 
   template std::set<uint> readSet<uint>(const std::string filename);
   template void writeSet<uint>(const std::set<uint> set, const std::string filename);
+
+  template std::unordered_map<uint, uint> readMap<uint, uint>(const std::string filename);
+  template void writeMap<uint, uint>(const std::unordered_map<uint, uint> map, const std::string filename);
 } // dh::util

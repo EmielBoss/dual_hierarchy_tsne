@@ -270,12 +270,14 @@ namespace dh::sne {
     std::vector<GLuint> archetypeHandles;
     std::vector<uint> archetypeLabels;
     std::vector<uint> archetypeIndices;
-    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels, archetypeIndices);
+    std::unordered_map<uint, uint> datapointArchetypeMapping;
+    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels, archetypeIndices, datapointArchetypeMapping);
     syncBufferHandles();
     _attributeRenderTask->mirrorWeightsToOverlay();
     _attributeRenderTask->setArchetypeHandles(archetypeHandles);
     _attributeRenderTask->setArchetypeLabels(archetypeLabels);
     _attributeRenderTask->setArchetypeIndices(archetypeIndices);
+    _attributeRenderTask->setDatapointArchetypeMapping(datapointArchetypeMapping);
     _attributeRenderTask->mirrorWeightsToOverlay();
     if(_params->imageDataset) { _attributeRenderTask->copyTextureDataToTextures(); }
     compIterationSelect(true);
@@ -283,7 +285,10 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::stateExport() {
-    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels(), _attributeRenderTask->getArchetypeIndices());
+    dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights,
+                         _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(),
+                         _attributeRenderTask->getArchetypeLabels(), _attributeRenderTask->getArchetypeIndices(),
+                         _attributeRenderTask->getDatapointArchetypeMapping());
   }
 
   template <uint D>

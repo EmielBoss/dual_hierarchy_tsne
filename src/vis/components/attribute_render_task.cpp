@@ -140,7 +140,7 @@ namespace dh::vis {
       _archetypeLabels = std::vector<uint>();
       _archetypeDatapointIndices = std::vector<uint>();
       _buffersTextureDataArchetypes = std::vector<GLuint>();
-      _datapointArchetypeIndices = std::unordered_map<uint, uint>();
+      _datapointArchetypeMapping = std::unordered_map<uint, uint>();
       _buffersTextureDataSuggestions = std::vector<GLuint>();
       _texturesSuggestions = std::vector<GLuint>();
     }
@@ -357,19 +357,19 @@ namespace dh::vis {
     _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
     _archetypeLabels.push_back(archetypeClass);
     _archetypeDatapointIndices.push_back(archetypeDatapointIndex);
-    _datapointArchetypeIndices[archetypeDatapointIndex] = _archetypeLabels.size() - 1;
+    _datapointArchetypeMapping[archetypeDatapointIndex] = _archetypeLabels.size() - 1;
     glAssert();
   }
 
   void AttributeRenderTask::removeArchetype(uint archetypeDatapointIndex) {
-    uint archetypeIndex = _datapointArchetypeIndices[archetypeDatapointIndex];
+    uint archetypeIndex = _datapointArchetypeMapping[archetypeDatapointIndex];
     glDeleteBuffers(1, _buffersTextureDataArchetypes.data() + archetypeIndex);
     _buffersTextureDataArchetypes.erase(_buffersTextureDataArchetypes.begin() + archetypeIndex);
     _archetypeLabels.erase(_archetypeLabels.begin() + archetypeIndex);
     _archetypeDatapointIndices.erase(_archetypeDatapointIndices.begin() + archetypeIndex);
-    _datapointArchetypeIndices.erase(archetypeDatapointIndex);
+    _datapointArchetypeMapping.erase(archetypeDatapointIndex);
     for(uint i = archetypeIndex; i < _archetypeDatapointIndices.size(); ++i) {
-      _datapointArchetypeIndices[_archetypeDatapointIndices[i]] = i;
+      _datapointArchetypeMapping[_archetypeDatapointIndices[i]] = i;
     }
   }
 
@@ -378,7 +378,7 @@ namespace dh::vis {
     _buffersTextureDataArchetypes.clear();
     _archetypeLabels.clear();
     _archetypeDatapointIndices.clear();
-    _datapointArchetypeIndices.clear();
+    _datapointArchetypeMapping.clear();
   }
 
   void AttributeRenderTask::updateSuggestions() {
@@ -554,7 +554,7 @@ namespace dh::vis {
       for(uint j = 0; j < nCols; j++) {
         if(i * nCols + j >= nSuggestions || nSuggestions == 0) { break; }
         uint datapointIndex = _indicesSuggestions[i * nCols + j];
-        int archetypeIndex = _datapointArchetypeIndices.find(datapointIndex) == _datapointArchetypeIndices.end() ? -1 : (int) _datapointArchetypeIndices[datapointIndex];
+        int archetypeIndex = _datapointArchetypeMapping.find(datapointIndex) == _datapointArchetypeMapping.end() ? -1 : (int) _datapointArchetypeMapping[datapointIndex];
         if(archetypeIndex >= 0) {
           ImGui::PushStyleColor(ImGuiCol_Button, _buttonsColors[_archetypeLabels[archetypeIndex]]);
           ImGui::PushStyleColor(ImGuiCol_ButtonHovered, _buttonsColors[_archetypeLabels[archetypeIndex]]);
@@ -570,7 +570,7 @@ namespace dh::vis {
             if(archetypeIndex < 0) {
               addArchetype(datapointIndex, archetypeClass, _buffersTextureDataSuggestions[i * nCols + j]);
             } else {
-              bool overwrite = _archetypeLabels[_datapointArchetypeIndices[datapointIndex]] != archetypeClass;
+              bool overwrite = _archetypeLabels[_datapointArchetypeMapping[datapointIndex]] != archetypeClass;
               removeArchetype(datapointIndex);
               if(overwrite) {
                 addArchetype(datapointIndex, archetypeClass, _buffersTextureDataSuggestions[i * nCols + j]);

@@ -198,7 +198,7 @@ namespace dh::vis {
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeLabels; // Same order as _buffersTextureDataArchetypes
     std::vector<uint> _archetypeDatapointIndices; // Same order as _buffersTextureDataArchetypes
-    std::unordered_map<uint, uint> _datapointArchetypeIndices;
+    std::unordered_map<uint, uint> _datapointArchetypeMapping;
     int _archetypeClassSelected;
     std::vector<uint> _indicesSuggestions;
     uint _selectedDatapoint;
@@ -229,7 +229,8 @@ namespace dh::vis {
     int getClassButtonPressed() { return _classButtonPressed; }
     std::vector<uint> getArchetypeLabels() { return _archetypeLabels; }
     std::vector<uint> getArchetypeIndices() { return _archetypeDatapointIndices; }
-    std::unordered_map<uint, uint> getDatapointArchetypeIndices() { return _datapointArchetypeIndices; }
+    std::unordered_map<uint, uint> getDatapointArchetypeMapping() { return _datapointArchetypeMapping; }
+    void setDatapointArchetypeMapping(std::unordered_map<uint, uint> datapointArchetypeMapping) { _datapointArchetypeMapping = datapointArchetypeMapping; }
     void setArchetypeLabels(std::vector<uint> archetypeLabels) { _archetypeLabels = archetypeLabels; }
     void setArchetypeIndices(std::vector<uint> archetypeIndices) { _archetypeDatapointIndices = archetypeIndices; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
@@ -271,7 +272,7 @@ namespace dh::vis {
       swap(a._indicesSuggestions, b._indicesSuggestions);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._separationMode, b._separationMode);
-      swap(a._datapointArchetypeIndices, b._datapointArchetypeIndices);
+      swap(a._datapointArchetypeMapping, b._datapointArchetypeMapping);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);

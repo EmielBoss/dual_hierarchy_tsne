@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <unordered_map>
 #include "dh/types.hpp"
 
 namespace dh::util {
@@ -117,7 +118,7 @@ namespace dh::util {
   /**
    * readSet
    * 
-   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a set. Useful for debugging
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a set.
    */
   template<typename T>
   std::set<T> readSet(const std::string filename);
@@ -125,10 +126,26 @@ namespace dh::util {
   /**
    * writeVector
    * 
-   * Write a vector to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand). Useful for debugging
+   * Write a vector to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand).
    */
   template<typename T>
   void writeSet(const std::set<T> vec, const std::string filename);
+
+  /**
+   * readMap
+   * 
+   * Reads a text file in /dual_hierarchy_tsne/buffer_dumps/ into a unordered_map.
+   */
+  template<typename T, typename U>
+  std::unordered_map<T, U> readMap(const std::string filename);
+
+  /**
+   * writeMap
+   * 
+   * Write a unordered_map to a text file in /dual_hierarchy_tsne/buffer_dumps/ (create the folder beforehand).
+   */
+  template<typename T, typename U>
+  void writeMap(const std::unordered_map<T, U> vec, const std::string filename);
   
   /**
    * normalizeData

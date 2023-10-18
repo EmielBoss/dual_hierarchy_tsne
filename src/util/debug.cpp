@@ -50,7 +50,9 @@ namespace dh::util {
     glNamedBufferStorage(bufferLabeled, n * sizeof(int), labeled.data(), 0);
   }
 
-  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices)
+  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices,
+                 std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices,
+                 std::unordered_map<uint, uint>& datapointArchetypeMapping)
   {
     glDeleteBuffers(archetypeHandles.size(), archetypeHandles.data());
     // dh::util::readGLBuffer<float>(buffers[20], "rel"); // eEmbeddingRelative
@@ -77,10 +79,13 @@ namespace dh::util {
       glCopyNamedBufferSubData(tempBuffer, archetypeHandles[i], i * nHighDims * sizeof(float), 0, nHighDims * sizeof(float));
     }
     glDeleteBuffers(1, &tempBuffer);
+    datapointArchetypeMapping = dh::util::readMap<uint, uint>("map");
     glAssert();
   }
 
-  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels, std::vector<uint>& archetypeIndices)
+  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices,
+                  std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels, std::vector<uint> archetypeIndices,
+                  std::unordered_map<uint, uint> datapointArchetypeMapping)
   {
     // dh::util::writeGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
     dh::util::writeGLBuffer<int>(buffers[16], n, 1, "fxd"); // eFixed
@@ -102,6 +107,7 @@ namespace dh::util {
     dh::util::writeGLBuffer<float>(tempBuffer, nArchetypes, nHighDims, "ats");
     dh::util::writeVector<uint>(archetypeLabels, nArchetypes, 1, "atc");
     dh::util::writeVector<uint>(archetypeIndices, nArchetypes, 1, "ati");
+    dh::util::writeMap<uint, uint>(datapointArchetypeMapping, "map");
     glDeleteBuffers(1, &tempBuffer);
     glAssert();
   }
