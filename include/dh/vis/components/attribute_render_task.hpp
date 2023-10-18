@@ -32,6 +32,8 @@
 #include "dh/sne/components/buffers.hpp"
 #include "dh/vis/render_queue.hpp"
 #include "dh/vis/components/selection_input_task.hpp"
+#include <imgui.h>
+#include <implot.h>
 
 namespace dh::vis {
   class AttributeRenderTask : public RenderTask {
@@ -76,8 +78,9 @@ namespace dh::vis {
     void clearSelection();
     void clearSuggestions();
     void copyTextureDataToTextures();
-    void addArchetype(uint archetypeClass, uint archetypeIndex, GLuint bufferArchetypeData = 0);
-    void eraseArchetypes();
+    void addArchetype(uint archetypeDatapointIndex, uint archetypeClass, GLuint bufferArchetypeData);
+    void removeArchetype(uint archetypeDatapointIndex);
+    void clearArchetypes();
     void updateSuggestions();
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
@@ -158,6 +161,12 @@ namespace dh::vis {
       "%u selected interselection ",
       "%u selected intraselection ",
       ""};
+    
+    std::array<const char*, 8> _buttons = {"A", "B", "C", "D", "E", "F", "G", "H"};
+
+    std::array<ImVec4, 8> _buttonsColors = {ImVec4(1,0,0,1), ImVec4(0,1,0,1), ImVec4(0,0,1,1),
+                                            ImVec4(1,1,0,1), ImVec4(1,0,1,1), ImVec4(0,1,1,1),
+                                            ImVec4(1,1,1,1), ImVec4(0.5f,0.5f,0.5f,1)};
 
     // State
     bool _isInit;
@@ -188,9 +197,10 @@ namespace dh::vis {
     uint _suggestionLevel;
     std::vector<uint> _denominators;
     std::vector<uint> _archetypeLabels; // Same order as _buffersTextureDataArchetypes
-    std::vector<uint> _archetypeIndices; // Same order as _buffersTextureDataArchetypes
+    std::vector<uint> _archetypeDatapointIndices; // Same order as _buffersTextureDataArchetypes
+    std::unordered_map<uint, uint> _datapointArchetypeIndices;
     int _archetypeClassSelected;
-    std::vector<uint> _indicesArchetypeSuggestions;
+    std::vector<uint> _indicesSuggestions;
     uint _selectedDatapoint;
     bool _separationMode;
 
@@ -201,10 +211,9 @@ namespace dh::vis {
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<TabType, GLuint> _buffersTextureData;
     std::vector<GLuint> _buffersTextureDataArchetypes;
-    std::vector<GLuint> _buffersTextureDataArchetypeSuggestions;
+    std::vector<GLuint> _buffersTextureDataSuggestions;
     util::EnumArray<TabType, GLuint> _textures;
-    std::vector<GLuint> _texturesArchetypes;
-    std::vector<GLuint> _texturesArchetypeSuggestions;
+    std::vector<GLuint> _texturesSuggestions;
     std::vector<GLuint> _classTextures;
     GLuint _bufferClassColors;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
@@ -219,9 +228,10 @@ namespace dh::vis {
     void setInput(dh::vis::Input input) { _input = input; }
     int getClassButtonPressed() { return _classButtonPressed; }
     std::vector<uint> getArchetypeLabels() { return _archetypeLabels; }
-    std::vector<uint> getArchetypeIndices() { return _archetypeIndices; }
+    std::vector<uint> getArchetypeIndices() { return _archetypeDatapointIndices; }
+    std::unordered_map<uint, uint> getDatapointArchetypeIndices() { return _datapointArchetypeIndices; }
     void setArchetypeLabels(std::vector<uint> archetypeLabels) { _archetypeLabels = archetypeLabels; }
-    void setArchetypeIndices(std::vector<uint> archetypeIndices) { _archetypeIndices = archetypeIndices; }
+    void setArchetypeIndices(std::vector<uint> archetypeIndices) { _archetypeDatapointIndices = archetypeIndices; }
     std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
     uint getSelectedDatapoint() { return _selectedDatapoint; }
     void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }
@@ -256,17 +266,17 @@ namespace dh::vis {
       swap(a._suggestionLevel, b._suggestionLevel);
       swap(a._classButtonPressed, b._classButtonPressed);
       swap(a._archetypeLabels, b._archetypeLabels);
-      swap(a._archetypeIndices, b._archetypeIndices);
+      swap(a._archetypeDatapointIndices, b._archetypeDatapointIndices);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
-      swap(a._indicesArchetypeSuggestions, b._indicesArchetypeSuggestions);
+      swap(a._indicesSuggestions, b._indicesSuggestions);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._separationMode, b._separationMode);
+      swap(a._datapointArchetypeIndices, b._datapointArchetypeIndices);
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);
       swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);
       swap(a._textures, b._textures);
-      swap(a._texturesArchetypes, b._texturesArchetypes);
       swap(a._classColors, b._classColors);
       swap(a._bufferClassColors, b._bufferClassColors);
       swap(a._minimizationBuffers, b._minimizationBuffers);
