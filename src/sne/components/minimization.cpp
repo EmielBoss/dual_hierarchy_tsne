@@ -456,6 +456,9 @@ namespace dh::sne {
         syncBufferHandles();
         compIterationSelect(true);
       }
+      if(button == 13) { // Assert
+        _similarities->assertSimilarities();
+      }
       if(button == 20) { // Select all
         selectAll();
       }

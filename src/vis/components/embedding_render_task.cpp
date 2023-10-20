@@ -61,7 +61,7 @@ namespace dh::vis {
     _minimizationBuffers(minimizationBuffers),
     _params(params),
     _colorMapping(ColorMapping::labels),
-    _forceWeight(params->k * 5.f),
+    _forceWeight(_params->k * 5.f),
     _forceWeightFalloff(0.f),
     _fixedRigidness(1.f),
     _selectLabeledOnly(false),
@@ -278,7 +278,7 @@ namespace dh::vis {
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.005f, "%.4f");
       ImGui::Spacing();
-      ImGui::SliderFloat("Force weight", &_forceWeight, 1.0f, _params->k * 5.0f);
+      ImGui::SliderFloat("Force weight", &_forceWeight, 1.0f, _params->k * 10.f);
       ImGui::SliderFloat("Force weight falloff", &_forceWeightFalloff, 0.f, 1.f, "%.4f");
       ImGui::SliderFloat("Fixed point rigidness", &_fixedRigidness, 0.f, 1.f, "%.4f");
       // ImGui::Text("or set the number of clusters you see:");

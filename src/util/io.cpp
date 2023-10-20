@@ -65,7 +65,6 @@ namespace dh::util {
       }
       if(ifsColors) {
         ifsColors.read((char *) colors.data(), colors.size() * sizeof(float));
-        std::cout << colors[0] << "," << colors[1] << std::endl;
       }
     } else {
       if(!ifsData) { throw std::runtime_error("Input label file cannot be accessed: " + fileName + ".dat (needed for --nClasses option)"); }

@@ -169,6 +169,8 @@ namespace dh::vis {
         if(ImGui::Button("Fuse (intra)")) { _buttonPressed = 12; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between all pairs of datapoints in the primary selection where those don't exist."); ImGui::EndTooltip(); }
       }
+      if(ImGui::SameLine(); ImGui::Button("Assert")) { _buttonPressed = 13; }
+      if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Checks if the kNN graph is still valid."); ImGui::EndTooltip(); }
     }
   }
 

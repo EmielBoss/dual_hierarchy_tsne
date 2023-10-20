@@ -66,7 +66,7 @@ namespace dh::sne {
     void addSimilaritiesInter(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
     void addSimilaritiesIntra(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
     void reset();
-    void assess(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, GLuint labelsBufferHandle); // For printing and showing all sorts of debug related stuff
+    void assertSimilarities();
 
   private:
     enum class BufferType {
