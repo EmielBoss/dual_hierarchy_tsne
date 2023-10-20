@@ -150,11 +150,9 @@ namespace dh::vis {
       ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
       if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
-      if(_selectionCounts[1] > 0) {
+      if(_selectionCounts[0] > 0 && _selectionCounts[1] > 0) {
         if(ImGui::SameLine(); ImGui::Button("Inter")) { _buttonPressed = 10; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities between datapoints from different selections with the specified weight."); ImGui::EndTooltip(); }
-        if(ImGui::SameLine(); ImGui::Button("Fuse")) { _buttonPressed = 11; }
-        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between datapoints from different selections where those don't exist."); ImGui::EndTooltip(); }
       } else { ImGui::SameLine(); ImGui::Dummy(ImVec2(43.0f, 19.0f)); }
 
       ImGui::Text("Select:");
@@ -163,6 +161,14 @@ namespace dh::vis {
 
       ImGui::Text("Selection size (primary): %i", _selectionCounts[0]);
       ImGui::Text("Selection size (secondary): %i", _selectionCounts[1]);
+      
+      if(_selectionCounts[0] > 0 && _selectionCounts[1] > 0) {
+        if(ImGui::Button("Fuse (inter)")) { _buttonPressed = 11; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between datapoints from different selections where those don't exist."); ImGui::EndTooltip(); }
+      } else {
+        if(ImGui::Button("Fuse (intra)")) { _buttonPressed = 12; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between all pairs of datapoints in the primary selection where those don't exist."); ImGui::EndTooltip(); }
+      }
     }
   }
 

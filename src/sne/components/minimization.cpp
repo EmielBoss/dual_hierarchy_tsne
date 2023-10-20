@@ -446,8 +446,13 @@ namespace dh::sne {
         _similarities->weighSimilarities(_selectionRenderTask->getSimilarityWeight(), _buffers(BufferType::eSelection), true);
         _similarities->renormalizeSimilarities();
       }
-      if(button == 11) { // Add similarities
+      if(button == 11) { // Add similarities (inter)
         _similarities->addSimilaritiesInter(_buffers(BufferType::eSelection), _selectionCounts);
+        syncBufferHandles();
+        compIterationSelect(true);
+      }
+      if(button == 12) { // Add similarities (intra)
+        _similarities->addSimilaritiesIntra(_buffers(BufferType::eSelection), _selectionCounts);
         syncBufferHandles();
         compIterationSelect(true);
       }
