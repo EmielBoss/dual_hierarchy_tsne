@@ -29,6 +29,7 @@
 #include "dh/util/enum.hpp"
 #include "dh/util/aligned.hpp"
 #include "dh/util/gl/program.hpp"
+#include "dh/util/cu/scan.cuh"
 
 namespace dh::util {
   enum class BufferReduceType {

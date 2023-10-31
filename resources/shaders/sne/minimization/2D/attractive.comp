@@ -82,15 +82,14 @@ void main() {
     // Calculate the attractive force
     attrForce += p_ij * q_ij * diff * weight;
 
-    if(separationMode) {
-      if(archetypesBuffer[i] > 0 && archetypesBuffer[j] > 0 && archetypesBuffer[i] == archetypesBuffer[j]) {
-        attrForce *= 2.f;
+    if(separationMode && archetypesBuffer[i] > 0) {
+      if(archetypesBuffer[j] == archetypesBuffer[i]) {
+        attrForce *= 5.f;
       } else
-      if(archetypesBuffer[i] > 0 && archetypesBuffer[j] > 0 && archetypesBuffer[i] != archetypesBuffer[j]) {
+      if(archetypesBuffer[j] == 0) {
         attrForce *= 0.f;
-      } else
-      if(archetypesBuffer[i] > 0 && archetypesBuffer[j] == 0) {
-        attrForce *= 0.f;
+      } else {
+        attrForce *= -1.f;
       }
     }
   }

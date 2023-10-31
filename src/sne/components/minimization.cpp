@@ -331,16 +331,16 @@ namespace dh::sne {
       syncBufferHandles();
     }
 
-    // Remove links between datapoints of different archetype classes
-    deselect();
-    for(uint c = 1; c < 3; ++c) {
-      for(uint i = 0; i < archetypeIndices.size(); ++i) {
-        if(archetypeLabels[i] == c) {
-          selectIndividualDatapoint(archetypeIndices[i], c);
-        }
-      }
-    }
-    _similarities->weighSimilarities(0.f, _buffers(BufferType::eSelection), true);
+    // // Remove links between datapoints of different archetype classes
+    // deselect();
+    // for(uint c = 1; c < 3; ++c) {
+    //   for(uint i = 0; i < archetypeIndices.size(); ++i) {
+    //     if(archetypeLabels[i] == c) {
+    //       selectIndividualDatapoint(archetypeIndices[i], c);
+    //     }
+    //   }
+    // }
+    // _similarities->weighSimilarities(0.f, _buffers(BufferType::eSelection), true);
 
     _separationMode = true;
     _embeddingRenderTask->setSeparationMode(true);
@@ -349,7 +349,23 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::separationModeStop() {
-    dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 0, 0, _buffers(BufferType::eArchetypes));
+    std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
+
+    // Count number of archetypes
+    deselect();
+    for(uint i = 0; i < archetypeIndices.size(); ++i) {
+      selectIndividualDatapoint(archetypeIndices[i], 1);
+    }
+    int nArchetypes = dh::util::BufferTools::instance().reduce<int>(_buffers(BufferType::eSelection), 3, _params->n, 0, 1);
+
+    glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
+
+    float forceWeight = std::max(_embeddingRenderTask->getForceWeight() / nArchetypes, 1.f);
+    for(uint c = 1; c < 3; ++c) {
+      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, c, _buffers(BufferType::eArchetypes));
+      dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight, c, _buffers(BufferType::eArchetypes));
+    }
+
     glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
     glClearNamedBufferData(_buffers(BufferType::eArchetypes), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
 
@@ -495,6 +511,7 @@ namespace dh::sne {
     // Isolate selection
     if(_embeddingRenderTask->getButtonPressed() == 1) {
       uint n = _params->n;
+      _attributeRenderTask->updateDatapointIndicesForArchetypes();
       _similarities->recomp(_buffers(BufferType::eSelection), _embeddingRenderTask->getPerplexity(), _embeddingRenderTask->getK());
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eEmbeddingRelative), n, D, _buffers(BufferType::eSelection));
       dh::util::BufferTools::instance().remove<float>(_buffers(BufferType::eWeights), n, 1, _buffers(BufferType::eSelection));

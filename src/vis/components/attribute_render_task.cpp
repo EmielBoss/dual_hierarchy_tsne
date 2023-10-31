@@ -32,7 +32,7 @@
 #include "dh/util/gl/error.hpp"
 #include "dh/util/cu/kclustering.cuh"
 #include "dh/vis/components/attribute_render_task.hpp"
-#include "dh/util/io.hpp" //
+#include "dh/util/io.hpp"
 
 namespace dh::vis {
   
@@ -361,14 +361,14 @@ namespace dh::vis {
     glAssert();
   }
 
-  void AttributeRenderTask::removeArchetype(uint archetypeDatapointIndex) {
-    uint archetypeIndex = _datapointArchetypeMapping[archetypeDatapointIndex];
+  void AttributeRenderTask::removeArchetype(uint datapointIndex) {
+    uint archetypeIndex = _datapointArchetypeMapping[datapointIndex];
     glDeleteBuffers(1, _buffersTextureDataArchetypes.data() + archetypeIndex);
     _buffersTextureDataArchetypes.erase(_buffersTextureDataArchetypes.begin() + archetypeIndex);
     _archetypeLabels.erase(_archetypeLabels.begin() + archetypeIndex);
     _archetypeDatapointIndices.erase(_archetypeDatapointIndices.begin() + archetypeIndex);
-    _datapointArchetypeMapping.erase(archetypeDatapointIndex);
-    for(uint i = archetypeIndex; i < _archetypeDatapointIndices.size(); ++i) {
+    _datapointArchetypeMapping.erase(datapointIndex);
+    for(uint i = 0; i < _archetypeDatapointIndices.size(); ++i) {
       _datapointArchetypeMapping[_archetypeDatapointIndices[i]] = i;
     }
   }
@@ -440,6 +440,34 @@ namespace dh::vis {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
     glAssert();
     _suggestionLevel++;
+  }
+
+  void AttributeRenderTask::updateDatapointIndicesForArchetypes() {
+    GLuint tempScanBuffer;
+    glCreateBuffers(1, &tempScanBuffer);
+    glNamedBufferStorage(tempScanBuffer, _params->n * sizeof(int), nullptr, 0);
+    util::Scan(_minimizationBuffers.selection, tempScanBuffer, _params->n).comp(false);
+
+    std::vector<int> scan(_params->n);
+    glGetNamedBufferSubData(tempScanBuffer, 0, _params->n * sizeof(int), scan.data());
+    std::vector<int> selection(_params->n);
+    glGetNamedBufferSubData(_minimizationBuffers.selection, 0, _params->n * sizeof(int), selection.data());
+
+    for(uint i = 0; i < _archetypeDatapointIndices.size(); ++i) {
+      uint datapointIndex = _archetypeDatapointIndices[i];
+      if(selection[datapointIndex] == 0) {
+        removeArchetype(datapointIndex);
+        --i;
+      } else {
+        int nCumulativeDatapointsRemoved = datapointIndex - scan[datapointIndex];
+        _archetypeDatapointIndices[i] -= nCumulativeDatapointsRemoved;
+        _datapointArchetypeMapping.erase(datapointIndex);
+        _datapointArchetypeMapping[_archetypeDatapointIndices[i]] = i;
+      }
+    }
+
+    glDeleteBuffers(1, &tempScanBuffer);
+    glAssert();
   }
 
   void AttributeRenderTask::render(glm::mat4 model_view, glm::mat4 proj) {

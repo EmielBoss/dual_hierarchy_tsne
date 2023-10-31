@@ -79,11 +79,12 @@ namespace dh::vis {
     void clearSuggestions();
     void copyTextureDataToTextures();
     void addArchetype(uint archetypeDatapointIndex, uint archetypeClass, GLuint bufferArchetypeData);
-    void removeArchetype(uint archetypeDatapointIndex);
+    void removeArchetype(uint datapointIndex);
     void clearArchetypes();
     void updateSuggestions();
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
+    void updateDatapointIndicesForArchetypes();
     
   private:
     enum class BufferType {

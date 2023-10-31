@@ -181,7 +181,7 @@ namespace dh::vis {
     // };
 
     std::vector<glm::vec3> classColors = {
-      glm::vec3(150, 150, 150),
+      // glm::vec3(150, 150, 150),
       glm::vec3(230, 25, 75),
       glm::vec3(60, 180, 75),
       glm::vec3(255, 225, 25),

@@ -26,7 +26,6 @@
 #include "dh/util/io.hpp"
 #include "dh/util/gl/error.hpp"
 #include "dh/util/gl/buffertools.hpp"
-#include "dh/util/cu/scan.cuh"
 
 namespace dh::util {
 
