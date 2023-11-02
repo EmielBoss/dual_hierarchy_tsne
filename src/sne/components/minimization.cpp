@@ -734,6 +734,7 @@ namespace dh::sne {
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
       program.template uniform<float>("fixedLooseness", _embeddingRenderTask->getFixedLooseness());
+      program.template uniform<bool>("separationMode", _separationMode);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));

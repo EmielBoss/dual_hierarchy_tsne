@@ -46,6 +46,7 @@ layout(location = 2) uniform float minGain;
 layout(location = 3) uniform float mult;
 layout(location = 4) uniform float iterMult;
 layout(location = 5) uniform float fixedLooseness;
+layout(location = 6) uniform bool separationMode;
 
 void main() {
   // Invocation location
@@ -89,6 +90,10 @@ void main() {
     Positions[i] = (1.f - fixedLooseness) * (PositionsRelative[i] * range + minBounds) + fixedLooseness * (Positions[i] + pgrad * mult);
   } else {
     Positions[i] += pgrad * mult;
+  }
+  if(separationMode) {
+    Positions[i] -= min(vec2(0.f), Positions[i] - minBounds);
+    Positions[i] -= max(vec2(0.f), Positions[i] - maxBounds);
   }
   PositionsRelative[i] = (Positions[i] - minBounds) * invRange;
 }
