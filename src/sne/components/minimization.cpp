@@ -733,7 +733,7 @@ namespace dh::sne {
       program.template uniform<float>("minGain", _params->minimumGain);
       program.template uniform<float>("mult", 1.0);
       program.template uniform<float>("iterMult", iterMult);
-      program.template uniform<float>("fixedRigidness", _embeddingRenderTask->getFixedRigidness());
+      program.template uniform<float>("fixedLooseness", _embeddingRenderTask->getFixedLooseness());
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));

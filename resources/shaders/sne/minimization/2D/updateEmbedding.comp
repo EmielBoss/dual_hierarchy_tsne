@@ -45,7 +45,7 @@ layout(location = 1) uniform float eta;
 layout(location = 2) uniform float minGain;
 layout(location = 3) uniform float mult;
 layout(location = 4) uniform float iterMult;
-layout(location = 5) uniform float fixedRigidness;
+layout(location = 5) uniform float fixedLooseness;
 
 void main() {
   // Invocation location
@@ -86,7 +86,7 @@ void main() {
     Positions[i] = PositionsRelative[i] * range + minBounds;
   } else
   if(Fixed[i] == 1) {
-    Positions[i] = fixedRigidness * (PositionsRelative[i] * range + minBounds) + (1.f - fixedRigidness) * (Positions[i] + pgrad * mult);
+    Positions[i] = (1.f - fixedLooseness) * (PositionsRelative[i] * range + minBounds) + fixedLooseness * (Positions[i] + pgrad * mult);
   } else {
     Positions[i] += pgrad * mult;
   }

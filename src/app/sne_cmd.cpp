@@ -127,6 +127,7 @@ void cli(int argc, char** argv) {
   if (result.count("normalize")) { params.normalizeData = true; }
   if (result.count("nonUniformDims")) { params.uniformDims = false; }
   if (result.count("pca")) { params.nPrincipalComponents = result["pca"].as<int>(); }
+  params.k = std::min(params.kMax, 3 * (uint)(params.perplexity) + 1);
 }
 
 void sne() {
