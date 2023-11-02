@@ -49,6 +49,7 @@ layout(location = 0) uniform uint nPos;
 layout(location = 1) uniform float invPos;
 layout(location = 2) uniform float weightFalloff;
 layout(location = 3) uniform bool separationMode;
+layout(location = 4) uniform bool ignoreNegativeForces;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -86,7 +87,7 @@ void main() {
       if(archetypesBuffer[j] == archetypesBuffer[i]) {
         attrForce *= 5.f;
       } else
-      if(archetypesBuffer[j] == 0) {
+      if(archetypesBuffer[j] == 0 || ignoreNegativeForces) {
         attrForce *= 0.f;
       } else {
         attrForce *= -1.f;

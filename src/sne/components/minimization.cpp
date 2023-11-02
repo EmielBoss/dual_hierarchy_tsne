@@ -657,6 +657,7 @@ namespace dh::sne {
       program.template uniform<float>("invPos", 1.f / static_cast<float>(_params->n));
       program.template uniform<float>("weightFalloff", _embeddingRenderTask->getForceWeightFalloff());
       program.template uniform<bool>("separationMode", _separationMode);
+      program.template uniform<bool>("ignoreNegativeForces", _input.i);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _buffers(BufferType::eEmbedding));

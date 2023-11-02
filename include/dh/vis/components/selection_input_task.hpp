@@ -41,6 +41,7 @@ namespace dh::vis {
     bool s;
     bool d;
     bool u;
+    bool i;
     bool x;
     bool y;
     bool z;
@@ -81,6 +82,7 @@ namespace dh::vis {
         _sPressed,
         _dPressed,
         _uPressed,
+        _iPressed,
         _xPressed,
         _yPressed,
         _zPressed,
@@ -106,6 +108,7 @@ namespace dh::vis {
     bool _sPressed;
     bool _dPressed;
     bool _uPressed;
+    bool _iPressed;
     bool _xPressed;
     bool _yPressed;
     bool _zPressed;
