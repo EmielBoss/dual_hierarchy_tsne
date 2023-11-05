@@ -31,48 +31,37 @@ struct Layout {
   uint size;
 };
 
-layout(local_size_x = 256, local_size_y = 1, local_size_z  = 1) in;
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 // Buffer bindings
-layout(binding = 0, std430) restrict readonly buffer Lay { Layout layoutsBuffer[]; };
-layout(binding = 1, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
-layout(binding = 2, std430) restrict buffer Sim { float similaritiesBuffer[]; };
-layout(binding = 3, std430) restrict buffer SimO { float similaritiesBackup[]; };
+layout(binding = 0, std430) restrict readonly buffer Sele { int selectionBuffer[]; };
+layout(binding = 1, std430) restrict readonly buffer Wght { float weightsBuffer[]; };
+layout(binding = 2, std430) restrict readonly buffer Layo { Layout layoutBuffer[]; };
+layout(binding = 3, std430) restrict readonly buffer Neig { uint neighborsBuffer[]; };
+layout(binding = 4, std430) restrict buffer Sims { float similaritiesBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform bool selectedOnly;
+layout(location = 2) uniform bool interOnly;
 
-// Returns index of neighbor j in i's neighbor set
-uint search_ij(uint i, uint j, uint offset, uint size) {
-  // Unfortunately the list is unsorted, so search is linear
-  for (uint ij = offset; ij < offset + size; ij++) {
-    if (neighborsBuffer[ij] == j) {
-      return ij;
-    }
-  }
-  return -1;
-}
+// Shorthand subgroup/warp constants
+const uint thread = gl_SubgroupInvocationID;
+const uint nThreads = gl_SubgroupSize;
 
 void main() {
-  const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
+  const uint i = (gl_WorkGroupSize.x * gl_WorkGroupID.x + gl_LocalInvocationID.x) / nThreads;
 
-  if(i >= nPoints) { return; }
-
-  Layout l = layoutsBuffer[i];
-
-  for (uint ij = l.offset + gl_SubgroupInvocationID; ij < l.offset + l.size; ij += gl_SubgroupSize) {
+  if (i >= nPoints || (selectedOnly && selectionBuffer[i] == 0)) { return; }
+  
+  Layout l = layoutBuffer[i];
+  for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
-    if(i < j) {
-      Layout lj = layoutsBuffer[j];
-      uint ji = search_ij(j, i, lj.offset, lj.size);
-      
-      float p_ij = (similaritiesBuffer[ij] + similaritiesBuffer[ji]) / 2.f;
-      similaritiesBuffer[ij] = p_ij;
-      similaritiesBuffer[ji] = p_ij;
-      float p_ij_b = (similaritiesBackup[ij] + similaritiesBackup[ji]) / 2.f;
-      similaritiesBackup[ij] = p_ij_b;
-      similaritiesBackup[ji] = p_ij_b;
+    if((selectedOnly && selectionBuffer[j] == 0) ||
+       (interOnly && selectionBuffer[i] == selectionBuffer[j])) {
+      continue;
     }
+    similaritiesBuffer[ij] *= weightsBuffer[i];
+    similaritiesBuffer[ij] = max(similaritiesBuffer[ij], 0.f);
   }
-
 }

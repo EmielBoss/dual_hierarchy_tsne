@@ -48,6 +48,7 @@ layout(binding = 9, std430) restrict writeonly buffer Rel { float simRelBuffer[]
 // Uniform values
 layout(location = 0) uniform uint nPoints;
 layout(location = 1) uniform bool inter;
+layout(location = 2) uniform bool intra;
 
 // Shorthand subgroup/warp constants
 const uint thread = gl_SubgroupInvocationID;
@@ -63,7 +64,9 @@ void main() {
   for (uint ij = l.offset + thread; ij < l.offset + l.size; ij += nThreads) {
     uint j = neighborsBuffer[ij];
 
-    bool discardLink = disabledBuffer[j] == 1 || (inter && (selectionBuffer[j] == 0 || selectionBuffer[i] == selectionBuffer[j]));
+    bool discardLink = disabledBuffer[j] == 1 ||
+                       (inter && (selectionBuffer[i] == selectionBuffer[j] || selectionBuffer[j] == 0)) ||
+                       (intra && (selectionBuffer[i] != selectionBuffer[j]));
     
     uint index = scanBuffer[i] + (ij - l.offset);
     elementsBuffer[index * 2] = i;

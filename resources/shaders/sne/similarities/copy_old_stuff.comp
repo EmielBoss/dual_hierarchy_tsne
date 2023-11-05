@@ -44,9 +44,13 @@ layout(binding = 6, std430) restrict writeonly buffer Nei { uint neighborsBuffer
 layout(binding = 7, std430) restrict writeonly buffer Sim { float similaritiesBuffer[]; };
 layout(binding = 8, std430) restrict writeonly buffer SimO { float similaritiesBackup[]; };
 layout(binding = 9, std430) restrict writeonly buffer Dis { float distancesL1Buffer[]; };
+layout(binding = 10, std430) restrict readonly buffer Sel { int selectionBuffer[]; };
+layout(binding = 11, std430) restrict writeonly buffer Cnt { uint countsBuffer[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nPoints;
+layout(location = 1) uniform bool addOrRemove;
+layout(location = 2) uniform bool interOrIntra;
 
 void main() {
   const uint i = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x) / gl_SubgroupSize;
@@ -56,9 +60,19 @@ void main() {
   Layout l = layoutsBuffer[i];
   Layout lp = layoutsPrevBuffer[i];
   for (uint ij = gl_SubgroupInvocationID; ij < lp.size; ij += gl_SubgroupSize) {
-    neighborsBuffer[l.offset + ij] = neighborsPrevBuffer[lp.offset + ij];
-    similaritiesBuffer[l.offset + ij] = similaritiesPrevBuffer[lp.offset + ij];
-    similaritiesBackup[l.offset + ij] = similaritiesPrevBackup[lp.offset + ij];
-    distancesL1Buffer[l.offset + ij] = distancesL1PrevBuffer[lp.offset + ij];
+    uint j = neighborsPrevBuffer[lp.offset + ij];
+    if(!addOrRemove && (
+      ( interOrIntra && selectionBuffer[i] >  0 && selectionBuffer[j] >  0 && selectionBuffer[i] != selectionBuffer[j]) ||
+      (!interOrIntra && selectionBuffer[i] == 1 && selectionBuffer[j] == 1)
+    )) {
+      continue;
+    }
+
+    uint k = addOrRemove ? ij : atomicAdd(countsBuffer[i], 1);
+
+    neighborsBuffer[l.offset + k] = neighborsPrevBuffer[lp.offset + ij];
+    similaritiesBuffer[l.offset + k] = similaritiesPrevBuffer[lp.offset + ij];
+    similaritiesBackup[l.offset + k] = similaritiesPrevBackup[lp.offset + ij];
+    distancesL1Buffer[l.offset + k] = distancesL1PrevBuffer[lp.offset + ij];
   }
 }

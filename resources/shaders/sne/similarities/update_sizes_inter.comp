@@ -41,11 +41,12 @@ layout(binding = 2, std430) restrict readonly buffer Neighbors { uint neighborsB
 layout(binding = 3, std430) restrict buffer Sizes { uint sizesBuffer[]; };
 
 // Uniform values
-layout(location = 0) uniform uint nSelected;
-layout(location = 1) uniform uint nSelectedOther;
-layout(location = 2) uniform uint offsetOther;
-layout(location = 3) uniform float omissionRatio;
-layout(location = 4) uniform float omissionRatioOther;
+layout(location = 0) uniform bool addOrRemove;
+layout(location = 1) uniform uint nSelected;
+layout(location = 2) uniform uint nSelectedOther;
+layout(location = 3) uniform uint offsetOther;
+layout(location = 4) uniform float omissionRatio;
+layout(location = 5) uniform float omissionRatioOther;
 
 const uint offset = offsetOther == 0 ? nSelectedOther : 0;
 
@@ -82,11 +83,11 @@ void main() {
   for (uint jdx = offsetOther + gl_SubgroupInvocationID; jdx < offsetOther + nSelectedOther; jdx += gl_SubgroupSize) {
     uint j = indicesBuffer[jdx];
     Layout lj = layoutsBuffer[j];
-    if(!omitNeighbors(i, j) && !alreadyNeighbors(i, j, li)) { count++; }
+    if((addOrRemove ^^ alreadyNeighbors(i, j, li)) && !(addOrRemove && omitNeighbors(i, j))) { count++; }
   }
 
   count = subgroupAdd(count);
   if(gl_SubgroupInvocationID < 1) {
-    sizesBuffer[i] += count;
+    sizesBuffer[i] += count * (addOrRemove ? 1 : -1);
   }
 }

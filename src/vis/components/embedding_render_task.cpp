@@ -266,14 +266,10 @@ namespace dh::vis {
 
       if (_minimizationBuffers.labels > 0) {
         ImGui::Text("Color map:");
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Colors", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("kNN preservation", _colorMapping==ColorMapping::knnPreservation)) { _colorMapping = ColorMapping::knnPreservation; }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
+        if (ImGui::SameLine(); ImGui::RadioButton("Labels", _colorMapping==ColorMapping::labels)) { _colorMapping = ColorMapping::labels; }
+        if (ImGui::SameLine(); ImGui::RadioButton("Colors", _colorMapping==ColorMapping::colors)) { _colorMapping = ColorMapping::colors; }
+        if (ImGui::SameLine(); ImGui::RadioButton("kNN preservation", _colorMapping==ColorMapping::knnPreservation)) { _colorMapping = ColorMapping::knnPreservation; }
+        if (ImGui::SameLine(); ImGui::RadioButton("None", _colorMapping==ColorMapping::none)) { _colorMapping = ColorMapping::none; }
       }
       ImGui::SliderFloat("Point opacity", &_pointOpacity, 0.0f, 1.0f);
       ImGui::SliderFloat("Point radius", &_pointRadius, 0.0001f, 0.005f, "%.4f");

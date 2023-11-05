@@ -60,11 +60,12 @@ namespace dh::sne {
     void recomp(GLuint selectionBufferHandle, float perplexity, uint k);
     void renormalizeSimilarities(GLuint selectionBufferHandle = 0);
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
+    void weighSimilaritiesPerDatapoint(GLuint weightsBuffer, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
     void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels);
-    void addSimilaritiesInter(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
-    void addSimilaritiesIntra(GLuint selectionBufferHandle, std::vector<uint> selectionCounts);
+    void editLinksInter(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, bool addOrRemove, float siphonRate = -1);
+    void editLinksIntra(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, bool addOrRemove, float siphonRate = -1);
     void reset();
     void assertSimilarities();
 
@@ -105,8 +106,8 @@ namespace dh::sne {
       eSizes,
       eScan,
       eCounts,
-      eSimSumPerDatapointPreex,
-      eSimSumPerDatapointAdded,
+      eSimSumPerDatapointPre,
+      eSimSumPerDatapointPst,
 
       eLayout,
       eNeighbors,
@@ -126,6 +127,7 @@ namespace dh::sne {
       eNeighborsSortComp,
       eL1DistancesComp,
       eWeighSimilaritiesComp,
+      eWeighSimilaritiesPerDatapointComp,
       eWeighSimilaritiesPerAttributeRatioComp,
       eWeighSimilaritiesPerAttributeRangeComp,
       eWeighSimilaritiesPerAttributeResembleComp,

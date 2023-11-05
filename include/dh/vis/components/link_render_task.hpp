@@ -56,7 +56,7 @@ namespace dh::vis {
     void createVAO();
     void updateLinks();
     void clearLinks();
-    void setSecondarySelectionCount(uint count) { _secondarySelectionCount = count; }
+    void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) {
       _minimizationBuffers = minimizationBuffers;
@@ -94,18 +94,24 @@ namespace dh::vis {
       both
     };
 
+    enum Mode {
+      alllinks,
+      interlinks,
+      intralinks
+    };
+
     // State
     bool _isInit;
     sne::Params* _params;
     dh::vis::Input _input;
     uint _nLinks;
     bool _enabledPrev;
-    uint _secondarySelectionCount;
+    std::vector<uint> _selectionCounts;
 
     // ImGui state
     float _linkOpacity;
-    bool _interOnly;
-    bool _interOnlyPrev;
+    uint _mode;
+    uint _modePrev;
     bool _vizSimilarities;
     uint _colorMapping;
 
@@ -131,10 +137,10 @@ namespace dh::vis {
       swap(a._input, b._input);
       swap(a._nLinks, b._nLinks);
       swap(a._enabledPrev, b._enabledPrev);
-      swap(a._secondarySelectionCount, b._secondarySelectionCount);
+      swap(a._selectionCounts, b._selectionCounts);
       swap(a._linkOpacity, b._linkOpacity);
-      swap(a._interOnly, b._interOnly);
-      swap(a._interOnlyPrev, b._interOnlyPrev);
+      swap(a._mode, b._mode);
+      swap(a._modePrev, b._modePrev);
       swap(a._vizSimilarities, b._vizSimilarities);
       swap(a._colorMapping, b._colorMapping);
       swap(a._buffers, b._buffers);

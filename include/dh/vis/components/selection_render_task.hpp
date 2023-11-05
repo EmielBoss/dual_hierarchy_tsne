@@ -74,6 +74,7 @@ namespace dh::vis {
     float _similarityWeight;
     uint _buttonPressed;
     int _selectedDatapoint;
+    float _siphonRate;
 
     // Objects
     util::EnumArray<BufferType, GLuint> _buffers;
@@ -92,6 +93,7 @@ namespace dh::vis {
     void setSelectionCounts(std::vector<uint> selectionCounts) { _selectionCounts = selectionCounts; }
     void setInput(dh::vis::Input input) { _input = input; }
     int getSelectedDatapoint() { return _selectedDatapoint; }
+    float getSiphonRate() { return _siphonRate; }
     
     // std::swap impl
     friend void swap(SelectionRenderTask& a, SelectionRenderTask& b) noexcept {
@@ -107,6 +109,7 @@ namespace dh::vis {
       swap(a._buttonPressed, b._buttonPressed);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._similarityWeight, b._similarityWeight);
+      swap(a._siphonRate, b._siphonRate);
       swap(a._buffers, b._buffers);
       swap(a._vaoHandle, b._vaoHandle);
       swap(a._program, b._program);

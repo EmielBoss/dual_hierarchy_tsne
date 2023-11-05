@@ -60,7 +60,8 @@ namespace dh::vis {
     _mousePosScreen({0.0, 0.0}),
     _buttonPressed(0),
     _selectedDatapoint(0),
-    _similarityWeight(1.f) {
+    _similarityWeight(1.f),
+    _siphonRate(0.66f) {
 
     // Initialize shader program
     {
@@ -147,7 +148,7 @@ namespace dh::vis {
       _buttonPressed = 0;
       ImGui::Text("Sim. weight:");
       ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.3f);
-      ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.0f, _params->maxSimilarityWeight);
+      ImGui::SameLine(); ImGui::SliderFloat("%", &_similarityWeight, 0.f, _params->maxSimilarityWeight);
       if(ImGui::SameLine(); ImGui::Button("Apply")) { _buttonPressed = 1; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Weight the similarities of the selected datapoints with the specified weight."); ImGui::EndTooltip(); }
       if(_selectionCounts[0] > 0 && _selectionCounts[1] > 0) {
@@ -163,14 +164,24 @@ namespace dh::vis {
       ImGui::Text("Selection size (secondary): %i", _selectionCounts[1]);
       
       if(_selectionCounts[0] > 0 && _selectionCounts[1] > 0) {
-        if(ImGui::Button("Fuse (inter)")) { _buttonPressed = 11; }
+        if(                   ImGui::Button("Fuse (inter)")) { _buttonPressed = 11; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between datapoints from different selections where those don't exist."); ImGui::EndTooltip(); }
+        if(ImGui::SameLine(); ImGui::Button("Sever (inter)")) { _buttonPressed = 14; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove similarities between datapoints from different selections."); ImGui::EndTooltip(); }
       } else {
-        if(ImGui::Button("Fuse (intra)")) { _buttonPressed = 12; }
+        if(                   ImGui::Button("Fuse (intra)")) { _buttonPressed = 12; }
         if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Add similarities between all pairs of datapoints in the primary selection where those don't exist."); ImGui::EndTooltip(); }
+        if(ImGui::SameLine(); ImGui::Button("Sever (intra)")) { _buttonPressed = 15; }
+        if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Remove similarities between all pairs of datapoints in the primary selection."); ImGui::EndTooltip(); }
       }
       if(ImGui::SameLine(); ImGui::Button("Assert")) { _buttonPressed = 13; }
       if(ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::Text("Checks if the kNN graph is still valid."); ImGui::EndTooltip(); }
+      std::string percentageOld = std::to_string((int) (_siphonRate * 100)) + " old";
+      ImGui::SameLine(); ImGui::Text(percentageOld.c_str());
+      ImGui::PushItemWidth(60);
+      ImGui::SameLine(); ImGui::SliderFloat("##Siphon rate", &_siphonRate, 0.1f, 0.9f, "split");
+      std::string percentageNew = std::to_string((int) ((1 - _siphonRate) * 100)) + " new";
+      ImGui::SameLine(); ImGui::Text(percentageNew.c_str());
     }
   }
 

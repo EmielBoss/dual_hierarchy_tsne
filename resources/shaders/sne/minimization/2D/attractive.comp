@@ -85,7 +85,7 @@ void main() {
 
     if(separationMode && archetypesBuffer[i] > 0) {
       if(archetypesBuffer[j] == archetypesBuffer[i]) {
-        attrForce *= 5.f;
+        attrForce *= 2.f;
       } else
       if(archetypesBuffer[j] == 0 || ignoreNegativeForces) {
         attrForce *= 0.f;

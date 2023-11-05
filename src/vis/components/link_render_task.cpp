@@ -53,7 +53,7 @@ namespace dh::vis {
     _similaritiesBuffers(similaritiesBuffers),
     _params(params),
     _linkOpacity(1.f),
-    _interOnly(true),
+    _mode(1),
     _vizSimilarities(true),
     _colorMapping(1),
     _nLinks(6) {
@@ -151,7 +151,8 @@ namespace dh::vis {
       
       // Set uniforms
       program.template uniform<uint>("nPoints", _params->n);
-      program.template uniform<bool>("inter", _interOnly && _secondarySelectionCount > 0);
+      program.template uniform<bool>("inter", _mode == Mode::interlinks && _selectionCounts[1] > 0);
+      program.template uniform<bool>("intra", _mode == Mode::intralinks);
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _minimizationBuffers.selection);
@@ -186,9 +187,9 @@ namespace dh::vis {
   // index into the vec2 positions and float link opacities
   template <uint D>
   void LinkRenderTask<D>::render(glm::mat4 model_view, glm::mat4 proj) {
-    if (enabled && !_enabledPrev || _interOnly != _interOnlyPrev) { updateLinks(); }
+    if (enabled && !_enabledPrev || _mode != _modePrev) { updateLinks(); }
     _enabledPrev = enabled;
-    _interOnlyPrev = _interOnly;
+    _modePrev = _mode;
     if (!enabled) { return; }
     
     _programs(ProgramType::eRender).bind();
@@ -214,7 +215,10 @@ namespace dh::vis {
   void LinkRenderTask<D>::drawImGuiComponent() {
     if (ImGui::CollapsingHeader("Link render settings", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::SliderFloat("Line opacity", &_linkOpacity, 0.0f, 2.0f);
-      ImGui::Checkbox("Interlinks only", &_interOnly);
+      ImGui::Text("Show");
+      if (ImGui::SameLine(); ImGui::RadioButton("All links", _mode==Mode::alllinks)) { _mode = Mode::alllinks; }
+      if (ImGui::SameLine(); ImGui::RadioButton("Interlinks", _mode==Mode::interlinks)) { _mode = Mode::interlinks; }
+      if (ImGui::SameLine(); ImGui::RadioButton("Intralinks", _mode==Mode::intralinks)) { _mode = Mode::intralinks; }
       ImGui::Checkbox("Visualize similarity", &_vizSimilarities);
       if(_vizSimilarities) {
         ImGui::SameLine();

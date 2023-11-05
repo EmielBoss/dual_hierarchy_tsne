@@ -40,14 +40,16 @@ layout(binding = 1, std430) restrict readonly buffer Lay { Layout layoutsBuffer[
 layout(binding = 2, std430) restrict readonly buffer IdxSel { uint indicesBuffer[]; };
 layout(binding = 3, std430) restrict readonly buffer Nei { uint neighborsBuffer[]; };
 layout(binding = 4, std430) restrict readonly buffer DistL2 { float distancesL2Buffer[]; };
-layout(binding = 5, std430) restrict buffer Sim { float similaritiesBuffer[]; };
-layout(binding = 6, std430) restrict writeonly buffer SimO { float similaritiesBackup[]; };
+layout(binding = 5, std430) restrict readonly buffer SimSum { float simsumsBuffer[]; };
+layout(binding = 6, std430) restrict buffer Sim { float similaritiesBuffer[]; };
+layout(binding = 7, std430) restrict writeonly buffer SimO { float similaritiesBackup[]; };
 
 // Uniform values
 layout(location = 0) uniform uint nSelectedAll;
 layout(location = 1) uniform uint nIters;
 layout(location = 2) uniform float perplexity;
 layout(location = 3) uniform float epsilon;
+layout(location = 4) uniform float siphonRate;
 
 void main() {
   const uint idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x);
@@ -107,14 +109,15 @@ void main() {
   }
 
   // Normalize kernel at the end
+  const float totalAddedSimilarity = ((1 - siphonRate) / siphonRate) * simsumsBuffer[i]; // This is the total amount of new similarities added to this datapoint. Will be normalized later
   if (!foundBeta) { // Edge case that likely doesn't happen too much in practice
-    const float v = 1.f / float(l.size - lp.size);
+    const float v = totalAddedSimilarity / float(l.size - lp.size);
     for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
       similaritiesBuffer[ij] = v;
       similaritiesBackup[ij] = v;
     }
   } else {
-    const float div = 1.f / sum;
+    const float div = totalAddedSimilarity / sum;
     for (uint ij = l.offset + lp.size; ij < l.offset + l.size; ij++) {
       similaritiesBuffer[ij] *= div; // Now p_j|i is stored
       similaritiesBackup[ij] = similaritiesBuffer[ij]; // Now p_j|i is stored

@@ -327,7 +327,7 @@ namespace dh::sne {
           selectIndividualDatapoint(archetypeIndices[i], 1);
         }
       }
-      _similarities->addSimilaritiesIntra(_buffers(BufferType::eSelection), _selectionCounts);
+      _similarities->editLinksIntra(_buffers(BufferType::eSelection), _selectionCounts, true, 0.5f);
       syncBufferHandles();
     }
 
@@ -463,12 +463,22 @@ namespace dh::sne {
         _similarities->renormalizeSimilarities();
       }
       if(button == 11) { // Add similarities (inter)
-        _similarities->addSimilaritiesInter(_buffers(BufferType::eSelection), _selectionCounts);
+        _similarities->editLinksInter(_buffers(BufferType::eSelection), _selectionCounts, true, _selectionRenderTask->getSiphonRate());
+        syncBufferHandles();
+        compIterationSelect(true);
+      }
+      if(button == 14) { // Remove similarities (inter)
+        _similarities->editLinksInter(_buffers(BufferType::eSelection), _selectionCounts, false);
         syncBufferHandles();
         compIterationSelect(true);
       }
       if(button == 12) { // Add similarities (intra)
-        _similarities->addSimilaritiesIntra(_buffers(BufferType::eSelection), _selectionCounts);
+        _similarities->editLinksIntra(_buffers(BufferType::eSelection), _selectionCounts, true, _selectionRenderTask->getSiphonRate());
+        syncBufferHandles();
+        compIterationSelect(true);
+      }
+      if(button == 15) { // Remove similarities (intra)
+        _similarities->editLinksIntra(_buffers(BufferType::eSelection), _selectionCounts, false);
         syncBufferHandles();
         compIterationSelect(true);
       }
@@ -645,7 +655,7 @@ namespace dh::sne {
 
     // 4.
     // Compute attractive forces
-    { 
+    {
       auto& timer = _timers(TimerType::eAttractiveComp);
       timer.tick();
 
@@ -901,7 +911,7 @@ namespace dh::sne {
     }
 
     _attributeRenderTask->updateVisualizations(_selectionCounts);
-    _linkRenderTask->setSecondarySelectionCount(_selectionCounts[1]);
+    _linkRenderTask->setSelectionCounts(_selectionCounts);
     _linkRenderTask->updateLinks();
   }
 

@@ -276,6 +276,8 @@ namespace dh::vis {
     for(uint i = 0; i < nSelected; ++i) {
       setTexelWeight(indices[i], _attributeWeight);
     }
+
+    copyTextureDataToTextures();
   }
 
   void AttributeRenderTask::clearAttributeWeights() {
