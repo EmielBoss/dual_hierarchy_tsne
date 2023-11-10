@@ -150,7 +150,7 @@ void sne() {
     if(params.uniformDims || params.imageDataset) { dh::util::normalizeData(data, params.n, params.nHighDims); }
     else { dh::util::normalizeDataNonUniformDims(data, params.n, params.nHighDims); }
   }
-  params.datasetName = iptFilename.substr(0, iptFilename.length() - 4);
+  params.datasetName = iptFilename;
   params.nTexels = params.nHighDims / params.imgDepth;
 
   // Create OpenGL context (and accompanying invisible window)
