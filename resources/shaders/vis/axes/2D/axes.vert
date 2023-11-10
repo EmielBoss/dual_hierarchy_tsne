@@ -32,4 +32,6 @@ layout(location = 1) uniform mat4 proj;
 
 void main() {
   gl_Position = proj * model_view * vec4(positionIn, 0, 1);
+  gl_Position.x *= 1.01;
+  gl_Position.y *= 1.01;
 }
