@@ -56,9 +56,9 @@ namespace dh::util {
   {
     glDeleteBuffers(archetypeHandles.size(), archetypeHandles.data());
     // dh::util::readGLBuffer<float>(buffers[20], "rel"); // eEmbeddingRelative
-    dh::util::readGLBuffer<uint>(buffers[16], "fxd"); // eFixed
+    // dh::util::readGLBuffer<uint>(buffers[16], "fxd"); // eFixed
     dh::util::readGLBuffer<uint>(buffers[22], "dsb"); // eDisabled
-    dh::util::readGLBuffer<float>(buffers[18], "wgt"); // eWeights
+    // dh::util::readGLBuffer<float>(buffers[18], "wgt"); // eWeights
     dh::util::readGLBuffer<uint>(buffers[15], "slc"); // eSelection
     dh::util::readGLBuffer<uint>(buffers[19], "lbd"); // eLabeled
     dh::util::readGLBuffer<float>(bufferAttributeWeights, "awt"); // eAttributeWeights
@@ -88,9 +88,9 @@ namespace dh::util {
                   std::unordered_map<uint, uint> datapointArchetypeMapping)
   {
     // dh::util::writeGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
-    dh::util::writeGLBuffer<int>(buffers[16], n, 1, "fxd"); // eFixed
+    // dh::util::writeGLBuffer<int>(buffers[16], n, 1, "fxd"); // eFixed
     dh::util::writeGLBuffer<int>(buffers[22], n, 1, "dsb"); // eDisabled
-    dh::util::writeGLBuffer<float>(buffers[18], n, 1, "wgt"); // eWeights
+    // dh::util::writeGLBuffer<float>(buffers[18], n, 1, "wgt"); // eWeights
     dh::util::writeGLBuffer<int>(buffers[15], n, 1, "slc"); // eSelection
     dh::util::writeGLBuffer<int>(buffers[19], n, 1, "lbd"); // eLabeled
     dh::util::writeGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights

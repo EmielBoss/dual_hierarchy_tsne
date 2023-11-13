@@ -350,6 +350,8 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::separationModeStop() {
     std::vector<uint> archetypeIndices = _attributeRenderTask->getArchetypeIndices();
+    std::vector<uint> archetypeLabels = _attributeRenderTask->getArchetypeLabels();
+    std::set<uint> archetypeClasses(archetypeLabels.begin(), archetypeLabels.end());
 
     // Count number of archetypes
     deselect();
@@ -361,9 +363,9 @@ namespace dh::sne {
     glClearNamedBufferData(_buffers(BufferType::eFixed), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
 
     float forceWeight = std::max(_embeddingRenderTask->getForceWeight() / nArchetypes, 1.f);
-    for(uint c = 1; c < 3; ++c) {
-      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, c, _buffers(BufferType::eArchetypes));
-      dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight, c, _buffers(BufferType::eArchetypes));
+    for(uint c : archetypeClasses) {
+      dh::util::BufferTools::instance().set<int>(_buffers(BufferType::eFixed), _params->n, 1, c + 1, _buffers(BufferType::eArchetypes));
+      dh::util::BufferTools::instance().set<float>(_buffers(BufferType::eWeights), _params->n, forceWeight, c + 1, _buffers(BufferType::eArchetypes));
     }
 
     glClearNamedBufferData(_buffers(BufferType::eDisabled), GL_R32I, GL_RED_INTEGER, GL_INT, NULL);
