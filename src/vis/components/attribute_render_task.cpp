@@ -139,7 +139,6 @@ namespace dh::vis {
       // Archetype textures and associates buffers and vectors
       _archetypeLabels = std::vector<uint>();
       _archetypeDatapointIndices = std::vector<uint>();
-      _buffersTextureDataArchetypes = std::vector<GLuint>();
       _datapointArchetypeMapping = std::unordered_map<uint, uint>();
       _buffersTextureDataSuggestions = std::vector<GLuint>();
       _texturesSuggestions = std::vector<GLuint>();
@@ -157,7 +156,6 @@ namespace dh::vis {
   AttributeRenderTask::~AttributeRenderTask() {
     glDeleteBuffers(_buffers.size(), _buffers.data());
     glDeleteBuffers(_buffersTextureData.size(), _buffersTextureData.data());
-    glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
     glDeleteBuffers(_buffersTextureDataSuggestions.size(), _buffersTextureDataSuggestions.data());
     glDeleteTextures(_textures.size(), _textures.data());
     glDeleteTextures(_texturesSuggestions.size(), _texturesSuggestions.data());
@@ -349,14 +347,7 @@ namespace dh::vis {
     glAssert();
   }
 
-  void AttributeRenderTask::addArchetype(uint archetypeDatapointIndex, uint archetypeClass, GLuint archetypeDataBuffer) {
-    GLuint archetypeDataHandle;
-    glCreateBuffers(1, &archetypeDataHandle);
-    glNamedBufferStorage(archetypeDataHandle, _params->nHighDims * sizeof(float), nullptr, 0);
-    GLuint buffer = archetypeDataBuffer ? archetypeDataBuffer : _buffersTextureData[_tabIndex];
-    glCopyNamedBufferSubData(buffer, archetypeDataHandle, 0, 0, _params->nHighDims * sizeof(float));
-
-    _buffersTextureDataArchetypes.push_back(archetypeDataHandle);
+  void AttributeRenderTask::addArchetype(uint archetypeDatapointIndex, uint archetypeClass) {
     _archetypeLabels.push_back(archetypeClass);
     _archetypeDatapointIndices.push_back(archetypeDatapointIndex);
     _datapointArchetypeMapping[archetypeDatapointIndex] = _archetypeLabels.size() - 1;
@@ -365,8 +356,6 @@ namespace dh::vis {
 
   void AttributeRenderTask::removeArchetype(uint datapointIndex) {
     uint archetypeIndex = _datapointArchetypeMapping[datapointIndex];
-    glDeleteBuffers(1, _buffersTextureDataArchetypes.data() + archetypeIndex);
-    _buffersTextureDataArchetypes.erase(_buffersTextureDataArchetypes.begin() + archetypeIndex);
     _archetypeLabels.erase(_archetypeLabels.begin() + archetypeIndex);
     _archetypeDatapointIndices.erase(_archetypeDatapointIndices.begin() + archetypeIndex);
     _datapointArchetypeMapping.erase(datapointIndex);
@@ -376,8 +365,6 @@ namespace dh::vis {
   }
 
   void AttributeRenderTask::clearArchetypes() {
-    glDeleteBuffers(_buffersTextureDataArchetypes.size(), _buffersTextureDataArchetypes.data());
-    _buffersTextureDataArchetypes.clear();
     _archetypeLabels.clear();
     _archetypeDatapointIndices.clear();
     _datapointArchetypeMapping.clear();
@@ -598,12 +585,12 @@ namespace dh::vis {
           if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             int archetypeClass = _input.num > 0 ? _input.num : _archetypeClassSelected;
             if(archetypeIndex < 0) {
-              addArchetype(datapointIndex, archetypeClass, _buffersTextureDataSuggestions[i * nCols + j]);
+              addArchetype(datapointIndex, archetypeClass);
             } else {
               bool overwrite = _archetypeLabels[_datapointArchetypeMapping[datapointIndex]] != archetypeClass;
               removeArchetype(datapointIndex);
               if(overwrite) {
-                addArchetype(datapointIndex, archetypeClass, _buffersTextureDataSuggestions[i * nCols + j]);
+                addArchetype(datapointIndex, archetypeClass);
               } else {
                 archetypeIndex = -1;
               }

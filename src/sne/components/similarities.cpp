@@ -425,7 +425,7 @@ namespace dh::sne {
     glAssert();
   }
 
-  void Similarities::weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
+  void Similarities::weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected) {
     if(weightedAttributeIndices.size() == 0) { return; }
     
     // Create and initialize temp buffers
@@ -466,7 +466,7 @@ namespace dh::sne {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
-  void Similarities::weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle) {
+  void Similarities::weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected) {
     if(weightedAttributeIndices.size() == 0) { return; }
 
     // Create and initialize temp buffers
@@ -533,8 +533,8 @@ namespace dh::sne {
     glDeleteBuffers(_buffersTemp.size(), _buffersTemp.data());
   }
 
-  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels) {
-    if(archetypeHandles.size() < 1) { return; }
+  void Similarities::weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, std::vector<uint> archetypeIndices, std::vector<uint> archetypeLabels) {
+    if(archetypeLabels.size() < 1) { return; }
     
     // Create and initialize temp buffers
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
@@ -547,12 +547,10 @@ namespace dh::sne {
       glClearNamedBufferData(_buffers(BufferType::eAttributeWeights), GL_R32F, GL_RED, GL_FLOAT, NULL);
     }
     glNamedBufferStorage(_buffersTemp(BufferTempType::eWeightedAttributeIndices), attributeIndices.size() * sizeof(uint), attributeIndices.data(), 0);
+
     uint nArchetypes = archetypeLabels.size();
     glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypeLabels), nArchetypes * sizeof(uint), archetypeLabels.data(), 0);
-    glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypes), nArchetypes * _params->nHighDims * sizeof(float), nullptr, 0);
-    for(uint i = 0; i < nArchetypes; ++i) {
-      glCopyNamedBufferSubData(archetypeHandles[i], _buffersTemp(BufferTempType::eArchetypes), 0, i * _params->nHighDims * sizeof(float), _params->nHighDims * sizeof(float));
-    }
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypesIndices), nArchetypes * sizeof(uint), archetypeIndices.data(), 0);
 
     // Weighting the similarities
     {
@@ -567,7 +565,7 @@ namespace dh::sne {
 
       // Set buffer bindings
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, selectionBufferHandle);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eArchetypes));
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _buffersTemp(BufferTempType::eArchetypesIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _buffersTemp(BufferTempType::eArchetypeLabels));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _buffersTemp(BufferTempType::eWeightedAttributeIndices));
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _buffers(BufferType::eDataset));

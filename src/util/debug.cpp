@@ -51,10 +51,8 @@ namespace dh::util {
   }
 
   void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices,
-                 std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices,
-                 std::unordered_map<uint, uint>& datapointArchetypeMapping)
+                 std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices, std::unordered_map<uint, uint>& datapointArchetypeMapping)
   {
-    glDeleteBuffers(archetypeHandles.size(), archetypeHandles.data());
     // dh::util::readGLBuffer<float>(buffers[20], "rel"); // eEmbeddingRelative
     // dh::util::readGLBuffer<uint>(buffers[16], "fxd"); // eFixed
     dh::util::readGLBuffer<uint>(buffers[22], "dsb"); // eDisabled
@@ -64,28 +62,15 @@ namespace dh::util {
     dh::util::readGLBuffer<float>(bufferAttributeWeights, "awt"); // eAttributeWeights
     weightedAttributeIndices = dh::util::readSet<uint>("wai"); // Weighted attribute indices
 
-    if(!std::ifstream("./buffer_dumps/ats.txt").good()) { return; } // No archetypes files found
+    if(!std::ifstream("./buffer_dumps/atc.txt").good()) { return; } // No archetypes files found
     archetypeLabels = dh::util::readVector<uint>("atc");
     archetypeIndices = dh::util::readVector<uint>("ati");
-    uint nArchetypes = archetypeLabels.size();
-    GLuint tempBuffer;
-    glCreateBuffers(1, &tempBuffer);
-    glNamedBufferStorage(tempBuffer, nArchetypes * nHighDims * sizeof(float), nullptr, 0);
-    dh::util::readGLBuffer<float>(tempBuffer, "ats");
-    archetypeHandles = std::vector<GLuint>(nArchetypes);
-    glCreateBuffers(archetypeHandles.size(), archetypeHandles.data());
-    for(uint i = 0; i < nArchetypes; ++i) {
-      glNamedBufferStorage(archetypeHandles[i], nHighDims * sizeof(float), nullptr, 0);
-      glCopyNamedBufferSubData(tempBuffer, archetypeHandles[i], i * nHighDims * sizeof(float), 0, nHighDims * sizeof(float));
-    }
-    glDeleteBuffers(1, &tempBuffer);
     datapointArchetypeMapping = dh::util::readMap<uint, uint>("map");
     glAssert();
   }
 
   void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices,
-                  std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels, std::vector<uint> archetypeIndices,
-                  std::unordered_map<uint, uint> datapointArchetypeMapping)
+                  std::vector<uint> archetypeLabels, std::vector<uint> archetypeIndices, std::unordered_map<uint, uint> datapointArchetypeMapping)
   {
     // dh::util::writeGLBuffer<float>(buffers[20], n, d, "rel"); // eEmbeddingRelative
     // dh::util::writeGLBuffer<int>(buffers[16], n, 1, "fxd"); // eFixed
@@ -96,19 +81,10 @@ namespace dh::util {
     dh::util::writeGLBuffer<float>(bufferAttributeWeights, nHighDims, 1, "awt"); // eAttributeWeights
     dh::util::writeSet<uint>(weightedAttributeIndices, "wai"); // Weighted attribute indices
     
-    uint nArchetypes = archetypeHandles.size();
-    if(nArchetypes == 0) { return; }
-    GLuint tempBuffer;
-    glCreateBuffers(1, &tempBuffer);
-    glNamedBufferStorage(tempBuffer, nArchetypes * nHighDims * sizeof(float), nullptr, 0);
-    for(uint i = 0; i < nArchetypes; ++i) {
-      glCopyNamedBufferSubData(archetypeHandles[i], tempBuffer, 0, i * nHighDims * sizeof(float), nHighDims * sizeof(float));
-    }
-    dh::util::writeGLBuffer<float>(tempBuffer, nArchetypes, nHighDims, "ats");
+    uint nArchetypes = archetypeLabels.size();
     dh::util::writeVector<uint>(archetypeLabels, nArchetypes, 1, "atc");
     dh::util::writeVector<uint>(archetypeIndices, nArchetypes, 1, "ati");
     dh::util::writeMap<uint, uint>(datapointArchetypeMapping, "map");
-    glDeleteBuffers(1, &tempBuffer);
     glAssert();
   }
 

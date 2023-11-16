@@ -78,7 +78,7 @@ namespace dh::vis {
     void clearSelection();
     void clearSuggestions();
     void copyTextureDataToTextures();
-    void addArchetype(uint archetypeDatapointIndex, uint archetypeClass, GLuint bufferArchetypeData);
+    void addArchetype(uint archetypeDatapointIndex, uint archetypeClass);
     void removeArchetype(uint datapointIndex);
     void clearArchetypes();
     void updateSuggestions();
@@ -197,8 +197,8 @@ namespace dh::vis {
     bool _vizAllPairs;
     uint _suggestionLevel;
     std::vector<uint> _denominators;
-    std::vector<uint> _archetypeLabels; // Same order as _buffersTextureDataArchetypes
-    std::vector<uint> _archetypeDatapointIndices; // Same order as _buffersTextureDataArchetypes
+    std::vector<uint> _archetypeLabels; // Same order as _archetypeDatapointIndices
+    std::vector<uint> _archetypeDatapointIndices; // Same order as _archetypeLabels
     std::unordered_map<uint, uint> _datapointArchetypeMapping;
     int _archetypeClassSelected;
     std::vector<uint> _indicesSuggestions;
@@ -211,7 +211,6 @@ namespace dh::vis {
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<TabType, GLuint> _buffersTextureData;
-    std::vector<GLuint> _buffersTextureDataArchetypes;
     std::vector<GLuint> _buffersTextureDataSuggestions;
     util::EnumArray<TabType, GLuint> _textures;
     std::vector<GLuint> _texturesSuggestions;
@@ -234,9 +233,7 @@ namespace dh::vis {
     void setDatapointArchetypeMapping(std::unordered_map<uint, uint> datapointArchetypeMapping) { _datapointArchetypeMapping = datapointArchetypeMapping; }
     void setArchetypeLabels(std::vector<uint> archetypeLabels) { _archetypeLabels = archetypeLabels; }
     void setArchetypeIndices(std::vector<uint> archetypeIndices) { _archetypeDatapointIndices = archetypeIndices; }
-    std::vector<GLuint> getArchetypeHandles() { return _buffersTextureDataArchetypes; }
     uint getSelectedDatapoint() { return _selectedDatapoint; }
-    void setArchetypeHandles(std::vector<GLuint> archetypeHandles) { _buffersTextureDataArchetypes = archetypeHandles; }
     void setMinimizationBuffers(sne::MinimizationBuffers minimizationBuffers) { _minimizationBuffers = minimizationBuffers; }
     void setSimilaritiesBuffers(sne::SimilaritiesBuffers similaritiesBuffers) { _similaritiesBuffers = similaritiesBuffers; }
 
@@ -277,7 +274,6 @@ namespace dh::vis {
       swap(a._buffers, b._buffers);
       swap(a._buffersTemp, b._buffersTemp);
       swap(a._buffersTextureData, b._buffersTextureData);
-      swap(a._buffersTextureDataArchetypes, b._buffersTextureDataArchetypes);
       swap(a._textures, b._textures);
       swap(a._classColors, b._classColors);
       swap(a._bufferClassColors, b._bufferClassColors);

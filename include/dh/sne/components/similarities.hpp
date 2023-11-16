@@ -61,9 +61,9 @@ namespace dh::sne {
     void renormalizeSimilarities(GLuint selectionBufferHandle = 0);
     void weighSimilarities(float weight, GLuint selectionBufferHandle = 0, bool interOnly = false);
     void weighSimilaritiesPerDatapoint(GLuint weightsBuffer, GLuint selectionBufferHandle = 0, bool interOnly = false);
-    void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
-    void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle);
-    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, GLuint labelsBufferHandle, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels);
+    void weighSimilaritiesPerAttributeRatio(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected);
+    void weighSimilaritiesPerAttributeRange(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected);
+    void weighSimilaritiesPerAttributeResemble(std::set<uint> weightedAttributeIndices, GLuint selectionBufferHandle, uint nSelected, std::vector<uint> archetypeIndices, std::vector<uint> archetypeLabels);
     void editLinksInter(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, bool addOrRemove, float siphonRate = -1);
     void editLinksIntra(GLuint selectionBufferHandle, std::vector<uint> selectionCounts, bool addOrRemove, float siphonRate = -1);
     void reset();
@@ -93,7 +93,7 @@ namespace dh::sne {
 
       eWeightedAttributeIndices,
       eSubDistancesL1,
-      eArchetypes,
+      eArchetypesIndices,
       eArchetypeLabels,
 
       Length

@@ -32,7 +32,7 @@
 namespace dh::util {
 
   void indicateLabeled(const int* labelPtr, uint n, uint nClasses, uint nLabeledPerClass, GLuint bufferLabeled);
-  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::vector<GLuint>& archetypeHandles, std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices, std::unordered_map<uint, uint>& datapointArchetypeMapping);
-  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::vector<GLuint> archetypeHandles, std::vector<uint> archetypeLabels, std::vector<uint> archetypeIndices, std::unordered_map<uint, uint> datapointArchetypeMapping);
+  void readState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint& bufferAttributeWeights, std::set<uint>& weightedAttributeIndices, std::vector<uint>& archetypeLabels, std::vector<uint>& archetypeIndices, std::unordered_map<uint, uint>& datapointArchetypeMapping);
+  void writeState(uint n, uint nHighDims, uint d, std::array<GLuint, 24> buffers, GLuint bufferAttributeWeights, std::set<uint> weightedAttributeIndices, std::vector<uint> archetypeLabels, std::vector<uint> archetypeIndices, std::unordered_map<uint, uint> datapointArchetypeMapping);
 
 } // dh::util

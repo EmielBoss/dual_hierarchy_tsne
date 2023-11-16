@@ -267,14 +267,12 @@ namespace dh::sne {
 
   template <uint D>
   void Minimization<D>::stateImport() {
-    std::vector<GLuint> archetypeHandles;
     std::vector<uint> archetypeLabels;
     std::vector<uint> archetypeIndices;
     std::unordered_map<uint, uint> datapointArchetypeMapping;
-    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeHandles, archetypeLabels, archetypeIndices, datapointArchetypeMapping);
+    dh::util::readState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights, _attributeRenderTask->getWeightedAttributeIndices(), archetypeLabels, archetypeIndices, datapointArchetypeMapping);
     syncBufferHandles();
     _attributeRenderTask->mirrorWeightsToOverlay();
-    _attributeRenderTask->setArchetypeHandles(archetypeHandles);
     _attributeRenderTask->setArchetypeLabels(archetypeLabels);
     _attributeRenderTask->setArchetypeIndices(archetypeIndices);
     _attributeRenderTask->setDatapointArchetypeMapping(datapointArchetypeMapping);
@@ -286,9 +284,8 @@ namespace dh::sne {
   template <uint D>
   void Minimization<D>::stateExport() {
     dh::util::writeState(_params->n, _params->nHighDims, D, _buffers, _similaritiesBuffers.attributeWeights,
-                         _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeHandles(),
-                         _attributeRenderTask->getArchetypeLabels(), _attributeRenderTask->getArchetypeIndices(),
-                         _attributeRenderTask->getDatapointArchetypeMapping());
+                         _attributeRenderTask->getWeightedAttributeIndices(), _attributeRenderTask->getArchetypeLabels(),
+                         _attributeRenderTask->getArchetypeIndices(), _attributeRenderTask->getDatapointArchetypeMapping());
   }
 
   template <uint D>
@@ -500,13 +497,13 @@ namespace dh::sne {
     if(button > 0 && button != _buttonAttributePrev) {
       std::set<uint> weightedAttributeIndices = _attributeRenderTask->getWeightedAttributeIndices();
       if(button == 2) { // Recalc similarities (ratio)
-        _similarities->weighSimilaritiesPerAttributeRatio(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+        _similarities->weighSimilaritiesPerAttributeRatio(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0]);
       }
       if(button == 25) { // Recalc similarities (range)
-        _similarities->weighSimilaritiesPerAttributeRange(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels));
+        _similarities->weighSimilaritiesPerAttributeRange(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0]);
       }
       if(button == 26) { // Recalc similarities (resemble)
-        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _buffers(BufferType::eLabels), _attributeRenderTask->getArchetypeHandles(), _attributeRenderTask->getArchetypeLabels());
+        _similarities->weighSimilaritiesPerAttributeResemble(weightedAttributeIndices, _buffers(BufferType::eSelection), _selectionCounts[0], _attributeRenderTask->getArchetypeIndices(), _attributeRenderTask->getArchetypeLabels());
       }
       if(button == 3) { // Reset similarities
         _similarities->reset();
