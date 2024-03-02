@@ -97,6 +97,7 @@ namespace dh::vis {
     enum class BufferTempType {
       eDatasetSelection,
       eIndicesSelection,
+      eArchetypeTemp,
 
       Length
     };
@@ -211,7 +212,6 @@ namespace dh::vis {
     util::EnumArray<BufferType, GLuint> _buffers;
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<TabType, GLuint> _buffersTextureData;
-    std::vector<GLuint> _buffersTextureDataSuggestions;
     util::EnumArray<TabType, GLuint> _textures;
     std::vector<GLuint> _texturesSuggestions;
     std::vector<GLuint> _classTextures;

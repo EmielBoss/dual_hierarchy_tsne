@@ -140,7 +140,6 @@ namespace dh::vis {
       _archetypeLabels = std::vector<uint>();
       _archetypeDatapointIndices = std::vector<uint>();
       _datapointArchetypeMapping = std::unordered_map<uint, uint>();
-      _buffersTextureDataSuggestions = std::vector<GLuint>();
       _texturesSuggestions = std::vector<GLuint>();
     }
 
@@ -156,7 +155,6 @@ namespace dh::vis {
   AttributeRenderTask::~AttributeRenderTask() {
     glDeleteBuffers(_buffers.size(), _buffers.data());
     glDeleteBuffers(_buffersTextureData.size(), _buffersTextureData.data());
-    glDeleteBuffers(_buffersTextureDataSuggestions.size(), _buffersTextureDataSuggestions.data());
     glDeleteTextures(_textures.size(), _textures.data());
     glDeleteTextures(_texturesSuggestions.size(), _texturesSuggestions.data());
     glDeleteTextures(_classTextures.size(), _classTextures.data());
@@ -385,18 +383,16 @@ namespace dh::vis {
     util::KClustering kClustering(_selectionCounts[0] + _selectionCounts[1], _params->nHighDims, _buffersTemp(BufferTempType::eDatasetSelection));
     kClustering.comp(nSuggestionsNew, true);
 
-    _buffersTextureDataSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
     _texturesSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
-    glCreateBuffers(nSuggestionsNew, &_buffersTextureDataSuggestions[nSuggestionsPrev]);
     glCreateTextures(GL_TEXTURE_2D, nSuggestionsNew, &_texturesSuggestions[nSuggestionsPrev]);
+    glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypeTemp), _params->nHighDims * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
     for(uint i = 0; i < nSuggestionsNew; ++i) {
-      glNamedBufferStorage(_buffersTextureDataSuggestions[nSuggestionsPrev + i], _params->nHighDims * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
-      glCopyNamedBufferSubData(kClustering.getDataBufferHandle(), _buffersTextureDataSuggestions[nSuggestionsPrev + i], i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
+      glCopyNamedBufferSubData(kClustering.getDataBufferHandle(), _buffersTemp(BufferTempType::eArchetypeTemp), i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
       glTextureParameteri(_texturesSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTextureParameteri(_texturesSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
       glTextureStorage2D(_texturesSuggestions[nSuggestionsPrev + i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
-      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTextureDataSuggestions[nSuggestionsPrev + i]);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTemp(BufferTempType::eArchetypeTemp));
       GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
       glTextureSubImage2D(_texturesSuggestions[nSuggestionsPrev + i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
     }
@@ -414,10 +410,8 @@ namespace dh::vis {
     for(uint i = nSuggestionsPrev; i < nSuggestionsPrev + nSuggestionsNew; ++i) {
       for(uint j = 0; j < nSuggestionsPrev; ++j) {
         if(_indicesSuggestions[i] == _indicesSuggestions[j]) {
-          glDeleteBuffers(1, &_buffersTextureDataSuggestions[i]);
           glDeleteTextures(1, &_texturesSuggestions[i]);
           _indicesSuggestions.erase(_indicesSuggestions.begin() + i);
-          _buffersTextureDataSuggestions.erase(_buffersTextureDataSuggestions.begin() + i);
           _texturesSuggestions.erase(_texturesSuggestions.begin() + i);
           --i;
           --nSuggestionsNew;
@@ -554,7 +548,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::drawImGuiSuggestor() {
     uint padding = 3;
-    uint nSuggestions = _buffersTextureDataSuggestions.size();
+    uint nSuggestions = _texturesSuggestions.size();
     uint nCols = 6;
     uint nRows = nSuggestions / nCols + 1;
     uint maxRows = 7;
@@ -965,9 +959,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::clearSuggestions() {
     _suggestionLevel = 1;
-    glDeleteBuffers(_buffersTextureDataSuggestions.size(), _buffersTextureDataSuggestions.data());
     glDeleteTextures(_texturesSuggestions.size(), _texturesSuggestions.data());
-    _buffersTextureDataSuggestions.clear();
     _texturesSuggestions.clear();
     _indicesSuggestions.clear();
   }
