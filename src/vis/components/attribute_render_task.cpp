@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <numeric>
 #include <string>
+#include <unordered_map>
 #include <resource_embed/resource_embed.hpp>
 #include <glad/glad.h>
 #include "dh/util/gl/buffertools.hpp"
@@ -54,7 +55,8 @@ namespace dh::vis {
     _attributeWeight(0.f),
     _brushRadius(_params->imageDataset ? 1 : 0),
     _similarityWeight(2.f),
-    _autoselectPercentage(0.025f),
+    _autoweighPercentage(0.025f),
+    _autotagPercentage(1.f),
     _tabIndex(0),
     _classIsSet(_params->nClasses, false),
     _classesSet(),
@@ -140,7 +142,7 @@ namespace dh::vis {
       _archetypeLabels = std::vector<uint>();
       _archetypeDatapointIndices = std::vector<uint>();
       _datapointArchetypeMapping = std::unordered_map<uint, uint>();
-      _texturesSuggestions = std::vector<GLuint>();
+      _suggestionTextures = std::vector<GLuint>();
     }
 
     _classNames = std::vector<std::string>(_params->nClasses, "");
@@ -156,7 +158,7 @@ namespace dh::vis {
     glDeleteBuffers(_buffers.size(), _buffers.data());
     glDeleteBuffers(_buffersTextureData.size(), _buffersTextureData.data());
     glDeleteTextures(_textures.size(), _textures.data());
-    glDeleteTextures(_texturesSuggestions.size(), _texturesSuggestions.data());
+    glDeleteTextures(_suggestionTextures.size(), _suggestionTextures.data());
     glDeleteTextures(_classTextures.size(), _classTextures.data());
     glDeleteTextures(1, &_bufferClassColors);
   }
@@ -250,7 +252,7 @@ namespace dh::vis {
     }
   }
 
-  void AttributeRenderTask::autoweighAttributes(uint textureType, float percentage) {
+  void AttributeRenderTask::autoweighAttributes(uint textureType) {
     std::vector<float> textureBuffer(_params->nTexels * _params->imgDepth);
     glGetNamedBufferSubData(_buffersTextureData[textureType], 0, _params->nTexels * _params->imgDepth * sizeof(float), textureBuffer.data());
     std::vector<float> textureData(_params->nTexels, 0.f);
@@ -263,7 +265,7 @@ namespace dh::vis {
 
     std::vector<size_t> indices(textureData.size());
     std::iota(indices.begin(), indices.end(), 0); // Fills indices with 0..nHighDims-1
-    uint nSelected = _params->nTexels * percentage;
+    uint nSelected = _params->nTexels * _autoweighPercentage;
     std::partial_sort(indices.begin(), indices.begin() + nSelected, indices.end(),
                       [&](size_t A, size_t B) {
                         return textureData[A] > textureData[B];
@@ -271,6 +273,33 @@ namespace dh::vis {
     
     for(uint i = 0; i < nSelected; ++i) {
       setTexelWeight(indices[i], _attributeWeight);
+    }
+
+    copyTextureDataToTextures();
+  }
+
+  void AttributeRenderTask::autotagArchetypes() {
+    if(_selectionCounts[0] + _selectionCounts[1] < 3) { return; }
+
+    std::unordered_map<int, uint> classToArchetypeClassMapping;
+    std::vector<int> labels(_params->n);
+    glGetNamedBufferSubData(_minimizationBuffers.labels, 0, _params->n * sizeof(int), labels.data());
+    for(uint i = 0; i < _archetypeDatapointIndices.size(); ++i) {
+      uint datapointIndex = _archetypeDatapointIndices[i];
+      int datapointLabel = labels[datapointIndex];
+      uint archetypeLabel = _archetypeLabels[i];
+      classToArchetypeClassMapping[datapointLabel] = archetypeLabel;
+    }
+
+    uint nSuggestions = _autotagPercentage * (_selectionCounts[0] + _selectionCounts[1]);
+    updateSuggestions(nSuggestions);
+
+    clearArchetypes();
+    for(uint datapointIndex : _suggestionDatapointIndices) {
+      int datapointLabel = labels[datapointIndex];
+      if(classToArchetypeClassMapping.count(datapointLabel) > 0) {
+        addArchetype(datapointIndex, classToArchetypeClassMapping[datapointLabel]);
+      }
     }
 
     copyTextureDataToTextures();
@@ -368,9 +397,10 @@ namespace dh::vis {
     _datapointArchetypeMapping.clear();
   }
 
-  void AttributeRenderTask::updateSuggestions() {
-    uint nSuggestionsNew = std::pow(2, _suggestionLevel);
-    uint nSuggestionsPrev = _indicesSuggestions.size();
+  void AttributeRenderTask::updateSuggestions(uint nSuggestions) {
+    if(nSuggestions > 0) { clearSuggestions(); }
+    uint nSuggestionsNew = nSuggestions > 0 ? nSuggestions : std::pow(2, _suggestionLevel);
+    uint nSuggestionsPrev = _suggestionDatapointIndices.size();
 
     glCreateBuffers(_buffersTemp.size(), _buffersTemp.data());
     dh::util::BufferTools::instance().remove<float>(_similaritiesBuffers.dataset, _params->n, _params->nHighDims, _minimizationBuffers.selection, _buffersTemp(BufferTempType::eDatasetSelection));
@@ -383,18 +413,18 @@ namespace dh::vis {
     util::KClustering kClustering(_selectionCounts[0] + _selectionCounts[1], _params->nHighDims, _buffersTemp(BufferTempType::eDatasetSelection));
     kClustering.comp(nSuggestionsNew, true);
 
-    _texturesSuggestions.resize(nSuggestionsPrev + nSuggestionsNew);
-    glCreateTextures(GL_TEXTURE_2D, nSuggestionsNew, &_texturesSuggestions[nSuggestionsPrev]);
+    _suggestionTextures.resize(nSuggestionsPrev + nSuggestionsNew);
+    glCreateTextures(GL_TEXTURE_2D, nSuggestionsNew, &_suggestionTextures[nSuggestionsPrev]);
     glNamedBufferStorage(_buffersTemp(BufferTempType::eArchetypeTemp), _params->nHighDims * sizeof(float), nullptr, GL_DYNAMIC_STORAGE_BIT);
     for(uint i = 0; i < nSuggestionsNew; ++i) {
       glCopyNamedBufferSubData(kClustering.getDataBufferHandle(), _buffersTemp(BufferTempType::eArchetypeTemp), i * _params->nHighDims * sizeof(float), 0, _params->nHighDims * sizeof(float));
-      glTextureParameteri(_texturesSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTextureParameteri(_texturesSuggestions[nSuggestionsPrev + i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTextureParameteri(_suggestionTextures[nSuggestionsPrev + i], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(_suggestionTextures[nSuggestionsPrev + i], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       GLenum formatInternal = _params->imgDepth == 1 ? GL_R8 : GL_RGB8;
-      glTextureStorage2D(_texturesSuggestions[nSuggestionsPrev + i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
+      glTextureStorage2D(_suggestionTextures[nSuggestionsPrev + i], 1, formatInternal, _params->imgWidth, _params->imgHeight);
       glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _buffersTemp(BufferTempType::eArchetypeTemp));
       GLenum format = _params->imgDepth == 1 ? GL_RED : GL_RGB;
-      glTextureSubImage2D(_texturesSuggestions[nSuggestionsPrev + i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
+      glTextureSubImage2D(_suggestionTextures[nSuggestionsPrev + i], 0, 0, 0, _params->imgWidth, _params->imgHeight, format, GL_FLOAT, 0);
     }
 
     // Map indicesOut to IndicesIn, because Faiss' KNN GPU implementation for some reason breaks with custom indices
@@ -404,15 +434,15 @@ namespace dh::vis {
     dh::util::BufferTools::instance().index(indicesOutHandle, _buffersTemp(BufferTempType::eIndicesSelection), nSuggestionsNew);
     std::vector<uint> indicesOut(nSuggestionsNew);
     glGetNamedBufferSubData(indicesOutHandle, 0, nSuggestionsNew * sizeof(uint), indicesOut.data());
-    _indicesSuggestions.insert(_indicesSuggestions.end(), indicesOut.begin(), indicesOut.end());
+    _suggestionDatapointIndices.insert(_suggestionDatapointIndices.end(), indicesOut.begin(), indicesOut.end());
 
     // Remove duplicate suggestions
     for(uint i = nSuggestionsPrev; i < nSuggestionsPrev + nSuggestionsNew; ++i) {
       for(uint j = 0; j < nSuggestionsPrev; ++j) {
-        if(_indicesSuggestions[i] == _indicesSuggestions[j]) {
-          glDeleteTextures(1, &_texturesSuggestions[i]);
-          _indicesSuggestions.erase(_indicesSuggestions.begin() + i);
-          _texturesSuggestions.erase(_texturesSuggestions.begin() + i);
+        if(_suggestionDatapointIndices[i] == _suggestionDatapointIndices[j]) {
+          glDeleteTextures(1, &_suggestionTextures[i]);
+          _suggestionDatapointIndices.erase(_suggestionDatapointIndices.begin() + i);
+          _suggestionTextures.erase(_suggestionTextures.begin() + i);
           --i;
           --nSuggestionsNew;
           break;
@@ -548,7 +578,7 @@ namespace dh::vis {
 
   void AttributeRenderTask::drawImGuiSuggestor() {
     uint padding = 3;
-    uint nSuggestions = _texturesSuggestions.size();
+    uint nSuggestions = _suggestionTextures.size();
     uint nCols = 6;
     uint nRows = nSuggestions / nCols + 1;
     uint maxRows = 7;
@@ -564,7 +594,7 @@ namespace dh::vis {
     for (uint i = 0; i < nRows; i++) {
       for(uint j = 0; j < nCols; j++) {
         if(i * nCols + j >= nSuggestions || nSuggestions == 0) { break; }
-        uint datapointIndex = _indicesSuggestions[i * nCols + j];
+        uint datapointIndex = _suggestionDatapointIndices[i * nCols + j];
         int archetypeIndex = _datapointArchetypeMapping.find(datapointIndex) == _datapointArchetypeMapping.end() ? -1 : (int) _datapointArchetypeMapping[datapointIndex];
         if(archetypeIndex >= 0) {
           ImGui::PushStyleColor(ImGuiCol_Button, _buttonsColors[_archetypeLabels[archetypeIndex]]);
@@ -573,7 +603,7 @@ namespace dh::vis {
           ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
           ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
         }
-        ImGui::ImageButton((void*)(intptr_t)_texturesSuggestions[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), padding);
+        ImGui::ImageButton((void*)(intptr_t)_suggestionTextures[i * nCols + j], ImVec2(imageWidth, imageHeight), ImVec2(0,0), ImVec2(1,1), padding);
         ImGui::PopStyleColor(2);
         if(ImGui::IsItemHovered()) {
           if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -608,6 +638,10 @@ namespace dh::vis {
       if(ImGui::Button("...", ImVec2(imageWidth + padding * 2, imageHeight + padding * 2))) { updateSuggestions(); }
     }
     ImGui::EndChild();
+
+    if(ImGui::Button("Autotag")) { autotagArchetypes(); }
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.5f);
+    ImGui::SameLine(); ImGui::SliderFloat("of archetypes", &_autotagPercentage, 0.1f, 1.f);
 
     ImGui::GetStyle().ItemSpacing = defaultSpacing;
 
@@ -682,10 +716,10 @@ namespace dh::vis {
     ImGui::SameLine(); ImGui::VSliderFloat("##v", ImVec2(40, 300), &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attr\nWght\n%.2f");
     ImGui::SameLine(); ImGui::VSliderInt("##i", ImVec2(40, 300), &_brushRadius, 0, 10, "Brsh\nSize\n%i");
 
-    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex, _autoselectPercentage); }
+    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex); }
     ImGui::SameLine(); ImGui::Text("top");
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
-    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoweighPercentage, 0.0f, 1.f);
     ImGui::SameLine(); ImGui::Separator();
 
     if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
@@ -790,10 +824,10 @@ namespace dh::vis {
     ImGui::SliderFloat("##v", &_attributeWeight, 0.0f, _params->maxAttributeWeight, "Attribute weight %.2f");
     ImGui::SliderInt("##i", &_brushRadius, 0, 10, "Brush size %i");
 
-    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex, _autoselectPercentage); }
+    if(ImGui::Button("Autoweigh")) { autoweighAttributes(_tabIndex); }
     ImGui::SameLine(); ImGui::Text("top");
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth() * 0.25f);
-    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoselectPercentage, 0.0f, 1.f);
+    ImGui::SameLine(); ImGui::SliderFloat("of attribs", &_autoweighPercentage, 0.0f, 1.f);
     ImGui::SameLine(); ImGui::Separator();
 
     if(_tabIndex >= TabType::ePairwiseDiffsAll && _tabIndex <= TabType::ePairwiseDiffsIntraselection) {
@@ -959,9 +993,9 @@ namespace dh::vis {
 
   void AttributeRenderTask::clearSuggestions() {
     _suggestionLevel = 1;
-    glDeleteTextures(_texturesSuggestions.size(), _texturesSuggestions.data());
-    _texturesSuggestions.clear();
-    _indicesSuggestions.clear();
+    glDeleteTextures(_suggestionTextures.size(), _suggestionTextures.data());
+    _suggestionTextures.clear();
+    _suggestionDatapointIndices.clear();
   }
 
   // void AttributeRenderTask::assess(uint symmetricSize) {

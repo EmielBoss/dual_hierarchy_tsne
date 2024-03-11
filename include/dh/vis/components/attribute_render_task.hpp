@@ -68,7 +68,8 @@ namespace dh::vis {
     void setTexelWeight(uint attributeIndex, float weight);
     float getTexelWeight(uint texelIndex);
     float getTexelValue(uint texelIndex, GLuint buffer);
-    void autoweighAttributes(uint textureType, float percentage);
+    void autoweighAttributes(uint textureType);
+    void autotagArchetypes();
     void clearAttributeWeights();
     void invertAttributeWeights();
     void refineAttributeWeights(uint textureType);
@@ -81,7 +82,7 @@ namespace dh::vis {
     void addArchetype(uint archetypeDatapointIndex, uint archetypeClass);
     void removeArchetype(uint datapointIndex);
     void clearArchetypes();
-    void updateSuggestions();
+    void updateSuggestions(uint nSuggestions = 0);
     void assess(uint symmetricSize);
     float sumWeightedAttributeValues(uint index);
     void updateDatapointIndicesForArchetypes();
@@ -180,7 +181,8 @@ namespace dh::vis {
     float _similarityWeight;
     float _attributeWeight;
     int _brushRadius;
-    float _autoselectPercentage;
+    float _autoweighPercentage;
+    float _autotagPercentage;
     uint _buttonPressed;
     int _tabIndex;
     uint _tabIndexPrev;
@@ -202,7 +204,7 @@ namespace dh::vis {
     std::vector<uint> _archetypeDatapointIndices; // Same order as _archetypeLabels
     std::unordered_map<uint, uint> _datapointArchetypeMapping;
     int _archetypeClassSelected;
-    std::vector<uint> _indicesSuggestions;
+    std::vector<uint> _suggestionDatapointIndices;
     uint _selectedDatapoint;
     bool _separationMode;
 
@@ -213,7 +215,7 @@ namespace dh::vis {
     util::EnumArray<BufferTempType, GLuint> _buffersTemp;
     util::EnumArray<TabType, GLuint> _buffersTextureData;
     util::EnumArray<TabType, GLuint> _textures;
-    std::vector<GLuint> _texturesSuggestions;
+    std::vector<GLuint> _suggestionTextures;
     std::vector<GLuint> _classTextures;
     GLuint _bufferClassColors;
     util::EnumArray<ProgramType, util::GLProgram> _programs;
@@ -251,7 +253,8 @@ namespace dh::vis {
       swap(a._weightedAttributeIndices, b._weightedAttributeIndices);
       swap(a._brushRadius, b._brushRadius);
       swap(a._similarityWeight, b._similarityWeight);
-      swap(a._autoselectPercentage, b._autoselectPercentage);
+      swap(a._autoweighPercentage, b._autoweighPercentage);
+      swap(a._autotagPercentage, b._autotagPercentage);
       swap(a._vizAllPairs, b._vizAllPairs);
       swap(a._denominators, b._denominators);
       swap(a._tabIndex, b._tabIndex);
@@ -267,7 +270,7 @@ namespace dh::vis {
       swap(a._archetypeLabels, b._archetypeLabels);
       swap(a._archetypeDatapointIndices, b._archetypeDatapointIndices);
       swap(a._archetypeClassSelected, b._archetypeClassSelected);
-      swap(a._indicesSuggestions, b._indicesSuggestions);
+      swap(a._suggestionDatapointIndices, b._suggestionDatapointIndices);
       swap(a._selectedDatapoint, b._selectedDatapoint);
       swap(a._separationMode, b._separationMode);
       swap(a._datapointArchetypeMapping, b._datapointArchetypeMapping);
